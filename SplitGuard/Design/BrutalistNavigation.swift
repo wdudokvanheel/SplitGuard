@@ -53,12 +53,10 @@ struct BrutalistHeaderBar<Leading: View, Trailing: View>: View {
             .padding(.vertical, SGSpacing.small)
             .background(SGColor.surfacePrimary)
             .background {
-                if enableSwipeBack {
-                    BrutalistInteractivePopEnabler()
-                        .frame(width: 0, height: 0)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
+                BrutalistInteractivePopEnabler(isEnabled: enableSwipeBack)
+                    .frame(width: 0, height: 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
 
             Rectangle()
@@ -161,7 +159,7 @@ struct BrutalistFormToggleRow: View {
     }
 }
 
-// MARK: - Brutalist Add Tunnel Sheet (Replaces Native Popover Menu)
+// MARK: - Brutalist Add Tunnel Page
 
 struct BrutalistAddTunnelSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -176,12 +174,9 @@ struct BrutalistAddTunnelSheet: View {
             BrutalistHeaderBar(
                 title: "Add Tunnel",
                 subtitle: "Choose import method",
-                trailing: {
-                    BrutalistHeaderButton(
-                        title: tr("actionCancel"),
-                        fill: SGColor.surfaceCard,
-                        foreground: SGColor.textPrimary
-                    ) {
+                enableSwipeBack: true,
+                leading: {
+                    BrutalistBackButton {
                         dismiss()
                     }
                 }
@@ -195,10 +190,9 @@ struct BrutalistAddTunnelSheet: View {
                         systemImage: "qrcode.viewfinder",
                         fill: SGColor.popPink,
                         foreground: SGColor.pureWhite,
-                        showGrain: true
-                    ) {
-                        triggerAfterDismiss(onScanQRCode)
-                    }
+                        showGrain: true,
+                        action: onScanQRCode
+                    )
 
                     AddTunnelActionRow(
                         title: tr("addTunnelMenuImportFile").uppercased(),
@@ -207,10 +201,9 @@ struct BrutalistAddTunnelSheet: View {
                         fill: SGColor.pureWhite,
                         foreground: SGColor.inkOnPop,
                         badgeAccent: SGColor.popGreen,
-                        showGrain: false
-                    ) {
-                        triggerAfterDismiss(onImportFiles)
-                    }
+                        showGrain: false,
+                        action: onImportFiles
+                    )
 
                     AddTunnelActionRow(
                         title: tr("addTunnelMenuFromScratch").uppercased(),
@@ -218,10 +211,9 @@ struct BrutalistAddTunnelSheet: View {
                         systemImage: "square.and.pencil",
                         fill: SGColor.popYellow,
                         foreground: SGColor.inkOnPop,
-                        showGrain: true
-                    ) {
-                        triggerAfterDismiss(onCreateFromScratch)
-                    }
+                        showGrain: true,
+                        action: onCreateFromScratch
+                    )
 
                     AddTunnelActionRow(
                         title: "PASTE CONFIGURATION",
@@ -229,25 +221,17 @@ struct BrutalistAddTunnelSheet: View {
                         systemImage: "doc.on.clipboard",
                         fill: SGColor.popPurple,
                         foreground: SGColor.inkOnPop,
-                        showGrain: true
-                    ) {
-                        triggerAfterDismiss(onPasteConfig)
-                    }
+                        showGrain: true,
+                        action: onPasteConfig
+                    )
                 }
                 .padding(SGSpacing.medium)
+                .padding(.bottom, SGSpacing.xxLarge)
             }
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.hidden)
-    }
-
-    private func triggerAfterDismiss(_ action: @escaping () -> Void) {
-        dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            action()
-        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -308,15 +292,30 @@ private struct AddTunnelActionRow: View {
 // MARK: - Preserve Swipe-Back Gesture When Native Navigation Bar Is Hidden
 
 private struct BrutalistInteractivePopEnabler: UIViewControllerRepresentable {
+    let isEnabled: Bool
+
     func makeUIViewController(context: Context) -> PopEnablerController {
-        PopEnablerController()
+        PopEnablerController(isSwipeBackEnabled: isEnabled)
     }
 
     func updateUIViewController(_ uiViewController: PopEnablerController, context: Context) {
-        uiViewController.enableInteractivePop()
+        uiViewController.isSwipeBackEnabled = isEnabled
+        uiViewController.syncInteractivePop()
     }
 
-    final class PopEnablerController: UIViewController {
+    final class PopEnablerController: UIViewController, UIGestureRecognizerDelegate {
+        var isSwipeBackEnabled: Bool
+
+        init(isSwipeBackEnabled: Bool) {
+            self.isSwipeBackEnabled = isSwipeBackEnabled
+            super.init(nibName: nil, bundle: nil)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
         override func viewDidLoad() {
             super.viewDidLoad()
             view.isUserInteractionEnabled = false
@@ -325,13 +324,19 @@ private struct BrutalistInteractivePopEnabler: UIViewControllerRepresentable {
 
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
-            enableInteractivePop()
+            syncInteractivePop()
         }
 
-        func enableInteractivePop() {
-            guard let nav = navigationController, nav.viewControllers.count > 1 else { return }
-            nav.interactivePopGestureRecognizer?.isEnabled = true
-            nav.interactivePopGestureRecognizer?.delegate = nil
+        func syncInteractivePop() {
+            guard let nav = navigationController else { return }
+            let canPop = isSwipeBackEnabled && nav.viewControllers.count > 1
+            nav.interactivePopGestureRecognizer?.isEnabled = canPop
+            nav.interactivePopGestureRecognizer?.delegate = self
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let nav = navigationController else { return false }
+            return isSwipeBackEnabled && nav.viewControllers.count > 1
         }
     }
 }

@@ -94,14 +94,17 @@ struct SplitDNSEditorSection: View {
 
             Spacer(minLength: SGSpacing.xSmall)
 
-            Button("USE") {
+            Button {
                 withAnimation(.snappy(duration: 0.2)) {
                     viewModel.applySuggestedEndpointDomain()
                 }
+            } label: {
+                Text("USE")
+                    .font(SGTypography.displayCompact)
+                    .tracking(0.8)
+                    .padding(.horizontal, SGSpacing.small)
+                    .padding(.vertical, 6)
             }
-            .font(SGTypography.displayCompact)
-            .padding(.horizontal, SGSpacing.small)
-            .padding(.vertical, 6)
             .buttonStyle(
                 BrutalistButtonStyle(
                     fill: SGColor.popGreen,
@@ -174,14 +177,17 @@ struct SplitDNSEditorSection: View {
                     _ = viewModel.addSplitDNSDomain()
                 }
 
-            Button("ADD") {
+            Button {
                 withAnimation(.snappy(duration: 0.2)) {
                     _ = viewModel.addSplitDNSDomain()
                 }
+            } label: {
+                Text("ADD")
+                    .font(SGTypography.displayCompact)
+                    .tracking(0.8)
+                    .padding(.horizontal, SGSpacing.small)
+                    .padding(.vertical, 8)
             }
-            .font(SGTypography.displayCompact)
-            .padding(.horizontal, SGSpacing.small)
-            .padding(.vertical, 8)
             .buttonStyle(
                 BrutalistButtonStyle(
                     fill: SGColor.popYellow,

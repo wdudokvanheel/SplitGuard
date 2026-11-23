@@ -17,54 +17,49 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                BrutalistHeaderBar(
-                    title: tr("settingsViewTitle"),
-                    trailing: {
-                        BrutalistHeaderButton(
-                            title: "Done",
-                            fill: SGColor.popYellow,
-                            foreground: SGColor.inkOnPop
-                        ) {
-                            dismiss()
-                        }
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: tr("settingsViewTitle"),
+                enableSwipeBack: true,
+                leading: {
+                    BrutalistBackButton {
+                        dismiss()
                     }
-                )
-
-                ScrollView {
-                    VStack(spacing: SGSpacing.medium) {
-                        brandBannerCard
-                        actionsSection
-                        attributionSection
-                    }
-                    .padding(.horizontal, SGSpacing.medium)
-                    .padding(.top, SGSpacing.medium)
-                    .padding(.bottom, SGSpacing.xxLarge)
                 }
-                .background(SGColor.surfacePrimary.ignoresSafeArea())
+            )
+
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    brandBannerCard
+                    actionsSection
+                    attributionSection
+                }
+                .padding(.horizontal, SGSpacing.medium)
+                .padding(.top, SGSpacing.medium)
+                .padding(.bottom, SGSpacing.xxLarge)
             }
             .background(SGColor.surfacePrimary.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            .sheet(item: $exportedZipFile) { item in
-                ActivityShareSheet(activityItems: [item.url]) {
-                    _ = FileManager.deleteFile(at: item.url)
-                    exportedZipFile = nil
-                }
+        }
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(item: $exportedZipFile) { item in
+            ActivityShareSheet(activityItems: [item.url]) {
+                _ = FileManager.deleteFile(at: item.url)
+                exportedZipFile = nil
             }
-            .alert(
-                localAlert?.title ?? "",
-                isPresented: Binding(
-                    get: { localAlert != nil },
-                    set: { if !$0 { localAlert = nil } }
-                )
-            ) {
-                Button(tr("actionOK"), role: .cancel) {
-                    localAlert = nil
-                }
-            } message: {
-                Text(localAlert?.message ?? "")
+        }
+        .alert(
+            localAlert?.title ?? "",
+            isPresented: Binding(
+                get: { localAlert != nil },
+                set: { if !$0 { localAlert = nil } }
+            )
+        ) {
+            Button(tr("actionOK"), role: .cancel) {
+                localAlert = nil
             }
+        } message: {
+            Text(localAlert?.message ?? "")
         }
     }
 
@@ -166,9 +161,7 @@ struct SettingsView: View {
             )
             .disabled(isExportingZip)
 
-            NavigationLink {
-                LogViewerView()
-            } label: {
+            NavigationLink(value: AppRoute.logViewer) {
                 HStack(spacing: SGSpacing.small) {
                     Image(systemName: "doc.text.fill")
                         .font(.headline.weight(.bold))
@@ -216,9 +209,7 @@ struct SettingsView: View {
 
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
-                NavigationLink {
-                    LicenseAttributionView()
-                } label: {
+                NavigationLink(value: AppRoute.licenses) {
                     HStack {
                         Label("Open Source Licenses", systemImage: "doc.plaintext")
                             .font(SGTypography.subheadline.weight(.bold))
@@ -255,7 +246,7 @@ struct SettingsView: View {
     }
 }
 
-private struct LicenseAttributionView: View {
+struct LicenseAttributionView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let mitLicenseText = """

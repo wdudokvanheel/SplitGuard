@@ -5,8 +5,10 @@ import WireGuardKit
 
 struct QRScannerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let store: TunnelStore
     let onSwitchToPaste: () -> Void
+    var onCompleted: (() -> Void)?
 
     @State private var cameraState: CameraAuthorizationState = .checking
     @State private var isScanningPaused = false
@@ -23,63 +25,58 @@ struct QRScannerView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            BrutalistHeaderBar(
-                title: tr("scanQRCodeViewTitle"),
-                leading: {
-                    BrutalistHeaderButton(
-                        title: tr("actionCancel"),
-                        fill: SGColor.surfaceCard,
-                        foreground: SGColor.textPrimary
-                    ) {
-                        dismiss()
+        ZStack {
+            VStack(spacing: 0) {
+                BrutalistHeaderBar(
+                    title: tr("scanQRCodeViewTitle"),
+                    enableSwipeBack: scannedConfiguration == nil,
+                    leading: {
+                        BrutalistBackButton {
+                            dismiss()
+                        }
                     }
-                }
-            )
+                )
 
-            Group {
-                switch cameraState {
-                case .checking:
-                    ProgressView("Preparing camera…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
-                        .foregroundStyle(.white)
-                case .authorized:
-                    scannerContent
-                case .denied:
-                    QRScannerCameraFallbackView(isDenied: true, onSwitchToPaste: onSwitchToPaste)
-                case .unavailable:
-                    QRScannerCameraFallbackView(isDenied: false, onSwitchToPaste: onSwitchToPaste)
+                Group {
+                    switch cameraState {
+                    case .checking:
+                        ProgressView("Preparing camera…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.black)
+                            .foregroundStyle(.white)
+                    case .authorized:
+                        scannerContent
+                    case .denied:
+                        QRScannerCameraFallbackView(isDenied: true, onSwitchToPaste: onSwitchToPaste)
+                    case .unavailable:
+                        QRScannerCameraFallbackView(isDenied: false, onSwitchToPaste: onSwitchToPaste)
+                    }
                 }
             }
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
+
+            if scannedConfiguration != nil {
+                QRNameScannedTunnelSheet(
+                    tunnelName: $tunnelName,
+                    scannedConfiguration: scannedConfiguration,
+                    scannedSplitDNS: scannedSplitDNS,
+                    onCancel: {
+                        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+                            scannedConfiguration = nil
+                            tunnelName = ""
+                            isScanningPaused = false
+                        }
+                    },
+                    onSave: saveScannedTunnel
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(1)
+            }
         }
-        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: scannedConfiguration != nil)
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             await checkCameraAvailability()
-        }
-        .sheet(
-            isPresented: Binding(
-                get: { scannedConfiguration != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        scannedConfiguration = nil
-                        tunnelName = ""
-                        isScanningPaused = false
-                    }
-                }
-            )
-        ) {
-            QRNameScannedTunnelSheet(
-                tunnelName: $tunnelName,
-                scannedConfiguration: scannedConfiguration,
-                scannedSplitDNS: scannedSplitDNS,
-                onCancel: {
-                    scannedConfiguration = nil
-                    tunnelName = ""
-                    isScanningPaused = false
-                },
-                onSave: saveScannedTunnel
-            )
         }
         .alert(
             scanError?.title ?? "",
@@ -178,7 +175,9 @@ struct QRScannerView: View {
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         scannedSplitDNS = SplitDNSConfigCodec.extract(from: payload)
-        scannedConfiguration = config
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+            scannedConfiguration = config
+        }
     }
 
     private func saveScannedTunnel() {
@@ -189,7 +188,11 @@ struct QRScannerView: View {
             scannedConfiguration = nil
             scannedSplitDNS = .allDomains
             if succeeded {
-                dismiss()
+                if let onCompleted {
+                    onCompleted()
+                } else {
+                    dismiss()
+                }
             } else {
                 tunnelName = ""
                 isScanningPaused = false
@@ -280,7 +283,6 @@ private struct QRNameScannedTunnelSheet: View {
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
-        .presentationDetents([.medium])
     }
 
     private func detectedInfoRow(label: String, value: String) -> some View {
@@ -313,26 +315,34 @@ private struct QRScannerCameraFallbackView: View {
 
             VStack(spacing: SGSpacing.small) {
                 if isDenied {
-                    Button("OPEN SETTINGS") {
+                    Button {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(url)
                         }
+                    } label: {
+                        Text("OPEN SETTINGS")
+                            .font(SGTypography.displayButton)
+                            .tracking(0.8)
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, SGSpacing.medium)
                     }
-                    .font(SGTypography.displayButton)
-                    .padding(.vertical, 12)
                     .buttonStyle(BrutalistButtonStyle(fill: SGColor.popBlue, fullWidth: true))
                 }
 
-                Button("PASTE CONFIGURATION INSTEAD", action: onSwitchToPaste)
-                    .font(isDenied ? SGTypography.displayCompact : SGTypography.displayButton)
-                    .padding(.vertical, 12)
-                    .buttonStyle(
-                        BrutalistButtonStyle(
-                            fill: isDenied ? SGColor.surfaceCard : SGColor.popPink,
-                            foreground: isDenied ? SGColor.textPrimary : SGColor.pureWhite,
-                            fullWidth: true
-                        )
+                Button(action: onSwitchToPaste) {
+                    Text("PASTE CONFIGURATION INSTEAD")
+                        .font(isDenied ? SGTypography.displayCompact : SGTypography.displayButton)
+                        .tracking(0.8)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, SGSpacing.medium)
+                }
+                .buttonStyle(
+                    BrutalistButtonStyle(
+                        fill: isDenied ? SGColor.surfaceCard : SGColor.popPink,
+                        foreground: isDenied ? SGColor.textPrimary : SGColor.pureWhite,
+                        fullWidth: true
                     )
+                )
             }
             .padding(.horizontal, SGSpacing.medium)
         }

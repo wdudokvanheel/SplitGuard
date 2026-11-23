@@ -3,6 +3,7 @@ import SwiftUI
 struct TunnelListView: View {
     let store: TunnelStore
     let onSelectTunnel: (TunnelContainer) -> Void
+    let onAddTunnel: () -> Void
     let onImportFiles: () -> Void
     let onScanQRCode: () -> Void
     let onCreateFromScratch: () -> Void
@@ -15,7 +16,6 @@ struct TunnelListView: View {
     @State private var isSelecting = false
     @State private var selectedTunnelIDs: Set<ObjectIdentifier> = []
     @State private var showMultiDeleteConfirmation = false
-    @State private var showAddTunnelSheet = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -114,14 +114,6 @@ struct TunnelListView: View {
                 }
             }
             Button(tr("actionCancel"), role: .cancel) {}
-        }
-        .sheet(isPresented: $showAddTunnelSheet) {
-            BrutalistAddTunnelSheet(
-                onScanQRCode: onScanQRCode,
-                onImportFiles: onImportFiles,
-                onCreateFromScratch: onCreateFromScratch,
-                onPasteConfig: onPasteConfig
-            )
         }
     }
 }
@@ -270,13 +262,24 @@ private extension TunnelListView {
     @ViewBuilder
     var selectionHeaderControls: some View {
         let allSelected = selectedTunnels.count == store.tunnels.count
-        Button(allSelected ? "NONE" : "ALL") {
+        Button {
             selectedTunnelIDs = allSelected ? [] : Set(store.tunnels.map(ObjectIdentifier.init))
+        } label: {
+            Text(allSelected ? "NONE" : "ALL")
+                .font(SGTypography.displayCompact)
+                .tracking(0.8)
+                .padding(.horizontal, SGSpacing.small)
+                .frame(height: 40)
         }
-        .font(SGTypography.displayCompact)
-        .padding(.horizontal, SGSpacing.small)
-        .frame(height: 40)
-        .buttonStyle(BrutalistButtonStyle(fill: SGColor.popYellow, shadowOffset: SGShadow.small))
+        .buttonStyle(
+            BrutalistButtonStyle(
+                fill: SGColor.popYellow,
+                foreground: SGColor.inkOnPop,
+                borderWidth: SGBorder.regular,
+                shadowOffset: SGShadow.small,
+                cornerRadius: SGRadius.sharp
+            )
+        )
 
         Spacer(minLength: 4)
 
@@ -287,22 +290,29 @@ private extension TunnelListView {
 
         Spacer(minLength: 4)
 
-        Button("DONE") { exitSelectionMode() }
-            .font(SGTypography.displayCompact)
-            .padding(.horizontal, SGSpacing.small)
-            .frame(height: 40)
-            .buttonStyle(
-                BrutalistButtonStyle(
-                    fill: SGColor.surfaceCard,
-                    foreground: SGColor.textPrimary,
-                    shadowOffset: SGShadow.small
-                )
+        Button {
+            exitSelectionMode()
+        } label: {
+            Text("DONE")
+                .font(SGTypography.displayCompact)
+                .tracking(0.8)
+                .padding(.horizontal, SGSpacing.small)
+                .frame(height: 40)
+        }
+        .buttonStyle(
+            BrutalistButtonStyle(
+                fill: SGColor.surfaceCard,
+                foreground: SGColor.textPrimary,
+                borderWidth: SGBorder.regular,
+                shadowOffset: SGShadow.small,
+                cornerRadius: SGRadius.sharp
             )
+        )
     }
 
     var addTunnelMenu: some View {
         Button {
-            showAddTunnelSheet = true
+            onAddTunnel()
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "plus")

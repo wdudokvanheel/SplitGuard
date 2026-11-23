@@ -1,20 +1,36 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum AppRoute: Hashable {
+    case tunnelDetail(ObjectIdentifier)
+    case addTunnel
+    case qrScanner
+    case createTunnel
+    case editTunnel(ObjectIdentifier)
+    case pasteConfig
+    case settings
+    case logViewer
+    case licenses
+    case splitDNSSuggestion(SplitDNSSuggestionPrompt)
+}
+
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Bindable var store: TunnelStore
 
-    @State private var navigationPath: [ObjectIdentifier] = []
+    @State private var navigationPath: [AppRoute] = []
     @State private var showFileImporter = false
-    @State private var showQRScanner = false
-    @State private var showPasteSheet = false
-    @State private var showCreateTunnel = false
-    @State private var showSettings = false
-    @State private var presentedSplitDNSPrompt: SplitDNSSuggestionPrompt?
 
-    private var isBlockingModalActive: Bool {
-        showFileImporter || showQRScanner || showPasteSheet || showCreateTunnel || showSettings
+    private var isBlockingRouteActive: Bool {
+        showFileImporter || navigationPath.contains { route in
+            switch route {
+            case .tunnelDetail:
+                return false
+            case .addTunnel, .qrScanner, .createTunnel, .editTunnel,
+                 .pasteConfig, .settings, .logViewer, .licenses, .splitDNSSuggestion:
+                return true
+            }
+        }
     }
 
     var body: some View {
@@ -22,50 +38,29 @@ struct RootView: View {
             TunnelListView(
                 store: store,
                 onSelectTunnel: { tunnel in
-                    navigationPath.append(ObjectIdentifier(tunnel))
+                    navigationPath.append(.tunnelDetail(ObjectIdentifier(tunnel)))
+                },
+                onAddTunnel: {
+                    navigationPath.append(.addTunnel)
                 },
                 onImportFiles: {
                     showFileImporter = true
                 },
                 onScanQRCode: {
-                    showQRScanner = true
+                    navigationPath.append(.qrScanner)
                 },
                 onCreateFromScratch: {
-                    showCreateTunnel = true
+                    navigationPath.append(.createTunnel)
                 },
                 onPasteConfig: {
-                    showPasteSheet = true
+                    navigationPath.append(.pasteConfig)
                 },
                 onOpenSettings: {
-                    showSettings = true
+                    navigationPath.append(.settings)
                 }
             )
-            .navigationDestination(for: ObjectIdentifier.self) { tunnelID in
-                if let tunnel = store.tunnel(for: tunnelID) {
-                    TunnelDetailView(store: store, tunnel: tunnel) {
-                        navigationPath.removeAll { $0 == tunnelID }
-                    }
-                } else {
-                    VStack(spacing: 0) {
-                        BrutalistHeaderBar(
-                            title: "Tunnel Removed",
-                            leading: {
-                                BrutalistBackButton {
-                                    navigationPath.removeAll { $0 == tunnelID }
-                                }
-                            }
-                        )
-                        BrutalistUnavailableCard(
-                            title: "Tunnel Removed",
-                            message: "This tunnel is no longer available.",
-                            systemImage: "shield.slash.fill",
-                            accent: SGColor.popRed
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .background(SGColor.surfacePrimary.ignoresSafeArea())
-                    .toolbar(.hidden, for: .navigationBar)
-                }
+            .navigationDestination(for: AppRoute.self) { route in
+                destinationView(for: route)
             }
         }
         .tint(SGColor.accent)
@@ -76,6 +71,7 @@ struct RootView: View {
         ) { result in
             switch result {
             case .success(let urls):
+                navigationPath.removeAll { $0 == .addTunnel }
                 store.importFiles(from: urls)
             case .failure(let error):
                 store.presentAlert(
@@ -83,29 +79,6 @@ struct RootView: View {
                     message: error.localizedDescription
                 )
             }
-        }
-        .sheet(isPresented: $showQRScanner) {
-            QRScannerView(
-                store: store,
-                onSwitchToPaste: {
-                    showQRScanner = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        showPasteSheet = true
-                    }
-                }
-            )
-        }
-        .sheet(isPresented: $showCreateTunnel) {
-            TunnelEditorView(store: store)
-        }
-        .sheet(isPresented: $showPasteSheet) {
-            PasteConfigSheet(store: store)
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(store: store)
-        }
-        .sheet(item: $presentedSplitDNSPrompt) { prompt in
-            FirstRunSplitDNSSheet(store: store, prompt: prompt)
         }
         .alert(
             store.activeAlert?.title ?? "",
@@ -139,7 +112,14 @@ struct RootView: View {
         }
         .onChange(of: store.revision) { _, _ in
             let validIDs = Set(store.tunnels.map(ObjectIdentifier.init))
-            navigationPath.removeAll { !validIDs.contains($0) }
+            navigationPath.removeAll { route in
+                switch route {
+                case .tunnelDetail(let tunnelID), .editTunnel(let tunnelID):
+                    return !validIDs.contains(tunnelID)
+                default:
+                    return false
+                }
+            }
         }
         .onChange(of: store.requestedNavigationTunnelID) { _, _ in
             navigateToRequestedTunnelIfNeeded()
@@ -147,7 +127,7 @@ struct RootView: View {
         .onChange(of: store.pendingSplitDNSSuggestion) { _, _ in
             scheduleSplitDNSPromptPresentationIfReady()
         }
-        .onChange(of: isBlockingModalActive) { _, isActive in
+        .onChange(of: isBlockingRouteActive) { _, isActive in
             if !isActive {
                 scheduleSplitDNSPromptPresentationIfReady(delay: 0.35)
             }
@@ -158,25 +138,121 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder
+    private func destinationView(for route: AppRoute) -> some View {
+        switch route {
+        case .tunnelDetail(let tunnelID):
+            tunnelDetailDestination(for: tunnelID)
+        case .editTunnel(let tunnelID):
+            editTunnelDestination(for: tunnelID)
+        case .addTunnel:
+            BrutalistAddTunnelSheet(
+                onScanQRCode: { navigationPath.append(.qrScanner) },
+                onImportFiles: { showFileImporter = true },
+                onCreateFromScratch: { navigationPath.append(.createTunnel) },
+                onPasteConfig: { navigationPath.append(.pasteConfig) }
+            )
+        case .qrScanner:
+            qrScannerDestination
+        case .createTunnel:
+            TunnelEditorView(store: store) { _ in navigationPath.removeAll() }
+        case .pasteConfig:
+            PasteConfigSheet(store: store) { navigationPath.removeAll() }
+        case .settings:
+            SettingsView(store: store)
+        case .logViewer:
+            LogViewerView()
+        case .licenses:
+            LicenseAttributionView()
+        case .splitDNSSuggestion(let prompt):
+            FirstRunSplitDNSSheet(store: store, prompt: prompt)
+        }
+    }
+
+    @ViewBuilder
+    private func tunnelDetailDestination(for tunnelID: ObjectIdentifier) -> some View {
+        if let tunnel = store.tunnel(for: tunnelID) {
+            TunnelDetailView(
+                store: store,
+                tunnel: tunnel,
+                onEdit: { navigationPath.append(.editTunnel(tunnelID)) },
+                onDeleted: { removeTunnelRoutes(for: tunnelID) }
+            )
+        } else {
+            tunnelRemovedView(for: tunnelID)
+        }
+    }
+
+    @ViewBuilder
+    private func editTunnelDestination(for tunnelID: ObjectIdentifier) -> some View {
+        if let tunnel = store.tunnel(for: tunnelID) {
+            TunnelEditorView(store: store, tunnel: tunnel)
+        } else {
+            tunnelRemovedView(for: tunnelID)
+        }
+    }
+
+    private var qrScannerDestination: some View {
+        QRScannerView(
+            store: store,
+            onSwitchToPaste: {
+                if navigationPath.last == .qrScanner {
+                    navigationPath[navigationPath.count - 1] = .pasteConfig
+                } else {
+                    navigationPath.append(.pasteConfig)
+                }
+            },
+            onCompleted: { navigationPath.removeAll() }
+        )
+    }
+
+    private func tunnelRemovedView(for tunnelID: ObjectIdentifier) -> some View {
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: "Tunnel Removed",
+                enableSwipeBack: true,
+                leading: {
+                    BrutalistBackButton {
+                        removeTunnelRoutes(for: tunnelID)
+                    }
+                }
+            )
+            BrutalistUnavailableCard(
+                title: "Tunnel Removed",
+                message: "This tunnel is no longer available.",
+                systemImage: "shield.slash.fill",
+                accent: SGColor.popRed
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func removeTunnelRoutes(for tunnelID: ObjectIdentifier) {
+        navigationPath.removeAll { route in
+            route == .tunnelDetail(tunnelID) || route == .editTunnel(tunnelID)
+        }
+    }
+
     private func navigateToRequestedTunnelIfNeeded() {
         guard let tunnelID = store.consumeRequestedNavigationTunnelID() else { return }
         guard store.tunnel(for: tunnelID) != nil else { return }
-        if navigationPath.last != tunnelID {
-            navigationPath = [tunnelID]
+        if navigationPath.last != .tunnelDetail(tunnelID) {
+            navigationPath = [.tunnelDetail(tunnelID)]
         }
     }
 
     private func scheduleSplitDNSPromptPresentationIfReady(delay: TimeInterval = 0.05) {
         guard let pending = store.pendingSplitDNSSuggestion,
-              !isBlockingModalActive,
-              presentedSplitDNSPrompt == nil else { return }
+              !isBlockingRouteActive else { return }
         let targetID = pending.id
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(delay))
-            guard !isBlockingModalActive,
-                  presentedSplitDNSPrompt == nil,
-                  store.pendingSplitDNSSuggestion?.id == targetID else { return }
-            presentedSplitDNSPrompt = store.pendingSplitDNSSuggestion
+            guard !isBlockingRouteActive,
+                  let current = store.pendingSplitDNSSuggestion,
+                  current.id == targetID else { return }
+            navigationPath.append(.splitDNSSuggestion(current))
         }
     }
 }

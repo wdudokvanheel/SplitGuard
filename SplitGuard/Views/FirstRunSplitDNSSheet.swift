@@ -55,7 +55,7 @@ struct FirstRunSplitDNSSheet: View {
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
-        .interactiveDismissDisabled(isSaving)
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private var headerBanner: some View {
@@ -144,12 +144,15 @@ struct FirstRunSplitDNSSheet: View {
                     }
                     .onSubmit(addDomain)
 
-                Button("ADD") {
+                Button {
                     addDomain()
+                } label: {
+                    Text("ADD")
+                        .font(SGTypography.displayCompact)
+                        .tracking(0.8)
+                        .padding(.horizontal, SGSpacing.small)
+                        .padding(.vertical, 8)
                 }
-                .font(SGTypography.displayCompact)
-                .padding(.horizontal, SGSpacing.small)
-                .padding(.vertical, 8)
                 .buttonStyle(
                     BrutalistButtonStyle(
                         fill: SGColor.popYellow,

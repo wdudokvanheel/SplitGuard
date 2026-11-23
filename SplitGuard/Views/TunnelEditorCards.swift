@@ -238,6 +238,7 @@ struct PeerEditorCard: View {
 
 struct OnDemandEditorCard: View {
     @Bindable var viewModel: TunnelEditorViewModel
+    let onEditSSIDs: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -261,9 +262,7 @@ struct OnDemandEditorCard: View {
                 if viewModel.isWiFiOnDemandEnabled {
                     Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
-                    NavigationLink {
-                        SSIDOptionEditorView(viewModel: viewModel)
-                    } label: {
+                    Button(action: onEditSSIDs) {
                         HStack(spacing: SGSpacing.small) {
                             Text(tr("tunnelOnDemandSSIDsKey").uppercased())
                                 .font(SGTypography.metricLabel)

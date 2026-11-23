@@ -208,12 +208,15 @@ struct SSIDOptionEditorView: View {
                         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
                         .onSubmit(appendNewSSID)
 
-                    Button("ADD") {
+                    Button {
                         appendNewSSID()
+                    } label: {
+                        Text("ADD")
+                            .font(SGTypography.displayCompact)
+                            .tracking(0.8)
+                            .padding(.horizontal, SGSpacing.small)
+                            .padding(.vertical, 8)
                     }
-                    .font(SGTypography.displayCompact)
-                    .padding(.horizontal, SGSpacing.small)
-                    .padding(.vertical, 8)
                     .buttonStyle(
                         BrutalistButtonStyle(
                             fill: SGColor.popYellow,

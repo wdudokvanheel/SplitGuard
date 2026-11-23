@@ -5,17 +5,23 @@ struct TunnelDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let store: TunnelStore
     let tunnel: TunnelContainer
+    let onEdit: () -> Void
     let onDeleted: () -> Void
 
     @State private var viewModel: TunnelDetailViewModel
     @State private var isVisible = false
     @State private var showDeleteConfirmation = false
-    @State private var showEditSheet = false
     @State private var copiedFieldID: String?
 
-    init(store: TunnelStore, tunnel: TunnelContainer, onDeleted: @escaping () -> Void) {
+    init(
+        store: TunnelStore,
+        tunnel: TunnelContainer,
+        onEdit: @escaping () -> Void,
+        onDeleted: @escaping () -> Void
+    ) {
         self.store = store
         self.tunnel = tunnel
+        self.onEdit = onEdit
         self.onDeleted = onDeleted
         _viewModel = State(initialValue: TunnelDetailViewModel(tunnel: tunnel))
     }
@@ -42,7 +48,7 @@ struct TunnelDetailView: View {
                         foreground: SGColor.inkOnPop
                     ) {
                         PrivateDataConfirmation.confirmAccess(to: tr("iosViewPrivateData")) {
-                            showEditSheet = true
+                            onEdit()
                         }
                     }
                 }
@@ -102,11 +108,6 @@ struct TunnelDetailView: View {
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showEditSheet) {
-            TunnelEditorView(store: store, tunnel: tunnel) { _ in
-                viewModel.refreshStaticConfiguration()
-            }
-        }
         .onAppear {
             isVisible = true
             viewModel.refreshStaticConfiguration()

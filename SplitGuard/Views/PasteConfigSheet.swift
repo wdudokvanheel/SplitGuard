@@ -4,6 +4,7 @@ import UIKit
 struct PasteConfigSheet: View {
     @Environment(\.dismiss) private var dismiss
     let store: TunnelStore
+    var onImported: (() -> Void)?
 
     @State private var tunnelName = ""
     @State private var configText = ""
@@ -35,7 +36,11 @@ struct PasteConfigSheet: View {
                     ) {
                         store.importConfigText(configText, named: tunnelName) { succeeded in
                             if succeeded {
-                                dismiss()
+                                if let onImported {
+                                    onImported()
+                                } else {
+                                    dismiss()
+                                }
                             }
                         }
                     }
@@ -113,5 +118,6 @@ struct PasteConfigSheet: View {
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
 }

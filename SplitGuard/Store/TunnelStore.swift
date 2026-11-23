@@ -15,7 +15,7 @@ struct ActivationErrorBanner: Identifiable, Equatable {
     let message: String
 }
 
-struct SplitDNSSuggestionPrompt: Identifiable, Equatable {
+struct SplitDNSSuggestionPrompt: Identifiable, Equatable, Hashable {
     let id = UUID()
     let tunnelID: ObjectIdentifier
     let tunnelName: String

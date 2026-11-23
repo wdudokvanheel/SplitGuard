@@ -48,6 +48,14 @@ struct TunnelRowView: View {
         return result
     }
 
+    private var titleColor: Color {
+        isSelected ? SGColor.inkOnPop : SGColor.textPrimary
+    }
+
+    private var secondaryColor: Color {
+        isSelected ? SGColor.inkOnPop.opacity(0.78) : SGColor.textSecondary
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
@@ -55,7 +63,7 @@ struct TunnelRowView: View {
                 .frame(width: 8)
                 .overlay(alignment: .trailing) {
                     Rectangle()
-                        .fill(SGColor.borderInk)
+                        .fill(isSelected ? SGColor.pureBlack : SGColor.borderInk)
                         .frame(width: SGBorder.thin)
                 }
 
@@ -71,7 +79,7 @@ struct TunnelRowView: View {
                                 Text(tunnel.name.uppercased())
                                     .font(SGTypography.displayTitle)
                                     .tracking(0.6)
-                                    .foregroundStyle(SGColor.textPrimary)
+                                    .foregroundStyle(titleColor)
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
 
@@ -88,12 +96,16 @@ struct TunnelRowView: View {
                             if let endpointText {
                                 Text(endpointText)
                                     .font(SGTypography.monoCompact)
-                                    .foregroundStyle(SGColor.textSecondary)
+                                    .foregroundStyle(secondaryColor)
                                     .lineLimit(1)
                             }
 
-                            BrutalistTagStrip(tags: tags)
-                                .padding(.top, 2)
+                            BrutalistTagStrip(
+                                tags: tags,
+                                textColor: titleColor,
+                                separatorColor: isSelected ? SGColor.inkOnPop : SGColor.borderInk
+                            )
+                            .padding(.top, 2)
                         }
 
                         Spacer(minLength: 0)
@@ -117,10 +129,11 @@ struct TunnelRowView: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous))
         .brutalistCard(
-            fill: isSelected ? SGColor.popYellow.opacity(0.28) : SGColor.surfaceCard,
+            fill: isSelected ? SGColor.popYellow : SGColor.surfaceCard,
             borderWidth: SGBorder.regular,
             shadowOffset: SGShadow.small,
-            cornerRadius: SGRadius.sharp
+            cornerRadius: SGRadius.sharp,
+            showGrain: isSelected
         )
         .contextMenu {
             if !isSelecting {
@@ -149,7 +162,12 @@ struct TunnelRowView: View {
             Rectangle()
                 .fill(isSelected ? SGColor.popPink : SGColor.surfaceCard)
                 .frame(width: 26, height: 26)
-                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.regular))
+                .overlay(
+                    Rectangle().strokeBorder(
+                        isSelected ? SGColor.pureBlack : SGColor.borderInk,
+                        lineWidth: SGBorder.regular
+                    )
+                )
             if isSelected {
                 Image(systemName: "checkmark")
                     .font(.caption.weight(.black))
