@@ -141,8 +141,10 @@ final class TunnelStore {
             }
         } else if isOn {
             manager.startActivation(of: tunnel)
+            statusByTunnel[ObjectIdentifier(tunnel)] = tunnel.status
         } else {
             manager.startDeactivation(of: tunnel)
+            statusByTunnel[ObjectIdentifier(tunnel)] = tunnel.status
         }
     }
 
@@ -229,8 +231,15 @@ final class TunnelStore {
         guard observations[id] == nil else { return }
         let statusObs = tunnel.observe(\.status, options: [.new]) { [weak self] container, _ in
             let newStatus = container.status
-            Task { @MainActor [weak self] in
-                self?.statusByTunnel[ObjectIdentifier(container)] = newStatus
+            let containerID = ObjectIdentifier(container)
+            if Thread.isMainThread {
+                MainActor.assumeIsolated {
+                    self?.statusByTunnel[containerID] = newStatus
+                }
+            } else {
+                Task { @MainActor [weak self] in
+                    self?.statusByTunnel[containerID] = newStatus
+                }
             }
         }
         let onDemandObs = tunnel.observe(\.isActivateOnDemandEnabled, options: [.new]) { [weak self] container, _ in
