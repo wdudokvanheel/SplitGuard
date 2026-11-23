@@ -68,7 +68,7 @@ enum AppAppearanceMode: String, CaseIterable, Identifiable, Hashable, Sendable {
     static func load(from userDefaults: UserDefaults = .standard) -> AppAppearanceMode {
         guard let rawValue = userDefaults.string(forKey: defaultsKey),
               let mode = AppAppearanceMode(rawValue: rawValue) else {
-            return .system
+            return .light
         }
         return mode
     }
@@ -108,7 +108,7 @@ struct WindowAppearanceBridge: UIViewRepresentable {
     }
 
     final class AppearanceHostView: UIView {
-        var mode: AppAppearanceMode = .system
+        var mode: AppAppearanceMode = .light
 
         override init(frame: CGRect) {
             super.init(frame: frame)
