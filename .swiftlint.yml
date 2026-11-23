@@ -1,0 +1,15 @@
+included:
+  - SplitGuard
+  - SplitGuardNetworkExtension
+  - SplitGuardTests
+
+excluded:
+  - Vendor
+  - docs
+
+disabled_rules:
+  - trailing_comma
+
+line_length:
+  warning: 140
+  error: 180
