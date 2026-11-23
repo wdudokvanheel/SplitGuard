@@ -90,7 +90,7 @@ struct TunnelDetailHeroCard: View {
     private var liveStatsStrip: some View {
         if dynamicTypeSize.isAccessibilitySize {
             VStack(spacing: 0) {
-                statCell(title: "RECEIVED", value: rxText, accent: SGColor.popBlue)
+                statCell(title: "RECEIVED", value: rxText, accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
                 statCell(title: "SENT", value: txText, accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
@@ -99,7 +99,7 @@ struct TunnelDetailHeroCard: View {
             .background(SGColor.surfaceCard)
         } else {
             HStack(spacing: 0) {
-                statCell(title: "RECEIVED", value: rxText, accent: SGColor.popBlue)
+                statCell(title: "RECEIVED", value: rxText, accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
                 statCell(title: "SENT", value: txText, accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
@@ -171,7 +171,7 @@ struct TunnelDetailOnDemandCard: View {
                             .font(.caption.weight(.bold))
                             .foregroundStyle(SGColor.inkOnPop)
                             .padding(5)
-                            .background(SGColor.popBlue)
+                            .background(SGColor.popPurple)
                             .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
                         Text(ssid)
                             .font(SGTypography.monoCompact)

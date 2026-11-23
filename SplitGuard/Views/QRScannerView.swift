@@ -310,7 +310,7 @@ private struct QRScannerCameraFallbackView: View {
                     ? "Allow camera access in Settings to scan configuration QR codes."
                     : tr("alertScanQRCodeCameraUnsupportedMessage"),
                 systemImage: isDenied ? "camera.fill" : "camera.metering.unknown",
-                accent: isDenied ? SGColor.popYellow : SGColor.popPurple
+                accent: isDenied ? SGColor.popYellow : SGColor.popBlue
             )
 
             VStack(spacing: SGSpacing.small) {
@@ -326,7 +326,7 @@ private struct QRScannerCameraFallbackView: View {
                             .padding(.vertical, 12)
                             .padding(.horizontal, SGSpacing.medium)
                     }
-                    .buttonStyle(BrutalistButtonStyle(fill: SGColor.popBlue, fullWidth: true))
+                    .buttonStyle(BrutalistButtonStyle(fill: SGColor.popPurple, fullWidth: true))
                 }
 
                 Button(action: onSwitchToPaste) {

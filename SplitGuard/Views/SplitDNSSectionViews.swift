@@ -16,8 +16,8 @@ struct SplitDNSEditorSection: View {
                 BrutalistSegmentedControl(
                     selection: $viewModel.splitDNSMode,
                     options: [
-                        .init(value: .allDomains, title: "All domains", accent: SGColor.popBlue),
-                        .init(value: .onlyDomains, title: "Only these domains", accent: SGColor.popPurple)
+                        .init(value: .allDomains, title: "All domains", accent: SGColor.popPurple),
+                        .init(value: .onlyDomains, title: "Only these domains", accent: SGColor.popBlue)
                     ]
                 )
                 .onChange(of: viewModel.splitDNSMode) { _, _ in
@@ -118,7 +118,7 @@ struct SplitDNSEditorSection: View {
             .accessibilityLabel("Use VPN DNS for \(domain)")
         }
         .padding(SGSpacing.small)
-        .background(SGColor.popPurple)
+        .background(SGColor.popBlue)
         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.regular))
     }
 
@@ -236,7 +236,7 @@ struct SplitDNSDetailCard: View {
                         .foregroundStyle(SGColor.inkOnPop)
                         .padding(.horizontal, SGSpacing.xSmall)
                         .padding(.vertical, 3)
-                        .background(splitDNS.mode == .onlyDomains ? SGColor.popPurple : SGColor.popBlue)
+                        .background(splitDNS.mode == .onlyDomains ? SGColor.popBlue : SGColor.popPurple)
                         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
                 }
 

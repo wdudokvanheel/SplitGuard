@@ -218,7 +218,7 @@ private extension TunnelDetailView {
 
     func peerTransferStrip(_ peer: PeerDisplaySnapshot) -> some View {
         VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-            metricLine(label: tr("tunnelPeerRxBytes"), value: peer.rxBytesText ?? "0 B", accent: SGColor.popBlue)
+            metricLine(label: tr("tunnelPeerRxBytes"), value: peer.rxBytesText ?? "0 B", accent: SGColor.popPurple)
             metricLine(label: tr("tunnelPeerTxBytes"), value: peer.txBytesText ?? "0 B", accent: SGColor.popGreen)
             metricLine(
                 label: tr("tunnelPeerLastHandshakeTime"),

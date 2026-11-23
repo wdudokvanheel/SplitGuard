@@ -35,11 +35,11 @@ enum AppAppearanceMode: String, CaseIterable, Identifiable, Hashable, Sendable {
     var accentColor: Color {
         switch self {
         case .system:
-            return SGColor.popBlue
+            return SGColor.popPurple
         case .light:
             return SGColor.popYellow
         case .dark:
-            return SGColor.popPurple
+            return SGColor.popBlue
         }
     }
 

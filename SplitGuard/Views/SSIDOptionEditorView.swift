@@ -118,7 +118,7 @@ struct SSIDOptionEditorView: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(SGColor.inkOnPop)
                                 .frame(width: 28, height: 28)
-                                .background(SGColor.popBlue)
+                                .background(SGColor.popPurple)
                                 .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                             TextField(
@@ -187,7 +187,7 @@ struct SSIDOptionEditorView: View {
                     }
                     .buttonStyle(
                         BrutalistButtonStyle(
-                            fill: SGColor.popBlue,
+                            fill: SGColor.popPurple,
                             foreground: SGColor.inkOnPop,
                             borderWidth: SGBorder.regular,
                             shadowOffset: SGShadow.small,

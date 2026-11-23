@@ -32,7 +32,7 @@ enum SGColor {
     )
     static let popPink = Color(red: 0xFF / 255.0, green: 0x14 / 255.0, blue: 0x93 / 255.0)
 
-    static let rowAccents: [Color] = [popRed, popGreen, popBlue, popPurple]
+    static let rowAccents: [Color] = [popRed, popGreen, popPurple, popBlue]
 
     // MARK: - Adaptive Semantic Surfaces & Ink
 
@@ -110,7 +110,7 @@ enum SGColor {
     )
     static let statusOnDemand = popYellow
     static let statusError = popRed
-    static let splitDNS = popPurple
+    static let splitDNS = popBlue
 
     static func rowAccent(at index: Int) -> Color {
         rowAccents[abs(index) % rowAccents.count]

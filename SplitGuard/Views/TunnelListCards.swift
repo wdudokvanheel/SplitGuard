@@ -197,7 +197,7 @@ struct FeaturedTunnelHeroCardView: View {
         let isActive = displayState.status == .active
         if dynamicTypeSize.isAccessibilitySize {
             VStack(spacing: 0) {
-                metricCell(label: "RECEIVED", value: isActive ? rxText : "—", accent: SGColor.popBlue)
+                metricCell(label: "RECEIVED", value: isActive ? rxText : "—", accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
                 metricCell(label: "SENT", value: isActive ? txText : "—", accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
@@ -206,7 +206,7 @@ struct FeaturedTunnelHeroCardView: View {
             .background(SGColor.surfaceCard)
         } else {
             HStack(spacing: 0) {
-                metricCell(label: "RECEIVED", value: isActive ? rxText : "—", accent: SGColor.popBlue)
+                metricCell(label: "RECEIVED", value: isActive ? rxText : "—", accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
                 metricCell(label: "SENT", value: isActive ? txText : "—", accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)

@@ -85,7 +85,7 @@ struct FirstRunSplitDNSSheet: View {
         }
         .padding(SGSpacing.medium)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .brutalistCard(fill: SGColor.popPurple, borderWidth: SGBorder.thick, shadowOffset: SGShadow.medium, showGrain: true)
+        .brutalistCard(fill: SGColor.popBlue, borderWidth: SGBorder.thick, shadowOffset: SGShadow.medium, showGrain: true)
     }
 
     private var domainsCard: some View {

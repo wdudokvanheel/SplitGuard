@@ -80,7 +80,7 @@ struct SettingsView: View {
             .padding(SGSpacing.medium)
             .background {
                 ZStack {
-                    SGColor.popBlue
+                    SGColor.popPurple
                     BrutalistGrainOverlay(opacity: 0.18)
                 }
             }
@@ -192,7 +192,7 @@ struct SettingsView: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(SGColor.inkOnPop)
                     .frame(width: 34, height: 34)
-                    .background(SGColor.popBlue)
+                    .background(SGColor.popPurple)
                     .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                 VStack(alignment: .leading, spacing: 2) {

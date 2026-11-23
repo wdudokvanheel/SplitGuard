@@ -158,7 +158,7 @@ struct FirstRunOnboardingView: View {
             }
             .buttonStyle(
                 BrutalistButtonStyle(
-                    fill: SGColor.popPurple,
+                    fill: SGColor.popBlue,
                     foreground: SGColor.inkOnPop,
                     borderWidth: SGBorder.regular,
                     shadowOffset: SGShadow.small,
@@ -179,7 +179,7 @@ private struct FirstRunHeroFrame: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: dynamicTypeSize.isAccessibilitySize ? 180 : 210)
                 .clipped()
-                .background(SGColor.popPurple)
+                .background(SGColor.popBlue)
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.regular)
                 }
@@ -203,7 +203,7 @@ private struct FirstRunHeroFrame: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {
                 ZStack {
-                    SGColor.popBlue
+                    SGColor.popPurple
                     BrutalistGrainOverlay(opacity: 0.16)
                 }
             }
@@ -223,7 +223,7 @@ private struct FirstRunHeroFrame: View {
                 .accessibilityHidden(true)
         } else {
             ZStack {
-                SGColor.popPurple
+                SGColor.popBlue
                 BrutalistGrainOverlay(opacity: 0.2)
                 HStack(spacing: SGSpacing.large) {
                     Image(systemName: "shield.lefthalf.filled")

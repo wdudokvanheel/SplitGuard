@@ -137,7 +137,7 @@ struct TunnelEditorView: View {
         }
         .buttonStyle(
             BrutalistButtonStyle(
-                fill: SGColor.popBlue,
+                fill: SGColor.popPurple,
                 foreground: SGColor.inkOnPop,
                 borderWidth: SGBorder.regular,
                 shadowOffset: SGShadow.small,

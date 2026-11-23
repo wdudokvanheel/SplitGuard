@@ -102,7 +102,7 @@ struct TunnelDisplayState: Equatable {
         case .activating, .reasserting, .restarting, .waiting:
             return SGColor.popYellow
         case .inactive:
-            return isOnDemandEnabled ? SGColor.popYellow : SGColor.popBlue
+            return isOnDemandEnabled ? SGColor.popYellow : SGColor.popPurple
         }
     }
 

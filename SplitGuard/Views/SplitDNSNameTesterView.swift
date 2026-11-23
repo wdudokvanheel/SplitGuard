@@ -196,7 +196,7 @@ struct SplitDNSNameTesterView: View {
             let serverText = dnsServers.map(\.stringRepresentation).joined(separator: ", ")
             label = "VPN DNS (\(serverText))"
             detail = matchedDomain.map { "Matched \($0)" } ?? "All domains routed through tunnel"
-            fill = SGColor.popPurple
+            fill = SGColor.popBlue
             onPop = true
         case .normalDNS(let reason):
             label = "Normal DNS"

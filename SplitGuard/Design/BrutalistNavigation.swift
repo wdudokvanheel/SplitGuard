@@ -219,7 +219,7 @@ struct BrutalistAddTunnelSheet: View {
                         title: "PASTE CONFIGURATION",
                         subtitle: "Paste a wg-quick config from clipboard",
                         systemImage: "doc.on.clipboard",
-                        fill: SGColor.popPurple,
+                        fill: SGColor.popBlue,
                         foreground: SGColor.inkOnPop,
                         showGrain: true,
                         action: onPasteConfig
