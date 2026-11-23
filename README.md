@@ -32,7 +32,7 @@ Split DNS rules are saved alongside the standard WireGuard configuration. When y
 
 ## Privacy
 
-SplitGuard has no accounts, no analytics, no tracking, and no backend server. It only connects to the WireGuard servers you configure. Tunnel configurations stay on your iPhone, with private keys stored in the iOS Keychain.
+SplitGuard has no accounts, no analytics, no tracking, and no backend server. It only connects to the WireGuard servers you configure. Tunnel configurations stay on your iPhone, with private keys stored in the iOS Keychain. See [PRIVACY.md](PRIVACY.md) for the full privacy policy.
 
 ## Attribution
 
