@@ -103,7 +103,7 @@ struct SplitDNSEditorSection: View {
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
                     .padding(.horizontal, SGSpacing.small)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, 8)
             }
             .buttonStyle(
                 BrutalistButtonStyle(
@@ -113,6 +113,7 @@ struct SplitDNSEditorSection: View {
                     shadowOffset: 2
                 )
             )
+            .padding(.trailing, 2)
             .accessibilityLabel("Use VPN DNS for \(domain)")
         }
         .padding(SGSpacing.small)
@@ -160,7 +161,7 @@ struct SplitDNSEditorSection: View {
 
     private var addDomainRow: some View {
         HStack(spacing: SGSpacing.small) {
-            TextField("Add domain (e.g. hw45.nl)", text: $viewModel.newSplitDNSDomain)
+            TextField("Add domain", text: $viewModel.newSplitDNSDomain)
                 .font(SGTypography.monoValue)
                 .keyboardType(.URL)
                 .autocorrectionDisabled()

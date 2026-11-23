@@ -122,7 +122,7 @@ struct SplitDNSNameTesterView: View {
                 .foregroundStyle(SGColor.textSecondary)
 
             HStack(spacing: SGSpacing.small) {
-                TextField("e.g. ha.hw45.nl", text: $query)
+                TextField("Enter hostname", text: $query)
                     .font(SGTypography.monoValue)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()

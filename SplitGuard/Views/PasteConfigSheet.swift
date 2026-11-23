@@ -52,7 +52,7 @@ struct PasteConfigSheet: View {
                 VStack(spacing: SGSpacing.medium) {
                     VStack(spacing: 0) {
                         BrutalistSectionBar(title: "Tunnel Name")
-                        TextField("e.g. hw45", text: $tunnelName)
+                        TextField("e.g. Home VPN", text: $tunnelName)
                             .font(SGTypography.body)
                             .foregroundStyle(SGColor.textPrimary)
                             .autocorrectionDisabled()
