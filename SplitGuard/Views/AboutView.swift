@@ -155,12 +155,6 @@ struct AboutView: View {
                     .font(SGTypography.caption)
                     .foregroundStyle(SGColor.textTertiary)
 
-                Text(
-                    "Typography includes Bebas Neue and IBM Plex Sans under the SIL Open Font License 1.1."
-                )
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textTertiary)
-
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 NavigationLink(value: AppRoute.licenses) {
