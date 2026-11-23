@@ -63,6 +63,7 @@
 		97FEB316C673568B79DD8E8E /* SplitDNSSectionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */; };
 		9A873252EC57656E04213F3C /* String+ArrayConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99D045FCC97BC9F8630ED25 /* String+ArrayConversion.swift */; };
 		9B4E8F936DECFE0897B42A8B /* LogViewHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF52B3A26282A6F585DED02E /* LogViewHelper.swift */; };
+		9C4E09DD0E0A7866243A0ED9 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462AFBB205AEBAA7B8DA45DE /* AboutView.swift */; };
 		A0693A83631790B3E997BFAF /* NETunnelProviderProtocol+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE97DF84571F614B64B4BFD6 /* NETunnelProviderProtocol+Extension.swift */; };
 		A25558217519F76E1ED22757 /* FileManager+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D9E727A436204948BE6DD3 /* FileManager+Extension.swift */; };
 		A2C0EC28F2495F106E90F9ED /* TunnelStore+Delegates.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4E0A41A009AD8C5D9303D50 /* TunnelStore+Delegates.swift */; };
@@ -178,6 +179,7 @@
 		4415DEBA4AC1294F90EC7E33 /* wireguard-apple */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wireguard-apple"; path = "Vendor/wireguard-apple"; sourceTree = SOURCE_ROOT; };
 		4488EBB7BD6BC5C04014B740 /* FirstRunSplitDNSSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunSplitDNSSheet.swift; sourceTree = "<group>"; };
 		45F61772503B86D09B430FFE /* Phase3Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase3Tests.swift; sourceTree = "<group>"; };
+		462AFBB205AEBAA7B8DA45DE /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
 		482C1B571E2E8767AC276171 /* SplitGuardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitGuardApp.swift; sourceTree = "<group>"; };
 		4F8E1A5E2ED59BA28D5BC0BD /* TunnelRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelRowView.swift; sourceTree = "<group>"; };
 		5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSSectionViews.swift; sourceTree = "<group>"; };
@@ -390,6 +392,7 @@
 		5F6DEFA7C6DD453C46F8BB8F /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				462AFBB205AEBAA7B8DA45DE /* AboutView.swift */,
 				C98F809C92138DB32C35B2C6 /* ActivityShareSheet.swift */,
 				B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */,
 				4488EBB7BD6BC5C04014B740 /* FirstRunSplitDNSSheet.swift */,
@@ -726,7 +729,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
+			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.gemini/antigravity-cli/bin:/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -735,6 +738,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9C4E09DD0E0A7866243A0ED9 /* AboutView.swift in Sources */,
 				3A67C03C2CC90098F34EC355 /* ActivateOnDemandOption.swift in Sources */,
 				549F7E01275BA8FB99897C2A /* ActivateOnDemandViewModel.swift in Sources */,
 				584E0E6DFB314C805B869BBD /* ActivityShareSheet.swift in Sources */,

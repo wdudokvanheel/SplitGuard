@@ -9,6 +9,7 @@ enum AppRoute: Hashable {
     case editTunnel(ObjectIdentifier)
     case pasteConfig
     case settings
+    case about
     case logViewer
     case licenses
     case splitDNSSuggestion(SplitDNSSuggestionPrompt)
@@ -27,7 +28,7 @@ struct RootView: View {
             case .tunnelDetail:
                 return false
             case .addTunnel, .qrScanner, .createTunnel, .editTunnel,
-                 .pasteConfig, .settings, .logViewer, .licenses, .splitDNSSuggestion:
+                 .pasteConfig, .settings, .about, .logViewer, .licenses, .splitDNSSuggestion:
                 return true
             }
         }
@@ -164,14 +165,26 @@ struct RootView: View {
             TunnelEditorView(store: store) { _ in navigationPath.removeAll() }
         case .pasteConfig:
             PasteConfigSheet(store: store) { navigationPath.removeAll() }
+        case .splitDNSSuggestion(let prompt):
+            FirstRunSplitDNSSheet(store: store, prompt: prompt)
+        case .settings, .about, .logViewer, .licenses:
+            utilityDestination(for: route)
+        }
+    }
+
+    @ViewBuilder
+    private func utilityDestination(for route: AppRoute) -> some View {
+        switch route {
         case .settings:
             SettingsView(store: store)
+        case .about:
+            AboutView(store: store)
         case .logViewer:
             LogViewerView()
         case .licenses:
             LicenseAttributionView()
-        case .splitDNSSuggestion(let prompt):
-            FirstRunSplitDNSSheet(store: store, prompt: prompt)
+        default:
+            EmptyView()
         }
     }
 

@@ -8,14 +8,6 @@ struct SettingsView: View {
     @State private var localAlert: AlertItem?
     @State private var isExportingZip = false
 
-    private var appVersionText: String {
-        let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
-        if let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String, !build.isEmpty {
-            return "\(shortVersion) (\(build))"
-        }
-        return shortVersion
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
@@ -33,7 +25,7 @@ struct SettingsView: View {
                     brandBannerCard
                     AppearanceSettingsSection(store: store)
                     actionsSection
-                    attributionSection
+                    aboutButton
                 }
                 .padding(.horizontal, SGSpacing.medium)
                 .padding(.top, SGSpacing.medium)
@@ -96,7 +88,7 @@ struct SettingsView: View {
             }
 
             VStack(spacing: 0) {
-                versionRow(label: "APP VERSION", value: appVersionText)
+                versionRow(label: "APP VERSION", value: AppMetadata.versionText)
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
                 versionRow(label: tr("settingsVersionKeyWireGuardGoBackend").uppercased(), value: store.backendVersion)
             }
@@ -192,43 +184,34 @@ struct SettingsView: View {
         }
     }
 
-    private var attributionSection: some View {
-        VStack(spacing: 0) {
-            BrutalistSectionBar(title: "Attribution")
+    private var aboutButton: some View {
+        NavigationLink(value: AppRoute.about) {
+            HStack(spacing: SGSpacing.small) {
+                Image(systemName: "info.circle.fill")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(SGColor.inkOnPop)
+                    .frame(width: 34, height: 34)
+                    .background(SGColor.popBlue)
+                    .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
-            VStack(alignment: .leading, spacing: SGSpacing.small) {
-                Text(
-                    "SplitGuard uses the WireGuard tunnel, cryptography, and configuration code " +
-                        "from wireguard-apple and wireguard-go under the MIT License."
-                )
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textSecondary)
-
-                Text("\"WireGuard\" is a registered trademark of Jason A. Donenfeld.")
-                    .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.textTertiary)
-
-                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
-
-                NavigationLink(value: AppRoute.licenses) {
-                    HStack {
-                        Label("Open Source Licenses", systemImage: "doc.plaintext")
-                            .font(SGTypography.subheadline.weight(.bold))
-                            .foregroundStyle(SGColor.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(SGColor.textPrimary)
-                    }
-                    .padding(.vertical, 4)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ABOUT")
+                        .font(SGTypography.displayCompact)
+                        .tracking(0.8)
+                        .foregroundStyle(SGColor.textPrimary)
+                    Text("Version, source code, and attribution")
+                        .font(SGTypography.caption)
+                        .foregroundStyle(SGColor.textSecondary)
                 }
-                .buttonStyle(.plain)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(SGColor.textPrimary)
             }
             .padding(SGSpacing.medium)
-            .background(SGColor.surfaceCard)
+            .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
         }
-        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
-        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+        .buttonStyle(.plain)
     }
 
     private func exportConfigurationsAsZip() {
