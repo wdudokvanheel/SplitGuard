@@ -8,6 +8,7 @@ struct BrutalistToggle: View {
     let activeTint: Color
     let isInteractive: Bool
     let accessibilityLabelText: String
+    var shadowColor: Color = SGColor.shadowSurface
     let onToggle: (Bool) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -38,7 +39,7 @@ struct BrutalistToggle: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous)
-                    .fill(SGColor.shadowInk)
+                    .fill(shadowColor)
                     .offset(x: 2.5, y: 2.5)
             )
             .opacity(isInteractive ? 1 : 0.5)
@@ -124,7 +125,7 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
         )
         .background(
             RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous)
-                .fill(SGColor.shadowInk)
+                .fill(SGColor.shadowSurface)
                 .offset(x: 3, y: 3)
         )
     }

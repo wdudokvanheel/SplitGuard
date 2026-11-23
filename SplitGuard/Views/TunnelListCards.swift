@@ -188,6 +188,7 @@ struct FeaturedTunnelHeroCardView: View {
                 foreground: SGColor.inkOnPop,
                 borderWidth: SGBorder.regular,
                 shadowOffset: SGShadow.medium,
+                shadowColor: SGColor.shadowInk,
                 fullWidth: true
             )
         )

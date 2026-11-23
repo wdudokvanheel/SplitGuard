@@ -110,7 +110,8 @@ struct SplitDNSEditorSection: View {
                     fill: SGColor.popGreen,
                     foreground: SGColor.inkOnPop,
                     borderWidth: SGBorder.thin,
-                    shadowOffset: 2
+                    shadowOffset: 2,
+                    shadowColor: SGColor.shadowInk
                 )
             )
             .padding(.trailing, 2)

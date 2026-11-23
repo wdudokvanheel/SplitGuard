@@ -48,6 +48,7 @@ struct TunnelDetailHeroCard: View {
                             activeTint: displayState.switchTint,
                             isInteractive: displayState.isSwitchInteractive,
                             accessibilityLabelText: "Toggle \(tunnelName)",
+                            shadowColor: SGColor.shadowInk,
                             onToggle: onToggle
                         )
 

@@ -10,11 +10,26 @@ enum SGColor {
     static let darkInk = Color(red: 0x1E / 255.0, green: 0x1E / 255.0, blue: 0x1E / 255.0)
     static let creme = Color(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0)
 
-    static let popBlue = Color(red: 0x4D / 255.0, green: 0xCC / 255.0, blue: 0xFF / 255.0)
-    static let popRed = Color(red: 0xFF / 255.0, green: 0x4D / 255.0, blue: 0x4D / 255.0)
-    static let popGreen = Color(red: 0x74 / 255.0, green: 0xC9 / 255.0, blue: 0x36 / 255.0)
-    static let popPurple = Color(red: 0xB2 / 255.0, green: 0x6A / 255.0, blue: 0xFB / 255.0)
-    static let popYellow = Color(red: 0xFF / 255.0, green: 0xC7 / 255.0, blue: 0x33 / 255.0)
+    static let popBlue = adaptive(
+        light: UIColor(red: 0x4D / 255.0, green: 0xCC / 255.0, blue: 0xFF / 255.0, alpha: 1),
+        dark: UIColor(red: 0x3F / 255.0, green: 0xBD / 255.0, blue: 0xF0 / 255.0, alpha: 1)
+    )
+    static let popRed = adaptive(
+        light: UIColor(red: 0xFF / 255.0, green: 0x4D / 255.0, blue: 0x4D / 255.0, alpha: 1),
+        dark: UIColor(red: 0xF2 / 255.0, green: 0x4A / 255.0, blue: 0x4A / 255.0, alpha: 1)
+    )
+    static let popGreen = adaptive(
+        light: UIColor(red: 0x74 / 255.0, green: 0xC9 / 255.0, blue: 0x36 / 255.0, alpha: 1),
+        dark: UIColor(red: 0x6C / 255.0, green: 0xC0 / 255.0, blue: 0x30 / 255.0, alpha: 1)
+    )
+    static let popPurple = adaptive(
+        light: UIColor(red: 0xB2 / 255.0, green: 0x6A / 255.0, blue: 0xFB / 255.0, alpha: 1),
+        dark: UIColor(red: 0xA9 / 255.0, green: 0x63 / 255.0, blue: 0xF5 / 255.0, alpha: 1)
+    )
+    static let popYellow = adaptive(
+        light: UIColor(red: 0xFF / 255.0, green: 0xC7 / 255.0, blue: 0x33 / 255.0, alpha: 1),
+        dark: UIColor(red: 0xF7 / 255.0, green: 0xC0 / 255.0, blue: 0x2E / 255.0, alpha: 1)
+    )
     static let popPink = Color(red: 0xFF / 255.0, green: 0x14 / 255.0, blue: 0x93 / 255.0)
 
     static let rowAccents: [Color] = [popRed, popGreen, popBlue, popPurple]
@@ -25,17 +40,17 @@ enum SGColor {
 
     static let surfacePrimary = adaptive(
         light: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1),
-        dark: UIColor(red: 0x16 / 255.0, green: 0x16 / 255.0, blue: 0x14 / 255.0, alpha: 1)
+        dark: UIColor(red: 0x12 / 255.0, green: 0x11 / 255.0, blue: 0x10 / 255.0, alpha: 1)
     )
 
     static let surfaceCard = adaptive(
         light: UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1),
-        dark: UIColor(red: 0x22 / 255.0, green: 0x22 / 255.0, blue: 0x1F / 255.0, alpha: 1)
+        dark: UIColor(red: 0x1E / 255.0, green: 0x1C / 255.0, blue: 0x18 / 255.0, alpha: 1)
     )
 
     static let surfaceElevated = adaptive(
         light: UIColor(red: 0xF4 / 255.0, green: 0xEE / 255.0, blue: 0xD6 / 255.0, alpha: 1),
-        dark: UIColor(red: 0x2D / 255.0, green: 0x2D / 255.0, blue: 0x29 / 255.0, alpha: 1)
+        dark: UIColor(red: 0x2A / 255.0, green: 0x27 / 255.0, blue: 0x21 / 255.0, alpha: 1)
     )
 
     static let textPrimary = adaptive(
@@ -45,32 +60,37 @@ enum SGColor {
 
     static let textSecondary = adaptive(
         light: UIColor(red: 0x2D / 255.0, green: 0x2C / 255.0, blue: 0x28 / 255.0, alpha: 1),
-        dark: UIColor(red: 0xCE / 255.0, green: 0xCA / 255.0, blue: 0xB8 / 255.0, alpha: 1)
+        dark: UIColor(red: 0xD6 / 255.0, green: 0xD0 / 255.0, blue: 0xBA / 255.0, alpha: 1)
     )
 
     static let textTertiary = adaptive(
         light: UIColor(red: 0x5B / 255.0, green: 0x58 / 255.0, blue: 0x4E / 255.0, alpha: 1),
-        dark: UIColor(red: 0x99 / 255.0, green: 0x95 / 255.0, blue: 0x86 / 255.0, alpha: 1)
+        dark: UIColor(red: 0xA3 / 255.0, green: 0x9E / 255.0, blue: 0x8C / 255.0, alpha: 1)
     )
 
     static let borderInk = adaptive(
         light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
-        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1)
+        dark: UIColor(red: 0xE4 / 255.0, green: 0xDD / 255.0, blue: 0xC4 / 255.0, alpha: 1)
     )
 
     static let borderSubtle = adaptive(
         light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.25),
-        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 0.25)
+        dark: UIColor(red: 0xE4 / 255.0, green: 0xDD / 255.0, blue: 0xC4 / 255.0, alpha: 0.20)
     )
 
     static let shadowInk = adaptive(
         light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
-        dark: UIColor(red: 0x05 / 255.0, green: 0x05 / 255.0, blue: 0x05 / 255.0, alpha: 1)
+        dark: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1)
+    )
+
+    static let shadowSurface = adaptive(
+        light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
+        dark: UIColor(red: 0x4A / 255.0, green: 0x45 / 255.0, blue: 0x39 / 255.0, alpha: 1)
     )
 
     static let invertedBar = adaptive(
         light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
-        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1)
+        dark: UIColor(red: 0xE4 / 255.0, green: 0xDD / 255.0, blue: 0xC4 / 255.0, alpha: 1)
     )
 
     static let invertedBarText = adaptive(
@@ -86,7 +106,7 @@ enum SGColor {
     static let statusTransitioning = popYellow
     static let statusInactive = adaptive(
         light: UIColor(red: 0x5B / 255.0, green: 0x58 / 255.0, blue: 0x4E / 255.0, alpha: 1),
-        dark: UIColor(red: 0x99 / 255.0, green: 0x95 / 255.0, blue: 0x86 / 255.0, alpha: 1)
+        dark: UIColor(red: 0xA3 / 255.0, green: 0x9E / 255.0, blue: 0x8C / 255.0, alpha: 1)
     )
     static let statusOnDemand = popYellow
     static let statusError = popRed

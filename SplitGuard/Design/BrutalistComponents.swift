@@ -40,7 +40,7 @@ struct BrutalistCardModifier: ViewModifier {
             )
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(SGColor.shadowInk)
+                    .fill(SGColor.shadowSurface)
                     .offset(x: shadowOffset, y: shadowOffset)
             )
     }
@@ -73,6 +73,7 @@ struct BrutalistButtonStyle: ButtonStyle {
     let foreground: Color
     let borderWidth: CGFloat
     let shadowOffset: CGFloat
+    let shadowColor: Color
     let cornerRadius: CGFloat
     let fullWidth: Bool
     let showGrain: Bool
@@ -85,6 +86,7 @@ struct BrutalistButtonStyle: ButtonStyle {
         foreground: Color = SGColor.inkOnPop,
         borderWidth: CGFloat = SGBorder.regular,
         shadowOffset: CGFloat = SGShadow.medium,
+        shadowColor: Color = SGColor.shadowSurface,
         cornerRadius: CGFloat = SGRadius.sharp,
         fullWidth: Bool = false,
         showGrain: Bool = false
@@ -93,6 +95,7 @@ struct BrutalistButtonStyle: ButtonStyle {
         self.foreground = foreground
         self.borderWidth = borderWidth
         self.shadowOffset = shadowOffset
+        self.shadowColor = shadowColor
         self.cornerRadius = cornerRadius
         self.fullWidth = fullWidth
         self.showGrain = showGrain
@@ -123,7 +126,7 @@ struct BrutalistButtonStyle: ButtonStyle {
             .offset(x: pressedShift, y: pressedShift)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(SGColor.shadowInk)
+                    .fill(shadowColor)
                     .offset(x: remainingShadow + pressedShift, y: remainingShadow + pressedShift)
                     .opacity(isEnabled ? 1 : 0)
             )
