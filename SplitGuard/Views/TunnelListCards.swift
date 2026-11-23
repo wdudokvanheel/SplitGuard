@@ -283,3 +283,53 @@ struct ActivationErrorCardView: View {
         .brutalistCard(fill: SGColor.popRed, borderWidth: SGBorder.regular, shadowOffset: SGShadow.medium, showGrain: true)
     }
 }
+
+struct MultiSelectBottomBarView: View {
+    let selectedCount: Int
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(SGColor.borderInk)
+                .frame(height: SGBorder.regular)
+
+            HStack(spacing: SGSpacing.small) {
+                Text(
+                    selectedCount == 0
+                        ? "Tap tunnels to select"
+                        : tr(format: "tunnelsListSelectedTitle (%d)", selectedCount)
+                )
+                .font(SGTypography.subheadline)
+                .foregroundStyle(SGColor.textPrimary)
+
+                Spacer()
+
+                Button(action: onDelete) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.fill")
+                            .font(.caption.weight(.bold))
+                        Text("DELETE")
+                            .font(SGTypography.displayCompact)
+                            .tracking(0.8)
+                    }
+                    .padding(.horizontal, SGSpacing.medium)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(
+                    BrutalistButtonStyle(
+                        fill: SGColor.popRed,
+                        foreground: SGColor.pureWhite,
+                        borderWidth: SGBorder.regular,
+                        shadowOffset: SGShadow.small
+                    )
+                )
+                .disabled(selectedCount == 0)
+            }
+            .padding(.horizontal, SGSpacing.medium)
+            .padding(.vertical, SGSpacing.medium)
+        }
+        .frame(maxWidth: .infinity)
+        .background(SGColor.surfaceCard.ignoresSafeArea(edges: .bottom))
+    }
+}
