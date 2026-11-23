@@ -4,11 +4,7 @@ enum AppMetadata {
     static let sourceCodeURL = URL(string: "https://github.com/wdudokvanheel/SplitGuard")!
 
     static var versionText: String {
-        let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
-        if let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String, !build.isEmpty {
-            return "\(shortVersion) (\(build))"
-        }
-        return shortVersion
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
     }
 }
 
