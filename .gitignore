@@ -1,0 +1,21 @@
+# Reference upstream clone (vendored subset lives in Vendor/wireguard-apple/)
+docs/wireguard-apple/
+
+# Xcode & SwiftPM
+.DS_Store
+*.xcuserdatad
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+.build/
+.swiftpm/
+
+# Go bridge temporary build outputs
+Vendor/wireguard-apple/Sources/WireGuardKitGo/.tmp/
+Vendor/wireguard-apple/Sources/WireGuardKitGo/out/
+
+# Signing artifacts
+*.mobileprovision
+*.p12
+*.cer
