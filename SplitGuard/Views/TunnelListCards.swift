@@ -22,14 +22,14 @@ struct FeaturedTunnelHeroCardView: View {
         return endpoints.count > 1 ? "\(endpoints.count) peers" : nil
     }
 
-    private var roleLabel: String {
-        if displayState.status != .inactive {
-            return "ACTIVE CONNECTION"
-        }
+    private var roleLabel: String? {
         if isFavorite {
             return "FAVOURITE TUNNEL"
         }
-        return "PRIMARY TUNNEL"
+        if displayState.status == .inactive {
+            return "PRIMARY TUNNEL"
+        }
+        return nil
     }
 
     private var featureTags: [String] {
@@ -77,13 +77,15 @@ struct FeaturedTunnelHeroCardView: View {
     private var heroTopBand: some View {
         VStack(alignment: .leading, spacing: SGSpacing.medium) {
             HStack(spacing: SGSpacing.xSmall) {
-                Text(roleLabel)
-                    .font(SGTypography.metricLabel)
-                    .tracking(1.0)
-                    .foregroundStyle(SGColor.invertedBarText)
-                    .padding(.horizontal, SGSpacing.xSmall)
-                    .padding(.vertical, 4)
-                    .background(SGColor.invertedBar)
+                if let roleLabel {
+                    Text(roleLabel)
+                        .font(SGTypography.metricLabel)
+                        .tracking(1.0)
+                        .foregroundStyle(SGColor.invertedBarText)
+                        .padding(.horizontal, SGSpacing.xSmall)
+                        .padding(.vertical, 4)
+                        .background(SGColor.invertedBar)
+                }
 
                 SGStatusBadge(
                     title: displayState.statusText,
