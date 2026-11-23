@@ -39,6 +39,8 @@ targets:
       - path: Vendor/wireguard-apple/Sources/Shared
         excludes:
           - NotificationToken.swift
+      - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
+        buildPhase: resources
     dependencies:
       - target: WireGuardGoBridgeiOS
         embed: false

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		038E7FBBAF9A4116CCD8E7E1 /* TunnelEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68E8C97AC816AE312C630 /* TunnelEditorView.swift */; };
 		04A1E7E35386C0DE0E777210 /* AppAppearanceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3150A662466B6307EFC98DFF /* AppAppearanceMode.swift */; };
+		054CF8FA80A57CEA969FAA08 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6B65CBC9C7BFBAEF11EDCA1B /* PrivacyInfo.xcprivacy */; };
 		07E6D3DF8288B3A7B124AC2C /* TunnelConfiguration+WgQuickConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C250453E4E54D76DE945F564 /* TunnelConfiguration+WgQuickConfig.swift */; };
 		095A32C114830049BD7DAC10 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C04426DA323FE461A42F1B13 /* Assets.xcassets */; };
 		0B80FAE985AFD762F41729E0 /* ErrorNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDC93B76216C0AE72EDDEE9 /* ErrorNotifier.swift */; };
@@ -58,6 +59,7 @@
 		8FF5FDD483C0DFAE6DF2DCC3 /* LocalizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F55B4FBF3A6457D14825C3 /* LocalizationHelper.swift */; };
 		935F8A4241729FBFF7ABF04F /* IBMPlexSans-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 790EFB2B653559AD88EC49F9 /* IBMPlexSans-Variable.ttf */; };
 		96CD8E49056A7108C847FDD9 /* TunnelEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE8575BE590E8A1AE8CC1BB /* TunnelEditorViewModel.swift */; };
+		979175CA53FB19007D321434 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B97E633EA4D203AA314F3036 /* PrivacyInfo.xcprivacy */; };
 		97FEB316C673568B79DD8E8E /* SplitDNSSectionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */; };
 		9A873252EC57656E04213F3C /* String+ArrayConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99D045FCC97BC9F8630ED25 /* String+ArrayConversion.swift */; };
 		9B4E8F936DECFE0897B42A8B /* LogViewHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF52B3A26282A6F585DED02E /* LogViewHelper.swift */; };
@@ -188,6 +190,7 @@
 		637A768D8E0AEC2F38706A1E /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
 		657D089C8282769C0D7FE83A /* TunnelDetailCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelDetailCards.swift; sourceTree = "<group>"; };
 		688A6C2D928EEBD9106831DA /* Phase2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase2Tests.swift; sourceTree = "<group>"; };
+		6B65CBC9C7BFBAEF11EDCA1B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6EE8575BE590E8A1AE8CC1BB /* TunnelEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelEditorViewModel.swift; sourceTree = "<group>"; };
 		7282E55820433927E109B03D /* WireGuardResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireGuardResult.swift; sourceTree = "<group>"; };
 		72AEA32706443D111B0A9D97 /* TunnelImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelImporter.swift; sourceTree = "<group>"; };
@@ -207,6 +210,7 @@
 		B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunOnboardingView.swift; sourceTree = "<group>"; };
 		B7F55B4FBF3A6457D14825C3 /* LocalizationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationHelper.swift; sourceTree = "<group>"; };
 		B966673221473E73BA5E79D4 /* ringlogger.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ringlogger.c; sourceTree = "<group>"; };
+		B97E633EA4D203AA314F3036 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BAE31FAF8762586763D26D62 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 		BDD6F0AB6143BC4C80AA5215 /* ZipArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipArchive.swift; sourceTree = "<group>"; };
 		BFFA18910E009D21A97F6EE9 /* SplitGuard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SplitGuard.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -322,6 +326,7 @@
 			isa = PBXGroup;
 			children = (
 				C04426DA323FE461A42F1B13 /* Assets.xcassets */,
+				6B65CBC9C7BFBAEF11EDCA1B /* PrivacyInfo.xcprivacy */,
 				482C1B571E2E8767AC276171 /* SplitGuardApp.swift */,
 				21F07BA08AAA1CF8AC9A1F3A /* App */,
 				6F5879E402368FDC6EA89D1D /* Design */,
@@ -330,6 +335,14 @@
 				5F6DEFA7C6DD453C46F8BB8F /* Views */,
 			);
 			path = SplitGuard;
+			sourceTree = "<group>";
+		};
+		1F87CB5F87FC7EA2EB837148 /* SplitGuardNetworkExtension */ = {
+			isa = PBXGroup;
+			children = (
+				B97E633EA4D203AA314F3036 /* PrivacyInfo.xcprivacy */,
+			);
+			path = SplitGuardNetworkExtension;
 			sourceTree = "<group>";
 		};
 		21F07BA08AAA1CF8AC9A1F3A /* App */ = {
@@ -446,6 +459,7 @@
 				77314806360CF7EE5B576D6C /* Packages */,
 				99E525E38190D4899F2A5EB0 /* Shared */,
 				13077F1A8A436A80D8A877A9 /* SplitGuard */,
+				1F87CB5F87FC7EA2EB837148 /* SplitGuardNetworkExtension */,
 				43D3AEBAFDEBF9D3BAAD57D6 /* SplitGuardTests */,
 				103A0CC0E271E204F075611D /* WireGuardApp */,
 				E9B923F66B488A33C8087EBA /* WireGuardNetworkExtension */,
@@ -560,6 +574,7 @@
 			buildConfigurationList = 2EADCB4900256E9ABDA12CA8 /* Build configuration list for PBXNativeTarget "SplitGuardNetworkExtension" */;
 			buildPhases = (
 				BB6BC3AE96129F9797F93065 /* Sources */,
+				26EA2671958223D6566B85CC /* Resources */,
 				5CE3C0EA13914AA57E363023 /* Frameworks */,
 			);
 			buildRules = (
@@ -670,6 +685,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		26EA2671958223D6566B85CC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				979175CA53FB19007D321434 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A9904D58AFC5735DF011CBA1 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -679,6 +702,7 @@
 				6D71F7335E340574A376C010 /* IBMPlexSans-Italic-Variable.ttf in Resources */,
 				935F8A4241729FBFF7ABF04F /* IBMPlexSans-Variable.ttf in Resources */,
 				572019D7EE53B682C70E0E95 /* Localizable.strings in Resources */,
+				054CF8FA80A57CEA969FAA08 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -702,7 +726,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.gemini/antigravity-cli/bin:/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
+			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
