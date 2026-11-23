@@ -118,6 +118,7 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
                 }
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous)

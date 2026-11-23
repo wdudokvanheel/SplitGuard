@@ -20,18 +20,16 @@ struct SettingsView: View {
                 }
             )
 
-            ScrollView {
-                VStack(spacing: SGSpacing.medium) {
-                    brandBannerCard
-                    AppearanceSettingsSection(store: store)
-                    actionsSection
-                    aboutButton
+            ViewThatFits(in: .vertical) {
+                settingsContent
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ScrollView {
+                    settingsContent
                 }
-                .padding(.horizontal, SGSpacing.medium)
-                .padding(.top, SGSpacing.medium)
-                .padding(.bottom, SGSpacing.large)
+                .scrollBounceBehavior(.basedOnSize, axes: .vertical)
             }
-            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
@@ -55,6 +53,18 @@ struct SettingsView: View {
         } message: {
             Text(localAlert?.message ?? "")
         }
+    }
+
+    private var settingsContent: some View {
+        VStack(spacing: SGSpacing.medium) {
+            brandBannerCard
+            AppearanceSettingsSection(store: store)
+            actionsSection
+            aboutButton
+        }
+        .padding(.horizontal, SGSpacing.medium)
+        .padding(.top, SGSpacing.medium)
+        .padding(.bottom, SGSpacing.large)
     }
 
     private var brandBannerCard: some View {
@@ -241,26 +251,20 @@ struct AppearanceSettingsSection: View {
                 trailingText: store.appearanceMode.title
             )
 
-            VStack(alignment: .leading, spacing: SGSpacing.small) {
-                BrutalistSegmentedControl(
-                    selection: Binding(
-                        get: { store.appearanceMode },
-                        set: { store.setAppearanceMode($0) }
-                    ),
-                    options: AppAppearanceMode.allCases.map { mode in
-                        .init(
-                            value: mode,
-                            title: mode.title,
-                            accent: mode.accentColor,
-                            systemImage: mode.systemImage
-                        )
-                    }
-                )
-
-                Text(store.appearanceMode.descriptionText)
-                    .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.textSecondary)
-            }
+            BrutalistSegmentedControl(
+                selection: Binding(
+                    get: { store.appearanceMode },
+                    set: { store.setAppearanceMode($0) }
+                ),
+                options: AppAppearanceMode.allCases.map { mode in
+                    .init(
+                        value: mode,
+                        title: mode.title,
+                        accent: mode.accentColor,
+                        systemImage: mode.systemImage
+                    )
+                }
+            )
             .padding(SGSpacing.medium)
             .background(SGColor.surfaceCard)
         }

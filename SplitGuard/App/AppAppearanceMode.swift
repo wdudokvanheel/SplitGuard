@@ -43,17 +43,6 @@ enum AppAppearanceMode: String, CaseIterable, Identifiable, Hashable, Sendable {
         }
     }
 
-    var descriptionText: String {
-        switch self {
-        case .system:
-            return "Follows your device's system appearance setting."
-        case .light:
-            return "Always uses light mode, regardless of system appearance."
-        case .dark:
-            return "Always uses dark mode, regardless of system appearance."
-        }
-    }
-
     var preferredColorScheme: ColorScheme? {
         switch self {
         case .system:
