@@ -112,6 +112,11 @@ final class SplitGuardSceneDelegate: NSObject, UIWindowSceneDelegate {
         willConnectTo session: UISceneSession,
         options connectionOptions: UIScene.ConnectionOptions
     ) {
+        if let windowScene = scene as? UIWindowScene {
+            Task { @MainActor in
+                AppAppearanceMode.load().apply(to: windowScene)
+            }
+        }
         if let shortcutItem = connectionOptions.shortcutItem {
             Task { @MainActor in
                 QuickActionCoordinator.shared.handle(shortcutItem)

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		038E7FBBAF9A4116CCD8E7E1 /* TunnelEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF68E8C97AC816AE312C630 /* TunnelEditorView.swift */; };
+		04A1E7E35386C0DE0E777210 /* AppAppearanceMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3150A662466B6307EFC98DFF /* AppAppearanceMode.swift */; };
 		07E6D3DF8288B3A7B124AC2C /* TunnelConfiguration+WgQuickConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C250453E4E54D76DE945F564 /* TunnelConfiguration+WgQuickConfig.swift */; };
 		095A32C114830049BD7DAC10 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C04426DA323FE461A42F1B13 /* Assets.xcassets */; };
 		0B80FAE985AFD762F41729E0 /* ErrorNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EDC93B76216C0AE72EDDEE9 /* ErrorNotifier.swift */; };
@@ -165,6 +166,7 @@
 		29A46F4A365280CFED506CDC /* SplitGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitGuardTests.swift; sourceTree = "<group>"; };
 		2A92D35C48FB67DEE25E0CBF /* zip.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = zip.h; sourceTree = "<group>"; };
 		2EB03D0F47E35C1E5D9AF252 /* SplitGuardNetworkExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SplitGuardNetworkExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3150A662466B6307EFC98DFF /* AppAppearanceMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearanceMode.swift; sourceTree = "<group>"; };
 		33C9BBC22F586BAC3990E065 /* ioapi.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ioapi.h; sourceTree = "<group>"; };
 		34C11A99F94310FC82CCBA36 /* TunnelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelViewModel.swift; sourceTree = "<group>"; };
 		4109052017351F5B3D65C15D /* zip.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = zip.c; sourceTree = "<group>"; };
@@ -333,6 +335,7 @@
 		21F07BA08AAA1CF8AC9A1F3A /* App */ = {
 			isa = PBXGroup;
 			children = (
+				3150A662466B6307EFC98DFF /* AppAppearanceMode.swift */,
 				00C70D3913402F5D3142EC56 /* QuickActionManager.swift */,
 			);
 			path = App;
@@ -711,6 +714,7 @@
 				3A67C03C2CC90098F34EC355 /* ActivateOnDemandOption.swift in Sources */,
 				549F7E01275BA8FB99897C2A /* ActivateOnDemandViewModel.swift in Sources */,
 				584E0E6DFB314C805B869BBD /* ActivityShareSheet.swift in Sources */,
+				04A1E7E35386C0DE0E777210 /* AppAppearanceMode.swift in Sources */,
 				B518D24AEAD220AB299D4DF3 /* BrutalistComponents.swift in Sources */,
 				F21EF0B71B444BB2A2F4AFEB /* BrutalistControls.swift in Sources */,
 				DBF32B2C57F12EF96C806B02 /* BrutalistNavigation.swift in Sources */,

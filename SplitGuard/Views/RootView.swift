@@ -64,6 +64,12 @@ struct RootView: View {
             }
         }
         .tint(SGColor.accent)
+        .background {
+            WindowAppearanceBridge(mode: store.appearanceMode)
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .fileImporter(
             isPresented: $showFileImporter,
             allowedContentTypes: UTType.splitGuardImportTypes,

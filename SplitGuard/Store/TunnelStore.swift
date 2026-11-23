@@ -57,6 +57,7 @@ final class TunnelStore {
     var requestedNavigationTunnelID: ObjectIdentifier?
     var pendingSplitDNSSuggestion: SplitDNSSuggestionPrompt?
     private(set) var favoriteTunnelName: String?
+    private(set) var appearanceMode: AppAppearanceMode
 
     var manager: TunnelsManager?
     var pendingOpenedURLs: [URL] = []
@@ -70,9 +71,16 @@ final class TunnelStore {
     init(autoLoad: Bool = true, userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         self.favoriteTunnelName = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey)
+        self.appearanceMode = AppAppearanceMode.load(from: userDefaults)
         if autoLoad {
             loadTunnels()
         }
+    }
+
+    func setAppearanceMode(_ mode: AppAppearanceMode) {
+        guard appearanceMode != mode else { return }
+        appearanceMode = mode
+        mode.save(to: userDefaults)
     }
 
     var backendVersion: String {

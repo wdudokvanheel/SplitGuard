@@ -59,8 +59,16 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
         let value: Selection
         let title: String
         let accent: Color
+        let systemImage: String?
 
         var id: Selection { value }
+
+        init(value: Selection, title: String, accent: Color, systemImage: String? = nil) {
+            self.value = value
+            self.title = title
+            self.accent = accent
+            self.systemImage = systemImage
+        }
     }
 
     @Binding var selection: Selection
@@ -82,14 +90,22 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
                         }
                     }
                 } label: {
-                    Text(option.title.uppercased())
-                        .font(SGTypography.badge)
-                        .tracking(0.6)
-                        .foregroundStyle(isSelected ? SGColor.inkOnPop : SGColor.textPrimary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, SGSpacing.xSmall)
-                        .background(isSelected ? option.accent : SGColor.surfaceCard)
+                    HStack(spacing: 5) {
+                        if let systemImage = option.systemImage {
+                            Image(systemName: systemImage)
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        Text(option.title.uppercased())
+                            .font(SGTypography.badge)
+                            .tracking(0.6)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .foregroundStyle(isSelected ? SGColor.inkOnPop : SGColor.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, SGSpacing.xSmall)
+                    .background(isSelected ? option.accent : SGColor.surfaceCard)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])

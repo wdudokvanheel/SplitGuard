@@ -31,6 +31,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: SGSpacing.medium) {
                     brandBannerCard
+                    AppearanceSettingsSection(store: store)
                     actionsSection
                     attributionSection
                 }
@@ -243,6 +244,44 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+}
+
+struct AppearanceSettingsSection: View {
+    let store: TunnelStore
+
+    var body: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: "Appearance",
+                trailingText: store.appearanceMode.title
+            )
+
+            VStack(alignment: .leading, spacing: SGSpacing.small) {
+                BrutalistSegmentedControl(
+                    selection: Binding(
+                        get: { store.appearanceMode },
+                        set: { store.setAppearanceMode($0) }
+                    ),
+                    options: AppAppearanceMode.allCases.map { mode in
+                        .init(
+                            value: mode,
+                            title: mode.title,
+                            accent: mode.accentColor,
+                            systemImage: mode.systemImage
+                        )
+                    }
+                )
+
+                Text(store.appearanceMode.descriptionText)
+                    .font(SGTypography.caption)
+                    .foregroundStyle(SGColor.textSecondary)
+            }
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 }
 
