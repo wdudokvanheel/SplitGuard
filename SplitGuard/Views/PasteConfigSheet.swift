@@ -14,44 +14,25 @@ struct PasteConfigSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Tunnel Name") {
-                    TextField("e.g. hw45", text: $tunnelName)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                }
-
-                Section {
-                    TextEditor(text: $configText)
-                        .font(SGTypography.monoCompact)
-                        .frame(minHeight: 220)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                } header: {
-                    HStack {
-                        Text("Configuration (.conf)")
-                        Spacer()
-                        Button("Paste") {
-                            if let clipboard = UIPasteboard.general.string {
-                                configText = clipboard
-                            }
-                        }
-                        .font(SGTypography.caption)
-                        .textCase(nil)
-                    }
-                }
-            }
-            .navigationTitle("Paste Configuration")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("actionCancel")) {
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: "Paste Config",
+                leading: {
+                    BrutalistHeaderButton(
+                        title: tr("actionCancel"),
+                        fill: SGColor.surfaceCard,
+                        foreground: SGColor.textPrimary
+                    ) {
                         dismiss()
                     }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Import") {
+                },
+                trailing: {
+                    BrutalistHeaderButton(
+                        title: "Import",
+                        fill: SGColor.popGreen,
+                        foreground: SGColor.inkOnPop,
+                        showGrain: true
+                    ) {
                         store.importConfigText(configText, named: tunnelName) { succeeded in
                             if succeeded {
                                 dismiss()
@@ -60,7 +41,77 @@ struct PasteConfigSheet: View {
                     }
                     .disabled(!canImport)
                 }
+            )
+
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    VStack(spacing: 0) {
+                        BrutalistSectionBar(title: "Tunnel Name")
+                        TextField("e.g. hw45", text: $tunnelName)
+                            .font(SGTypography.body)
+                            .foregroundStyle(SGColor.textPrimary)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .padding(.horizontal, SGSpacing.xSmall)
+                            .padding(.vertical, 10)
+                            .background(SGColor.surfaceElevated)
+                            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
+                            .padding(SGSpacing.medium)
+                            .background(SGColor.surfaceCard)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+                    .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+
+                    VStack(spacing: 0) {
+                        BrutalistSectionBar(title: "Configuration (.conf)")
+
+                        VStack(spacing: SGSpacing.small) {
+                            Button {
+                                if let clipboard = UIPasteboard.general.string {
+                                    configText = clipboard
+                                }
+                            } label: {
+                                HStack(spacing: SGSpacing.xSmall) {
+                                    Image(systemName: "doc.on.clipboard.fill")
+                                        .font(.subheadline.weight(.bold))
+                                    Text("PASTE FROM CLIPBOARD")
+                                        .font(SGTypography.displayCompact)
+                                        .tracking(0.8)
+                                }
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(
+                                BrutalistButtonStyle(
+                                    fill: SGColor.popYellow,
+                                    foreground: SGColor.inkOnPop,
+                                    borderWidth: SGBorder.regular,
+                                    shadowOffset: SGShadow.small,
+                                    fullWidth: true
+                                )
+                            )
+
+                            TextEditor(text: $configText)
+                                .font(SGTypography.monoCompact)
+                                .scrollContentBackground(.hidden)
+                                .frame(minHeight: 220)
+                                .padding(SGSpacing.xSmall)
+                                .background(SGColor.surfaceElevated)
+                                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                        .padding(SGSpacing.medium)
+                        .background(SGColor.surfaceCard)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+                    .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+                }
+                .padding(SGSpacing.medium)
+                .padding(.bottom, SGSpacing.xxLarge)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
     }
 }

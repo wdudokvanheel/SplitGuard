@@ -9,20 +9,26 @@ struct TunnelListView: View {
     let onPasteConfig: () -> Void
     let onOpenSettings: () -> Void
 
+    @State private var liveMetrics = TunnelLiveMetricsMonitor()
+    @State private var isVisible = false
     @State private var tunnelPendingDelete: TunnelContainer?
     @State private var isSelecting = false
     @State private var selectedTunnelIDs: Set<ObjectIdentifier> = []
     @State private var showMultiDeleteConfirmation = false
+    @State private var showAddTunnelSheet = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var selectedTunnels: [TunnelContainer] {
         store.tunnels.filter { selectedTunnelIDs.contains(ObjectIdentifier($0)) }
     }
 
-    private var navigationTitleText: String {
-        if isSelecting && !selectedTunnels.isEmpty {
-            return tr(format: "tunnelsListSelectedTitle (%d)", selectedTunnels.count)
-        }
-        return "SplitGuard"
+    private var featuredTunnel: TunnelContainer? {
+        store.featuredTunnel
+    }
+
+    private var featuredStatus: TunnelStatus {
+        featuredTunnel.map { store.status(for: $0) } ?? .inactive
     }
 
     private var multiDeleteDialogMessage: String {
@@ -36,20 +42,27 @@ struct TunnelListView: View {
     var body: some View {
         Group {
             if store.isLoading {
-                ProgressView("Loading tunnels…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(SGColor.surfacePrimary)
+                loadingView
             } else if store.tunnels.isEmpty {
-                emptyStateView
+                FirstRunOnboardingView(
+                    onScanQRCode: onScanQRCode,
+                    onImportFiles: onImportFiles,
+                    onCreateFromScratch: onCreateFromScratch,
+                    onPasteConfig: onPasteConfig,
+                    onOpenSettings: onOpenSettings
+                )
             } else {
                 tunnelListContent
             }
         }
-        .navigationTitle(navigationTitleText)
-        .toolbar {
-            leadingToolbarItem
-            trailingToolbarItems
-            bottomMultiSelectToolbar
+        .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            isVisible = true
+            syncLiveMetrics()
+        }
+        .onDisappear {
+            isVisible = false
+            liveMetrics.stop()
         }
         .onChange(of: store.revision) { _, _ in
             let validIDs = Set(store.tunnels.map(ObjectIdentifier.init))
@@ -57,16 +70,19 @@ struct TunnelListView: View {
             if store.tunnels.isEmpty {
                 isSelecting = false
             }
+            syncLiveMetrics()
+        }
+        .onChange(of: featuredTunnel.map(ObjectIdentifier.init)) { _, _ in
+            syncLiveMetrics()
+        }
+        .onChange(of: featuredStatus) { _, _ in
+            syncLiveMetrics()
         }
         .confirmationDialog(
             "Delete Tunnel",
             isPresented: Binding(
                 get: { tunnelPendingDelete != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        tunnelPendingDelete = nil
-                    }
-                }
+                set: { if !$0 { tunnelPendingDelete = nil } }
             ),
             titleVisibility: .visible
         ) {
@@ -99,192 +115,259 @@ struct TunnelListView: View {
             }
             Button(tr("actionCancel"), role: .cancel) {}
         }
+        .sheet(isPresented: $showAddTunnelSheet) {
+            BrutalistAddTunnelSheet(
+                onScanQRCode: onScanQRCode,
+                onImportFiles: onImportFiles,
+                onCreateFromScratch: onCreateFromScratch,
+                onPasteConfig: onPasteConfig
+            )
+        }
     }
 }
 
 private extension TunnelListView {
-    @ToolbarContentBuilder
-    var leadingToolbarItem: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
+    var loadingView: some View {
+        VStack(spacing: SGSpacing.medium) {
+            ProgressView()
+                .controlSize(.large)
+                .tint(SGColor.textPrimary)
+            Text("LOADING TUNNELS…")
+                .font(SGTypography.displayCompact)
+                .tracking(1.2)
+                .foregroundStyle(SGColor.textPrimary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+    }
+
+    var tunnelListContent: some View {
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    headerBar
+
+                    if !isSelecting, let errorBanner = store.lastActivationError {
+                        ActivationErrorCardView(banner: errorBanner) {
+                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
+                                store.dismissActivationErrorBanner()
+                            }
+                        }
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    if !isSelecting, let featured = featuredTunnel {
+                        FeaturedTunnelHeroCardView(
+                            tunnel: featured,
+                            displayState: store.displayState(for: featured),
+                            isFavorite: store.isFavorite(featured),
+                            rxText: liveMetrics.hasLiveStats ? liveMetrics.rxFormatted : "0 B",
+                            txText: liveMetrics.hasLiveStats ? liveMetrics.txFormatted : "0 B",
+                            handshakeText: liveMetrics.handshakeAgeText ?? "Pending",
+                            onOpenDetail: { onSelectTunnel(featured) },
+                            onToggleConnection: { isOn in
+                                store.setTunnelActive(isOn, for: featured)
+                            },
+                            onToggleFavorite: {
+                                withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
+                                    store.toggleFavorite(featured)
+                                }
+                            }
+                        )
+                    }
+
+                    BrutalistSectionBar(
+                        title: isSelecting ? "Select Tunnels" : "Tunnels",
+                        trailingText: "\(store.tunnels.count)"
+                    )
+
+                    LazyVStack(spacing: SGSpacing.small) {
+                        ForEach(Array(store.tunnels.enumerated()), id: \.element) { index, tunnel in
+                            let tunnelID = ObjectIdentifier(tunnel)
+                            TunnelRowView(
+                                tunnel: tunnel,
+                                displayState: store.displayState(for: tunnel),
+                                rowIndex: index,
+                                isFavorite: store.isFavorite(tunnel),
+                                isSelecting: isSelecting,
+                                isSelected: selectedTunnelIDs.contains(tunnelID),
+                                onSelect: {
+                                    if isSelecting {
+                                        toggleSelection(for: tunnelID)
+                                    } else {
+                                        onSelectTunnel(tunnel)
+                                    }
+                                },
+                                onToggle: { isOn in
+                                    store.setTunnelActive(isOn, for: tunnel)
+                                },
+                                onToggleFavorite: {
+                                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
+                                        store.toggleFavorite(tunnel)
+                                    }
+                                },
+                                onDelete: {
+                                    tunnelPendingDelete = tunnel
+                                }
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal, SGSpacing.medium)
+                .padding(.top, SGSpacing.small)
+                .padding(.bottom, isSelecting ? 104 : SGSpacing.xxLarge)
+            }
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: featuredTunnel.map(ObjectIdentifier.init))
+
             if isSelecting {
-                if selectedTunnels.count == store.tunnels.count && !store.tunnels.isEmpty {
-                    Button("Deselect All") {
-                        selectedTunnelIDs.removeAll()
-                    }
-                } else {
-                    Button(tr("tunnelsListSelectAllButtonTitle")) {
-                        selectedTunnelIDs = Set(store.tunnels.map(ObjectIdentifier.init))
-                    }
-                }
-            } else {
-                Button(action: onOpenSettings) {
-                    Image(systemName: "gearshape")
-                }
-                .accessibilityLabel(tr("tunnelsListSettingsButtonTitle"))
+                multiSelectBottomBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }
 
-    @ToolbarContentBuilder
-    var trailingToolbarItems: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
+    var headerBar: some View {
+        HStack(spacing: SGSpacing.xSmall) {
             if isSelecting {
-                Button(tr("actionCancel")) {
-                    exitSelectionMode()
-                }
+                selectionHeaderControls
             } else {
-                if !store.tunnels.isEmpty {
-                    Button(tr("tunnelsListSelectButtonTitle")) {
-                        withAnimation(.snappy(duration: 0.2)) {
+                HStack(spacing: 3) {
+                    Text("SPLIT")
+                        .foregroundStyle(SGColor.textPrimary)
+                    Text("GUARD")
+                        .foregroundStyle(SGColor.popRed)
+                }
+                .font(SGTypography.displayHero)
+                .tracking(0.8)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+                Spacer(minLength: SGSpacing.xxSmall)
+
+                BrutalistIconButton(
+                    systemImage: "checklist",
+                    accessibilityLabelText: tr("tunnelsListSelectButtonTitle"),
+                    action: {
+                        withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
                             isSelecting = true
                             selectedTunnelIDs.removeAll()
                         }
                     }
-                }
+                )
+
+                BrutalistIconButton(
+                    systemImage: "gearshape.fill",
+                    accessibilityLabelText: tr("tunnelsListSettingsButtonTitle"),
+                    action: onOpenSettings
+                )
+
                 addTunnelMenu
             }
         }
     }
 
-    @ToolbarContentBuilder
-    var bottomMultiSelectToolbar: some ToolbarContent {
-        if isSelecting {
-            ToolbarItem(placement: .bottomBar) {
-                HStack {
-                    Text(
-                        selectedTunnels.isEmpty
-                            ? "Select tunnels to delete"
-                            : tr(format: "tunnelsListSelectedTitle (%d)", selectedTunnels.count)
-                    )
-                    .font(SGTypography.subheadline)
-                    .foregroundStyle(SGColor.textSecondary)
-
-                    Spacer()
-
-                    Button(role: .destructive) {
-                        showMultiDeleteConfirmation = true
-                    } label: {
-                        Label(tr("tunnelsListDeleteButtonTitle"), systemImage: "trash")
-                    }
-                    .disabled(selectedTunnels.isEmpty)
-                }
-            }
+    @ViewBuilder
+    var selectionHeaderControls: some View {
+        let allSelected = selectedTunnels.count == store.tunnels.count
+        Button(allSelected ? "NONE" : "ALL") {
+            selectedTunnelIDs = allSelected ? [] : Set(store.tunnels.map(ObjectIdentifier.init))
         }
+        .font(SGTypography.displayCompact)
+        .padding(.horizontal, SGSpacing.small)
+        .frame(height: 40)
+        .buttonStyle(BrutalistButtonStyle(fill: SGColor.popYellow, shadowOffset: SGShadow.small))
+
+        Spacer(minLength: 4)
+
+        Text(selectedTunnels.isEmpty ? "SELECT" : "\(selectedTunnels.count) SELECTED")
+            .font(SGTypography.displaySection)
+            .tracking(0.8)
+            .foregroundStyle(SGColor.textPrimary)
+
+        Spacer(minLength: 4)
+
+        Button("DONE") { exitSelectionMode() }
+            .font(SGTypography.displayCompact)
+            .padding(.horizontal, SGSpacing.small)
+            .frame(height: 40)
+            .buttonStyle(
+                BrutalistButtonStyle(
+                    fill: SGColor.surfaceCard,
+                    foreground: SGColor.textPrimary,
+                    shadowOffset: SGShadow.small
+                )
+            )
     }
 
     var addTunnelMenu: some View {
-        Menu {
-            Button(action: onImportFiles) {
-                Label(tr("addTunnelMenuImportFile"), systemImage: "doc.badge.plus")
-            }
-            Button(action: onScanQRCode) {
-                Label(tr("addTunnelMenuQRCode"), systemImage: "qrcode.viewfinder")
-            }
-            Button(action: onCreateFromScratch) {
-                Label(tr("addTunnelMenuFromScratch"), systemImage: "square.and.pencil")
-            }
-            Divider()
-            Button(action: onPasteConfig) {
-                Label("Paste configuration", systemImage: "doc.on.clipboard")
-            }
+        Button {
+            showAddTunnelSheet = true
         } label: {
-            Image(systemName: "plus")
-                .fontWeight(.semibold)
+            HStack(spacing: 4) {
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .black))
+                Text("ADD")
+                    .font(SGTypography.displayCompact)
+                    .tracking(0.8)
+            }
+            .padding(.horizontal, SGSpacing.small)
+            .frame(height: 40)
         }
+        .buttonStyle(
+            BrutalistButtonStyle(
+                fill: SGColor.popRed,
+                foreground: SGColor.pureWhite,
+                borderWidth: SGBorder.regular,
+                shadowOffset: SGShadow.small,
+                cornerRadius: SGRadius.sharp
+            )
+        )
         .accessibilityLabel("Add tunnel")
     }
 
-    var emptyStateView: some View {
-        ContentUnavailableView {
-            Label("No Tunnels Yet", systemImage: "shield.lefthalf.filled")
-        } description: {
-            Text("Import a .conf or .zip file, scan a QR code, or create a configuration from scratch.")
-        } actions: {
-            VStack(spacing: SGSpacing.small) {
-                Button(action: onImportFiles) {
-                    Label(tr("addTunnelMenuImportFile"), systemImage: "doc.badge.plus")
-                        .frame(maxWidth: 260)
-                }
-                .buttonStyle(.borderedProminent)
+    var multiSelectBottomBar: some View {
+        HStack(spacing: SGSpacing.small) {
+            Text(
+                selectedTunnels.isEmpty
+                    ? "Tap tunnels to select"
+                    : tr(format: "tunnelsListSelectedTitle (%d)", selectedTunnels.count)
+            )
+            .font(SGTypography.subheadline)
+            .foregroundStyle(SGColor.textPrimary)
 
-                Button(action: onScanQRCode) {
-                    Label(tr("addTunnelMenuQRCode"), systemImage: "qrcode.viewfinder")
-                        .frame(maxWidth: 260)
-                }
-                .buttonStyle(.bordered)
+            Spacer()
 
-                Button(action: onCreateFromScratch) {
-                    Label(tr("addTunnelMenuFromScratch"), systemImage: "square.and.pencil")
-                        .frame(maxWidth: 260)
+            Button {
+                showMultiDeleteConfirmation = true
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "trash.fill")
+                        .font(.caption.weight(.bold))
+                    Text("DELETE")
+                        .font(SGTypography.displayCompact)
                 }
-                .buttonStyle(.bordered)
+                .padding(.horizontal, SGSpacing.medium)
+                .padding(.vertical, 8)
             }
-            .padding(.top, SGSpacing.xSmall)
+            .buttonStyle(
+                BrutalistButtonStyle(
+                    fill: SGColor.popRed,
+                    foreground: SGColor.pureWhite,
+                    borderWidth: SGBorder.regular,
+                    shadowOffset: SGShadow.small
+                )
+            )
+            .disabled(selectedTunnels.isEmpty)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(SGColor.surfacePrimary)
+        .padding(SGSpacing.medium)
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.thick, shadowOffset: SGShadow.medium)
+        .padding(.horizontal, SGSpacing.medium)
+        .padding(.bottom, SGSpacing.small)
     }
 
-    var tunnelListContent: some View {
-        List {
-            if !isSelecting, let errorBanner = store.lastActivationError {
-                Section {
-                    ActivationErrorCardView(banner: errorBanner) {
-                        store.dismissActivationErrorBanner()
-                    }
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-
-            if !isSelecting, let activeTunnel = store.activeTunnel {
-                Section {
-                    ActiveTunnelCardView(
-                        tunnel: activeTunnel,
-                        displayState: store.displayState(for: activeTunnel),
-                        onOpenDetail: { onSelectTunnel(activeTunnel) },
-                        onDisconnect: { store.setTunnelActive(false, for: activeTunnel) }
-                    )
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-
-            Section {
-                ForEach(store.tunnels, id: \.self) { tunnel in
-                    let tunnelID = ObjectIdentifier(tunnel)
-                    TunnelRowView(
-                        tunnel: tunnel,
-                        displayState: store.displayState(for: tunnel),
-                        isSelecting: isSelecting,
-                        isSelected: selectedTunnelIDs.contains(tunnelID),
-                        onSelect: {
-                            if isSelecting {
-                                toggleSelection(for: tunnelID)
-                            } else {
-                                onSelectTunnel(tunnel)
-                            }
-                        },
-                        onToggle: { isOn in
-                            store.setTunnelActive(isOn, for: tunnel)
-                        }
-                    )
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if !isSelecting {
-                            Button(role: .destructive) {
-                                tunnelPendingDelete = tunnel
-                            } label: {
-                                Label(tr("tunnelsListSwipeDeleteButtonTitle"), systemImage: "trash")
-                            }
-                        }
-                    }
-                }
-            } header: {
-                Text("Tunnels")
-            }
-        }
-        .listStyle(.insetGrouped)
-        .animation(.snappy(duration: 0.25), value: store.activeTunnel.map(ObjectIdentifier.init))
+    func syncLiveMetrics() {
+        liveMetrics.update(tunnel: featuredTunnel, status: featuredStatus, isVisible: isVisible)
     }
 
     func toggleSelection(for tunnelID: ObjectIdentifier) {
@@ -296,7 +379,7 @@ private extension TunnelListView {
     }
 
     func exitSelectionMode() {
-        withAnimation(.snappy(duration: 0.2)) {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
             isSelecting = false
             selectedTunnelIDs.removeAll()
         }

@@ -3,10 +3,18 @@ import SwiftUI
 struct TunnelRowView: View {
     let tunnel: TunnelContainer
     let displayState: TunnelDisplayState
+    var rowIndex: Int = 0
+    var isFavorite: Bool = false
     var isSelecting: Bool = false
     var isSelected: Bool = false
     let onSelect: () -> Void
     let onToggle: (Bool) -> Void
+    var onToggleFavorite: (() -> Void)?
+    var onDelete: (() -> Void)?
+
+    private var accentColor: Color {
+        SGColor.rowAccent(at: rowIndex)
+    }
 
     private var endpointText: String? {
         let endpoints = tunnel.tunnelConfiguration?.peers.compactMap(\.endpoint) ?? []
@@ -19,116 +27,133 @@ struct TunnelRowView: View {
         return nil
     }
 
+    private var tags: [String] {
+        var result: [String] = []
+        if displayState.status != .inactive {
+            result.append(displayState.statusText)
+        }
+        if tunnel.splitDNSConfiguration.mode == .onlyDomains {
+            let count = tunnel.splitDNSConfiguration.normalizedDomainNames.count
+            result.append(count == 1 ? "SPLIT DNS" : "SPLIT DNS (\(count))")
+        }
+        if displayState.hasOnDemandRules {
+            result.append(displayState.isOnDemandEnabled ? "ON-DEMAND" : "ON-DEMAND OFF")
+        }
+        if isFavorite {
+            result.append("FAVOURITE")
+        }
+        if result.isEmpty {
+            result.append("ALL DOMAINS")
+        }
+        return result
+    }
+
     var body: some View {
-        HStack(spacing: SGSpacing.small) {
-            Button(action: onSelect) {
-                HStack(spacing: SGSpacing.small) {
-                    if isSelecting {
-                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(isSelected ? SGColor.accent : SGColor.textTertiary)
-                    } else {
-                        statusIndicator
-                    }
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(tunnel.name)
-                            .font(SGTypography.cardTitle)
-                            .foregroundStyle(SGColor.textPrimary)
-                            .lineLimit(1)
-
-                        subtitleView
-                    }
-
-                    Spacer(minLength: 0)
+        HStack(spacing: 0) {
+            Rectangle()
+                .fill(displayState.status == .active ? SGColor.popGreen : accentColor)
+                .frame(width: 8)
+                .overlay(alignment: .trailing) {
+                    Rectangle()
+                        .fill(SGColor.borderInk)
+                        .frame(width: SGBorder.thin)
                 }
-                .padding(.vertical, 2)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
 
-            if !isSelecting {
-                Toggle(
-                    isOn: Binding(
-                        get: { displayState.isSwitchOn },
-                        set: { newValue in
-                            onToggle(newValue)
-                        }
-                    )
-                ) {
-                    EmptyView()
-                }
-                .labelsHidden()
-                .tint(displayState.switchTint)
-                .disabled(!displayState.isSwitchInteractive)
-                .accessibilityLabel("Toggle \(tunnel.name)")
-
+            HStack(spacing: SGSpacing.small) {
                 Button(action: onSelect) {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(SGColor.textTertiary)
-                        .padding(.leading, 2)
+                    HStack(spacing: SGSpacing.small) {
+                        if isSelecting {
+                            selectionBox
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: SGSpacing.xSmall) {
+                                Text(tunnel.name.uppercased())
+                                    .font(SGTypography.displayTitle)
+                                    .tracking(0.6)
+                                    .foregroundStyle(SGColor.textPrimary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+
+                                if isFavorite && !isSelecting {
+                                    Image(systemName: "star.fill")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(SGColor.inkOnPop)
+                                        .padding(4)
+                                        .background(SGColor.popYellow)
+                                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+                                }
+                            }
+
+                            if let endpointText {
+                                Text(endpointText)
+                                    .font(SGTypography.monoCompact)
+                                    .foregroundStyle(SGColor.textSecondary)
+                                    .lineLimit(1)
+                            }
+
+                            BrutalistTagStrip(tags: tags)
+                                .padding(.top, 2)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, SGSpacing.small)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityHidden(true)
+
+                if !isSelecting {
+                    BrutalistToggle(
+                        isOn: displayState.isSwitchOn,
+                        activeTint: displayState.switchTint,
+                        isInteractive: displayState.isSwitchInteractive,
+                        accessibilityLabelText: "Toggle \(tunnel.name)",
+                        onToggle: onToggle
+                    )
+                }
+            }
+            .padding(.horizontal, SGSpacing.small)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous))
+        .brutalistCard(
+            fill: isSelected ? SGColor.popYellow.opacity(0.28) : SGColor.surfaceCard,
+            borderWidth: SGBorder.regular,
+            shadowOffset: SGShadow.small,
+            cornerRadius: SGRadius.sharp
+        )
+        .contextMenu {
+            if !isSelecting {
+                if let onToggleFavorite {
+                    Button(action: onToggleFavorite) {
+                        Label(
+                            isFavorite ? "Unpin Favourite" : "Pin as Favourite",
+                            systemImage: isFavorite ? "star.slash" : "star.fill"
+                        )
+                    }
+                }
+                Button(action: onSelect) {
+                    Label("Inspect Tunnel", systemImage: "info.circle")
+                }
+                if let onDelete {
+                    Button(role: .destructive, action: onDelete) {
+                        Label(tr("tunnelsListSwipeDeleteButtonTitle"), systemImage: "trash")
+                    }
+                }
             }
         }
     }
 
-    @ViewBuilder
-    private var statusIndicator: some View {
-        if displayState.status.isTransitioning {
-            ProgressView()
-                .controlSize(.small)
-                .tint(displayState.statusColor)
-                .frame(width: 14, height: 14)
-        } else {
-            Circle()
-                .fill(displayState.statusColor)
-                .frame(width: 10, height: 10)
-                .padding(2)
-        }
-    }
-
-    private var subtitleView: some View {
-        HStack(spacing: SGSpacing.xSmall) {
-            if displayState.status != .inactive {
-                Text(displayState.statusText)
-                    .font(SGTypography.caption.weight(.medium))
-                    .foregroundStyle(displayState.statusColor)
-            } else if let endpointText {
-                Text(endpointText)
-                    .font(SGTypography.monoCompact)
-                    .foregroundStyle(SGColor.textSecondary)
-                    .lineLimit(1)
-            } else {
-                Text(displayState.statusText)
-                    .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.textSecondary)
-            }
-
-            if tunnel.splitDNSConfiguration.mode == .onlyDomains {
-                Text("Split DNS")
-                    .font(SGTypography.metricLabel)
-                    .foregroundStyle(SGColor.accent)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(SGColor.accent.opacity(0.14))
-                    )
-            }
-
-            if displayState.hasOnDemandRules {
-                Text(tr("tunnelListCaptionOnDemand"))
-                    .font(SGTypography.metricLabel)
-                    .foregroundStyle(displayState.isOnDemandEnabled ? SGColor.accent : SGColor.textTertiary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill((displayState.isOnDemandEnabled ? SGColor.accent : SGColor.textTertiary).opacity(0.14))
-                    )
+    private var selectionBox: some View {
+        ZStack {
+            Rectangle()
+                .fill(isSelected ? SGColor.popPink : SGColor.surfaceCard)
+                .frame(width: 26, height: 26)
+                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.regular))
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(SGColor.pureWhite)
             }
         }
     }

@@ -15,6 +15,14 @@ struct ActivationErrorBanner: Identifiable, Equatable {
     let message: String
 }
 
+struct SplitDNSSuggestionPrompt: Identifiable, Equatable {
+    let id = UUID()
+    let tunnelID: ObjectIdentifier
+    let tunnelName: String
+    let suggestedDomain: String
+    let dnsServers: [String]
+}
+
 final class SwiftUIErrorPresenter: ErrorPresenterProtocol {
     static func showErrorAlert(
         title: String,
@@ -47,14 +55,21 @@ final class TunnelStore {
 
     var activeAlert: AlertItem?
     var requestedNavigationTunnelID: ObjectIdentifier?
+    var pendingSplitDNSSuggestion: SplitDNSSuggestionPrompt?
+    private(set) var favoriteTunnelName: String?
 
     var manager: TunnelsManager?
     var pendingOpenedURLs: [URL] = []
     var pendingQuickActionTunnelName: String?
+    private let userDefaults: UserDefaults
     private var alertQueue: [AlertItem] = []
     private var observations: [ObjectIdentifier: [NSKeyValueObservation]] = [:]
 
-    init(autoLoad: Bool = true) {
+    private static let favoriteTunnelDefaultsKey = "splitguard.favoriteTunnelName"
+
+    init(autoLoad: Bool = true, userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        self.favoriteTunnelName = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey)
         if autoLoad {
             loadTunnels()
         }
@@ -66,6 +81,40 @@ final class TunnelStore {
 
     var activeTunnel: TunnelContainer? {
         tunnels.first { status(for: $0) != .inactive }
+    }
+
+    var favoriteTunnel: TunnelContainer? {
+        guard let favoriteTunnelName else { return nil }
+        return tunnels.first { $0.name == favoriteTunnelName }
+    }
+
+    var featuredTunnel: TunnelContainer? {
+        activeTunnel ?? favoriteTunnel ?? tunnels.first
+    }
+
+    func isFavorite(_ tunnel: TunnelContainer) -> Bool {
+        favoriteTunnelName == tunnel.name
+    }
+
+    func toggleFavorite(_ tunnel: TunnelContainer) {
+        if isFavorite(tunnel) {
+            setFavoriteTunnelName(nil)
+        } else {
+            setFavoriteTunnelName(tunnel.name)
+        }
+    }
+
+    func setFavorite(_ tunnel: TunnelContainer?) {
+        setFavoriteTunnelName(tunnel?.name)
+    }
+
+    private func setFavoriteTunnelName(_ name: String?) {
+        favoriteTunnelName = name
+        if let name {
+            userDefaults.set(name, forKey: Self.favoriteTunnelDefaultsKey)
+        } else {
+            userDefaults.removeObject(forKey: Self.favoriteTunnelDefaultsKey)
+        }
     }
 
     func loadTunnels() {

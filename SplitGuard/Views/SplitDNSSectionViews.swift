@@ -6,48 +6,66 @@ struct SplitDNSEditorSection: View {
     let isTunnelActive: Bool
 
     var body: some View {
-        Section {
-            Picker("DNS Mode", selection: $viewModel.splitDNSMode) {
-                Text("All domains").tag(SplitDNSConfiguration.Mode.allDomains)
-                Text("Only these domains").tag(SplitDNSConfiguration.Mode.onlyDomains)
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: viewModel.splitDNSMode) { _, _ in
-                viewModel.splitDNSInputError = nil
-            }
-
-            if let suggested = viewModel.suggestedEndpointDomain {
-                suggestionRow(domain: suggested)
-            }
-
-            if viewModel.splitDNSMode == .onlyDomains {
-                domainRows
-                addDomainRow
-                if let errorText = viewModel.splitDNSInputError {
-                    Label(errorText, systemImage: "exclamationmark.circle.fill")
-                        .font(SGTypography.caption)
-                        .foregroundStyle(SGColor.statusError)
-                }
-                ForEach(viewModel.splitDNSWarnings) { warning in
-                    SplitDNSWarningRow(warning: warning)
-                }
-            }
-
-            SplitDNSRoutingPreviewView(
-                splitDNS: viewModel.splitDNSConfiguration,
-                dnsServers: viewModel.currentDNSServers
+        VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: "Split DNS",
+                trailingText: viewModel.splitDNSMode == .onlyDomains ? "SPLIT" : "ALL"
             )
 
-            SplitDNSNameTesterView(
-                splitDNS: viewModel.splitDNSConfiguration,
-                dnsServers: viewModel.currentDNSServers,
-                isTunnelActive: isTunnelActive
-            )
-        } header: {
-            Text("Split DNS")
-        } footer: {
-            Text(footerDescription)
+            VStack(alignment: .leading, spacing: SGSpacing.small) {
+                BrutalistSegmentedControl(
+                    selection: $viewModel.splitDNSMode,
+                    options: [
+                        .init(value: .allDomains, title: "All domains", accent: SGColor.popBlue),
+                        .init(value: .onlyDomains, title: "Only these domains", accent: SGColor.popPurple)
+                    ]
+                )
+                .onChange(of: viewModel.splitDNSMode) { _, _ in
+                    viewModel.splitDNSInputError = nil
+                }
+
+                Text(footerDescription)
+                    .font(SGTypography.caption)
+                    .foregroundStyle(SGColor.textSecondary)
+
+                if let suggested = viewModel.suggestedEndpointDomain {
+                    suggestionRow(domain: suggested)
+                }
+
+                if viewModel.splitDNSMode == .onlyDomains {
+                    Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+                    domainRows
+                    addDomainRow
+                    if let errorText = viewModel.splitDNSInputError {
+                        Label(errorText, systemImage: "exclamationmark.circle.fill")
+                            .font(SGTypography.caption)
+                            .foregroundStyle(SGColor.statusError)
+                    }
+                    ForEach(viewModel.splitDNSWarnings) { warning in
+                        SplitDNSWarningRow(warning: warning)
+                    }
+                }
+
+                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+
+                SplitDNSRoutingPreviewView(
+                    splitDNS: viewModel.splitDNSConfiguration,
+                    dnsServers: viewModel.currentDNSServers
+                )
+
+                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+
+                SplitDNSNameTesterView(
+                    splitDNS: viewModel.splitDNSConfiguration,
+                    dnsServers: viewModel.currentDNSServers,
+                    isTunnelActive: isTunnelActive
+                )
+            }
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
         }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 
     private var footerDescription: String {
@@ -62,30 +80,41 @@ struct SplitDNSEditorSection: View {
     private func suggestionRow(domain: String) -> some View {
         HStack(spacing: SGSpacing.small) {
             Image(systemName: "sparkles")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(SGColor.accent)
+                .font(.subheadline.weight(.black))
+                .foregroundStyle(SGColor.inkOnPop)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Use VPN DNS for \(domain) and its subdomains?")
                     .font(SGTypography.subheadline)
-                    .foregroundStyle(SGColor.textPrimary)
+                    .foregroundStyle(SGColor.inkOnPop)
                 Text("Detected from peer endpoint")
                     .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.textSecondary)
+                    .foregroundStyle(SGColor.inkOnPop.opacity(0.8))
             }
 
             Spacer(minLength: SGSpacing.xSmall)
 
-            Button("Use") {
+            Button("USE") {
                 withAnimation(.snappy(duration: 0.2)) {
                     viewModel.applySuggestedEndpointDomain()
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .font(SGTypography.displayCompact)
+            .padding(.horizontal, SGSpacing.small)
+            .padding(.vertical, 6)
+            .buttonStyle(
+                BrutalistButtonStyle(
+                    fill: SGColor.popGreen,
+                    foreground: SGColor.inkOnPop,
+                    borderWidth: SGBorder.thin,
+                    shadowOffset: 2
+                )
+            )
             .accessibilityLabel("Use VPN DNS for \(domain)")
         }
-        .padding(.vertical, 2)
+        .padding(SGSpacing.small)
+        .background(SGColor.popPurple)
+        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.regular))
     }
 
     @ViewBuilder
@@ -99,7 +128,7 @@ struct SplitDNSEditorSection: View {
                 HStack(spacing: SGSpacing.small) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(domain.name)
-                            .font(SGTypography.monoValue)
+                            .font(SGTypography.monoValue.weight(.semibold))
                             .foregroundStyle(SGColor.textPrimary)
                         Text("Matches \(domain.name) and *.\(domain.name)")
                             .font(SGTypography.caption)
@@ -111,8 +140,12 @@ struct SplitDNSEditorSection: View {
                             viewModel.removeSplitDNSDomain(named: domain.name)
                         }
                     } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundStyle(SGColor.statusError)
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(SGColor.pureWhite)
+                            .frame(width: 26, height: 26)
+                            .background(SGColor.popRed)
+                            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Remove \(domain.name)")
@@ -130,6 +163,10 @@ struct SplitDNSEditorSection: View {
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
                 .submitLabel(.done)
+                .padding(.horizontal, SGSpacing.xSmall)
+                .padding(.vertical, 8)
+                .background(SGColor.surfaceElevated)
+                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
                 .onChange(of: viewModel.newSplitDNSDomain) { _, _ in
                     viewModel.splitDNSInputError = nil
                 }
@@ -137,19 +174,28 @@ struct SplitDNSEditorSection: View {
                     _ = viewModel.addSplitDNSDomain()
                 }
 
-            Button("Add") {
+            Button("ADD") {
                 withAnimation(.snappy(duration: 0.2)) {
                     _ = viewModel.addSplitDNSDomain()
                 }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
+            .font(SGTypography.displayCompact)
+            .padding(.horizontal, SGSpacing.small)
+            .padding(.vertical, 8)
+            .buttonStyle(
+                BrutalistButtonStyle(
+                    fill: SGColor.popYellow,
+                    foreground: SGColor.inkOnPop,
+                    borderWidth: SGBorder.regular,
+                    shadowOffset: SGShadow.small
+                )
+            )
             .disabled(viewModel.newSplitDNSDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 }
 
-struct SplitDNSDetailSection: View {
+struct SplitDNSDetailCard: View {
     let splitDNS: SplitDNSConfiguration
     let dnsServers: [DNSServer]
     let warnings: [SplitDNSConfiguration.ValidationWarning]
@@ -158,47 +204,79 @@ struct SplitDNSDetailSection: View {
     private var modeLabel: String {
         switch splitDNS.mode {
         case .allDomains:
-            return "All domains"
+            return "ALL DOMAINS"
         case .onlyDomains:
-            return "Only these domains"
+            return "ONLY THESE DOMAINS"
         }
     }
 
     var body: some View {
-        Section("Split DNS") {
-            LabeledContent("Mode", value: modeLabel)
+        VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: "Split DNS",
+                trailingText: splitDNS.mode == .onlyDomains ? "SPLIT" : "ALL"
+            )
 
-            if splitDNS.mode == .onlyDomains {
-                if splitDNS.domains.isEmpty {
-                    Text("No domains configured")
-                        .font(SGTypography.subheadline)
-                        .foregroundStyle(SGColor.textTertiary)
-                } else {
-                    ForEach(splitDNS.domains) { domain in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(domain.name)
-                                .font(SGTypography.monoValue)
-                                .foregroundStyle(SGColor.textPrimary)
-                            Text("Matches \(domain.name) and *.\(domain.name)")
-                                .font(SGTypography.caption)
-                                .foregroundStyle(SGColor.textSecondary)
+            VStack(alignment: .leading, spacing: SGSpacing.small) {
+                HStack {
+                    Text("MODE")
+                        .font(SGTypography.metricLabel)
+                        .foregroundStyle(SGColor.textSecondary)
+                    Spacer()
+                    Text(modeLabel)
+                        .font(SGTypography.badge)
+                        .foregroundStyle(SGColor.inkOnPop)
+                        .padding(.horizontal, SGSpacing.xSmall)
+                        .padding(.vertical, 3)
+                        .background(splitDNS.mode == .onlyDomains ? SGColor.popPurple : SGColor.popBlue)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+                }
+
+                if splitDNS.mode == .onlyDomains {
+                    if splitDNS.domains.isEmpty {
+                        Text("No domains configured")
+                            .font(SGTypography.subheadline)
+                            .foregroundStyle(SGColor.textTertiary)
+                    } else {
+                        VStack(spacing: SGSpacing.xSmall) {
+                            ForEach(splitDNS.domains) { domain in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(domain.name)
+                                        .font(SGTypography.monoValue.weight(.semibold))
+                                        .foregroundStyle(SGColor.textPrimary)
+                                    Text("Matches \(domain.name) and *.\(domain.name)")
+                                        .font(SGTypography.caption)
+                                        .foregroundStyle(SGColor.textSecondary)
+                                }
+                                .padding(SGSpacing.xSmall)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(SGColor.surfaceElevated)
+                                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+                            }
                         }
-                        .padding(.vertical, 2)
+                    }
+
+                    ForEach(warnings) { warning in
+                        SplitDNSWarningRow(warning: warning)
                     }
                 }
 
-                ForEach(warnings) { warning in
-                    SplitDNSWarningRow(warning: warning)
-                }
+                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+
+                SplitDNSRoutingPreviewView(splitDNS: splitDNS, dnsServers: dnsServers)
+
+                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+
+                SplitDNSNameTesterView(
+                    splitDNS: splitDNS,
+                    dnsServers: dnsServers,
+                    isTunnelActive: isTunnelActive
+                )
             }
-
-            SplitDNSRoutingPreviewView(splitDNS: splitDNS, dnsServers: dnsServers)
-
-            SplitDNSNameTesterView(
-                splitDNS: splitDNS,
-                dnsServers: dnsServers,
-                isTunnelActive: isTunnelActive
-            )
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
         }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 }

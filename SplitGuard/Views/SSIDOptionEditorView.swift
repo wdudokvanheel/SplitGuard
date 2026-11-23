@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SSIDOptionEditorView: View {
+    @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: TunnelEditorViewModel
 
     @State private var connectedSSID: String?
@@ -18,37 +19,33 @@ struct SSIDOptionEditorView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                ForEach(options, id: \.localizedUIString) { option in
-                    Button {
-                        withAnimation(.snappy(duration: 0.2)) {
-                            viewModel.ssidOption = option
-                        }
-                    } label: {
-                        HStack {
-                            Text(option.localizedUIString)
-                                .foregroundStyle(SGColor.textPrimary)
-                            Spacer()
-                            if viewModel.ssidOption == option {
-                                Image(systemName: "checkmark")
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(SGColor.accent)
-                            }
-                        }
-                        .contentShape(Rectangle())
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: tr("tunnelOnDemandSSIDViewTitle"),
+                enableSwipeBack: true,
+                leading: {
+                    BrutalistBackButton {
+                        dismiss()
                     }
-                    .buttonStyle(.plain)
                 }
-            }
+            )
 
-            if viewModel.ssidOption != .anySSID {
-                selectedSSIDsSection
-                addSSIDsSection
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    modeOptionsCard
+
+                    if viewModel.ssidOption != .anySSID {
+                        selectedSSIDsCard
+                        addSSIDsCard
+                    }
+                }
+                .padding(SGSpacing.medium)
+                .padding(.bottom, SGSpacing.xxLarge)
             }
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
-        .navigationTitle(tr("tunnelOnDemandSSIDViewTitle"))
-        .navigationBarTitleDisplayMode(.inline)
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             connectedSSID = await TunnelEditorViewModel.fetchConnectedSSID()
         }
@@ -57,68 +54,182 @@ struct SSIDOptionEditorView: View {
         }
     }
 
-    private var selectedSSIDsSection: some View {
-        Section(tr("tunnelOnDemandSectionTitleSelectedSSIDs")) {
-            if viewModel.selectedSSIDs.isEmpty {
-                Text(tr("tunnelOnDemandNoSSIDs"))
-                    .foregroundStyle(SGColor.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                ForEach(viewModel.selectedSSIDs.indices, id: \.self) { index in
-                    HStack(spacing: SGSpacing.xSmall) {
-                        Image(systemName: "wifi")
-                            .foregroundStyle(SGColor.textSecondary)
-                            .font(.subheadline)
-                        TextField(
-                            tr("tunnelOnDemandSSIDTextFieldPlaceholder"),
-                            text: Binding(
-                                get: {
-                                    index < viewModel.selectedSSIDs.count ? viewModel.selectedSSIDs[index] : ""
-                                },
-                                set: { updated in
-                                    if index < viewModel.selectedSSIDs.count {
-                                        viewModel.selectedSSIDs[index] = updated
-                                    }
+    private var modeOptionsCard: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(title: "Wi-Fi Matching")
+
+            VStack(spacing: 0) {
+                ForEach(Array(options.enumerated()), id: \.element.localizedUIString) { index, option in
+                    let isSelected = viewModel.ssidOption == option
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(.snappy(duration: 0.2)) {
+                            viewModel.ssidOption = option
+                        }
+                    } label: {
+                        HStack(spacing: SGSpacing.small) {
+                            Text(option.localizedUIString)
+                                .font(SGTypography.bodyBold)
+                                .foregroundStyle(SGColor.textPrimary)
+                            Spacer()
+                            ZStack {
+                                Rectangle()
+                                    .fill(isSelected ? SGColor.popYellow : SGColor.surfaceElevated)
+                                    .frame(width: 24, height: 24)
+                                    .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
+                                if isSelected {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.weight(.black))
+                                        .foregroundStyle(SGColor.inkOnPop)
                                 }
-                            )
-                        )
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                            }
+                        }
+                        .padding(SGSpacing.medium)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < options.count - 1 {
+                        Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
                     }
                 }
-                .onDelete { offsets in
-                    viewModel.selectedSSIDs.remove(atOffsets: offsets)
-                }
             }
+            .background(SGColor.surfaceCard)
         }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 
-    private var addSSIDsSection: some View {
-        Section(tr("tunnelOnDemandSectionTitleAddSSIDs")) {
-            if let connectedSSID, canAddConnectedSSID {
-                Button {
-                    viewModel.selectedSSIDs.append(connectedSSID)
-                } label: {
-                    Label(
-                        tr(format: "tunnelOnDemandAddMessageAddConnectedSSID (%@)", connectedSSID),
-                        systemImage: "wifi.circle.fill"
+    private var selectedSSIDsCard: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(title: tr("tunnelOnDemandSectionTitleSelectedSSIDs"))
+
+            VStack(spacing: SGSpacing.xSmall) {
+                if viewModel.selectedSSIDs.isEmpty {
+                    Text(tr("tunnelOnDemandNoSSIDs"))
+                        .font(SGTypography.subheadline)
+                        .foregroundStyle(SGColor.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, SGSpacing.small)
+                } else {
+                    ForEach(viewModel.selectedSSIDs.indices, id: \.self) { index in
+                        HStack(spacing: SGSpacing.xSmall) {
+                            Image(systemName: "wifi")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(SGColor.inkOnPop)
+                                .frame(width: 28, height: 28)
+                                .background(SGColor.popBlue)
+                                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+
+                            TextField(
+                                tr("tunnelOnDemandSSIDTextFieldPlaceholder"),
+                                text: Binding(
+                                    get: {
+                                        index < viewModel.selectedSSIDs.count ? viewModel.selectedSSIDs[index] : ""
+                                    },
+                                    set: { updated in
+                                        if index < viewModel.selectedSSIDs.count {
+                                            viewModel.selectedSSIDs[index] = updated
+                                        }
+                                    }
+                                )
+                            )
+                            .font(SGTypography.monoValue)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .padding(.horizontal, SGSpacing.xSmall)
+                            .padding(.vertical, 7)
+                            .background(SGColor.surfaceElevated)
+                            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
+
+                            Button {
+                                if index < viewModel.selectedSSIDs.count {
+                                    viewModel.selectedSSIDs.remove(at: index)
+                                }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption.weight(.black))
+                                    .foregroundStyle(SGColor.pureWhite)
+                                    .frame(width: 28, height: 28)
+                                    .background(SGColor.popRed)
+                                    .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Remove SSID")
+                        }
+                    }
+                }
+            }
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+
+    private var addSSIDsCard: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(title: tr("tunnelOnDemandSectionTitleAddSSIDs"))
+
+            VStack(spacing: SGSpacing.small) {
+                if let connectedSSID, canAddConnectedSSID {
+                    Button {
+                        viewModel.selectedSSIDs.append(connectedSSID)
+                    } label: {
+                        HStack(spacing: SGSpacing.xSmall) {
+                            Image(systemName: "wifi")
+                                .font(.subheadline.weight(.bold))
+                            Text(tr(format: "tunnelOnDemandAddMessageAddConnectedSSID (%@)", connectedSSID).uppercased())
+                                .font(SGTypography.displayCompact)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, SGSpacing.small)
+                    }
+                    .buttonStyle(
+                        BrutalistButtonStyle(
+                            fill: SGColor.popBlue,
+                            foreground: SGColor.inkOnPop,
+                            borderWidth: SGBorder.regular,
+                            shadowOffset: SGShadow.small,
+                            fullWidth: true
+                        )
                     )
                 }
-            }
 
-            HStack(spacing: SGSpacing.xSmall) {
-                TextField(tr("tunnelOnDemandSSIDTextFieldPlaceholder"), text: $newSSIDText)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .submitLabel(.done)
-                    .onSubmit(appendNewSSID)
+                HStack(spacing: SGSpacing.small) {
+                    TextField(tr("tunnelOnDemandSSIDTextFieldPlaceholder"), text: $newSSIDText)
+                        .font(SGTypography.monoValue)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .submitLabel(.done)
+                        .padding(.horizontal, SGSpacing.xSmall)
+                        .padding(.vertical, 8)
+                        .background(SGColor.surfaceElevated)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
+                        .onSubmit(appendNewSSID)
 
-                Button(tr("tunnelOnDemandAddMessageAddNewSSID")) {
-                    appendNewSSID()
+                    Button("ADD") {
+                        appendNewSSID()
+                    }
+                    .font(SGTypography.displayCompact)
+                    .padding(.horizontal, SGSpacing.small)
+                    .padding(.vertical, 8)
+                    .buttonStyle(
+                        BrutalistButtonStyle(
+                            fill: SGColor.popYellow,
+                            foreground: SGColor.inkOnPop,
+                            borderWidth: SGBorder.regular,
+                            shadowOffset: SGShadow.small
+                        )
+                    )
+                    .disabled(newSSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .disabled(newSSIDText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
         }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 
     private func appendNewSSID() {

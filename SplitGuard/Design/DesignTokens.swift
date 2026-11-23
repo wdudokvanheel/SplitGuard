@@ -1,21 +1,106 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 enum SGColor {
-    static let accent = Color("AccentColor")
-    static let surfacePrimary = Color(.systemGroupedBackground)
-    static let surfaceCard = Color(.secondarySystemGroupedBackground)
-    static let surfaceElevated = Color(.tertiarySystemGroupedBackground)
-    static let textPrimary = Color(.label)
-    static let textSecondary = Color(.secondaryLabel)
-    static let textTertiary = Color(.tertiaryLabel)
-    static let borderSubtle = Color(.separator).opacity(0.4)
+    // MARK: - Core Brutalist Palette (wdudokvanheel-portfolio)
 
-    static let statusActive = Color.green
-    static let statusTransitioning = Color.orange
-    static let statusInactive = Color(.tertiaryLabel)
-    static let statusOnDemand = Color.yellow
-    static let statusError = Color.red
+    static let pureBlack = Color(red: 0.0, green: 0.0, blue: 0.0)
+    static let pureWhite = Color(red: 1.0, green: 1.0, blue: 1.0)
+    static let darkInk = Color(red: 0x1E / 255.0, green: 0x1E / 255.0, blue: 0x1E / 255.0)
+    static let creme = Color(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0)
+
+    static let popBlue = Color(red: 0x4D / 255.0, green: 0xCC / 255.0, blue: 0xFF / 255.0)
+    static let popRed = Color(red: 0xFF / 255.0, green: 0x4D / 255.0, blue: 0x4D / 255.0)
+    static let popGreen = Color(red: 0x74 / 255.0, green: 0xC9 / 255.0, blue: 0x36 / 255.0)
+    static let popPurple = Color(red: 0xB2 / 255.0, green: 0x6A / 255.0, blue: 0xFB / 255.0)
+    static let popYellow = Color(red: 0xFF / 255.0, green: 0xC7 / 255.0, blue: 0x33 / 255.0)
+    static let popPink = Color(red: 0xFF / 255.0, green: 0x14 / 255.0, blue: 0x93 / 255.0)
+
+    static let rowAccents: [Color] = [popRed, popGreen, popBlue, popPurple]
+
+    // MARK: - Adaptive Semantic Surfaces & Ink
+
+    static let accent = Color("AccentColor")
+
+    static let surfacePrimary = adaptive(
+        light: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1),
+        dark: UIColor(red: 0x16 / 255.0, green: 0x16 / 255.0, blue: 0x14 / 255.0, alpha: 1)
+    )
+
+    static let surfaceCard = adaptive(
+        light: UIColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1),
+        dark: UIColor(red: 0x22 / 255.0, green: 0x22 / 255.0, blue: 0x1F / 255.0, alpha: 1)
+    )
+
+    static let surfaceElevated = adaptive(
+        light: UIColor(red: 0xF4 / 255.0, green: 0xEE / 255.0, blue: 0xD6 / 255.0, alpha: 1),
+        dark: UIColor(red: 0x2D / 255.0, green: 0x2D / 255.0, blue: 0x29 / 255.0, alpha: 1)
+    )
+
+    static let textPrimary = adaptive(
+        light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
+        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1)
+    )
+
+    static let textSecondary = adaptive(
+        light: UIColor(red: 0x2D / 255.0, green: 0x2C / 255.0, blue: 0x28 / 255.0, alpha: 1),
+        dark: UIColor(red: 0xCE / 255.0, green: 0xCA / 255.0, blue: 0xB8 / 255.0, alpha: 1)
+    )
+
+    static let textTertiary = adaptive(
+        light: UIColor(red: 0x5B / 255.0, green: 0x58 / 255.0, blue: 0x4E / 255.0, alpha: 1),
+        dark: UIColor(red: 0x99 / 255.0, green: 0x95 / 255.0, blue: 0x86 / 255.0, alpha: 1)
+    )
+
+    static let borderInk = adaptive(
+        light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
+        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1)
+    )
+
+    static let borderSubtle = adaptive(
+        light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.25),
+        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 0.25)
+    )
+
+    static let shadowInk = adaptive(
+        light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
+        dark: UIColor(red: 0x05 / 255.0, green: 0x05 / 255.0, blue: 0x05 / 255.0, alpha: 1)
+    )
+
+    static let invertedBar = adaptive(
+        light: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1),
+        dark: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1)
+    )
+
+    static let invertedBarText = adaptive(
+        light: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1),
+        dark: UIColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1)
+    )
+
+    static let inkOnPop = pureBlack
+
+    // MARK: - Status & Feature Colors
+
+    static let statusActive = popGreen
+    static let statusTransitioning = popYellow
+    static let statusInactive = adaptive(
+        light: UIColor(red: 0x5B / 255.0, green: 0x58 / 255.0, blue: 0x4E / 255.0, alpha: 1),
+        dark: UIColor(red: 0x99 / 255.0, green: 0x95 / 255.0, blue: 0x86 / 255.0, alpha: 1)
+    )
+    static let statusOnDemand = popYellow
+    static let statusError = popRed
+    static let splitDNS = popPurple
+
+    static func rowAccent(at index: Int) -> Color {
+        rowAccents[abs(index) % rowAccents.count]
+    }
+
+    private static func adaptive(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark ? dark : light
+        })
+    }
 }
 
 enum SGSpacing {
@@ -29,21 +114,43 @@ enum SGSpacing {
 }
 
 enum SGRadius {
-    static let small: CGFloat = 8
-    static let medium: CGFloat = 12
-    static let large: CGFloat = 16
+    static let sharp: CGFloat = 2
+    static let small: CGFloat = 4
+    static let medium: CGFloat = 6
+    static let large: CGFloat = 8
     static let pill: CGFloat = 999
 }
 
+enum SGBorder {
+    static let thin: CGFloat = 1.5
+    static let regular: CGFloat = 2.5
+    static let thick: CGFloat = 3.5
+}
+
+enum SGShadow {
+    static let small: CGFloat = 3
+    static let medium: CGFloat = 5
+    static let large: CGFloat = 6
+}
+
 enum SGTypography {
-    static let cardTitle = Font.headline
-    static let sectionTitle = Font.subheadline.weight(.semibold)
-    static let body = Font.body
-    static let subheadline = Font.subheadline
-    static let caption = Font.caption
-    static let badge = Font.caption.weight(.semibold)
-    static let metricValue = Font.subheadline.weight(.semibold).monospacedDigit()
-    static let metricLabel = Font.caption2.weight(.medium)
+    static let displayHero = Font.custom("BebasNeue-Regular", size: 42, relativeTo: .largeTitle)
+    static let displayTitle = Font.custom("BebasNeue-Regular", size: 32, relativeTo: .title)
+    static let displaySection = Font.custom("BebasNeue-Regular", size: 24, relativeTo: .title2)
+    static let displayButton = Font.custom("BebasNeue-Regular", size: 26, relativeTo: .title3)
+    static let displayCompact = Font.custom("BebasNeue-Regular", size: 20, relativeTo: .headline)
+
+    static let cardTitle = Font.custom("IBM Plex Sans", size: 17, relativeTo: .headline).weight(.bold)
+    static let sectionTitle = Font.custom("IBM Plex Sans", size: 15, relativeTo: .subheadline).weight(.bold)
+    static let body = Font.custom("IBM Plex Sans", size: 16, relativeTo: .body)
+    static let bodyBold = Font.custom("IBM Plex Sans", size: 16, relativeTo: .body).weight(.bold)
+    static let subheadline = Font.custom("IBM Plex Sans", size: 14, relativeTo: .subheadline).weight(.medium)
+    static let caption = Font.custom("IBM Plex Sans", size: 13, relativeTo: .caption).weight(.medium)
+    static let badge = Font.custom("IBM Plex Sans", size: 12, relativeTo: .caption).weight(.bold)
+    static let metricValue = Font.custom("IBM Plex Sans", size: 15, relativeTo: .subheadline)
+        .weight(.bold)
+        .monospacedDigit()
+    static let metricLabel = Font.custom("IBM Plex Sans", size: 11, relativeTo: .caption2).weight(.bold)
     static let monoValue = Font.subheadline.monospaced()
     static let monoCompact = Font.caption.monospaced()
 }
@@ -52,27 +159,39 @@ struct SGStatusBadge: View {
     let title: String
     let color: Color
     var isAnimated: Bool = false
+    var isInactive: Bool = false
+
+    private var fillColor: Color {
+        isInactive ? SGColor.surfaceElevated : color
+    }
+
+    private var foregroundColor: Color {
+        isInactive ? SGColor.textPrimary : SGColor.inkOnPop
+    }
 
     var body: some View {
-        HStack(spacing: SGSpacing.xxSmall + 2) {
+        HStack(spacing: 6) {
             if isAnimated {
                 ProgressView()
                     .controlSize(.mini)
-                    .tint(color)
+                    .tint(foregroundColor)
             } else {
-                Circle()
-                    .fill(color)
+                Rectangle()
+                    .fill(foregroundColor)
                     .frame(width: 7, height: 7)
             }
-            Text(title)
+            Text(title.uppercased())
                 .font(SGTypography.badge)
-                .foregroundStyle(color == SGColor.statusInactive ? SGColor.textSecondary : color)
+                .tracking(0.5)
+                .foregroundStyle(foregroundColor)
+                .lineLimit(1)
         }
-        .padding(.horizontal, SGSpacing.xSmall + 2)
+        .padding(.horizontal, SGSpacing.xSmall)
         .padding(.vertical, SGSpacing.xxSmall)
-        .background(
-            Capsule(style: .continuous)
-                .fill(color.opacity(color == SGColor.statusInactive ? 0.14 : 0.16))
+        .background(fillColor)
+        .overlay(
+            Rectangle()
+                .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin)
         )
     }
 }

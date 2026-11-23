@@ -7,14 +7,17 @@ struct SplitDNSWarningRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: SGSpacing.xSmall) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.subheadline)
-                .foregroundStyle(SGColor.statusTransitioning)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(SGColor.inkOnPop)
                 .padding(.top, 1)
             Text(warning.message)
                 .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textPrimary)
+                .foregroundStyle(SGColor.inkOnPop)
         }
-        .padding(.vertical, 2)
+        .padding(SGSpacing.xSmall)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SGColor.popYellow)
+        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
     }
 }
 
@@ -32,8 +35,9 @@ struct SplitDNSRoutingPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xxSmall + 2) {
-            Text("Routing Preview")
-                .font(SGTypography.caption)
+            Text("ROUTING PREVIEW")
+                .font(SGTypography.metricLabel)
+                .tracking(0.8)
                 .foregroundStyle(SGColor.textSecondary)
 
             switch splitDNS.mode {
@@ -74,11 +78,19 @@ struct SplitDNSRoutingPreviewView: View {
                 .foregroundStyle(SGColor.textPrimary)
                 .lineLimit(1)
             Image(systemName: "arrow.right")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(SGColor.textTertiary)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(SGColor.textSecondary)
             Text(right)
-                .font(SGTypography.monoCompact)
-                .foregroundStyle(usesTunnel ? SGColor.accent : SGColor.textSecondary)
+                .font(SGTypography.monoCompact.weight(.semibold))
+                .foregroundStyle(usesTunnel ? SGColor.inkOnPop : SGColor.textSecondary)
+                .padding(.horizontal, usesTunnel ? 5 : 0)
+                .padding(.vertical, usesTunnel ? 2 : 0)
+                .background(usesTunnel ? SGColor.popGreen : Color.clear)
+                .overlay {
+                    if usesTunnel {
+                        Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1)
+                    }
+                }
                 .lineLimit(1)
         }
     }
@@ -104,8 +116,9 @@ struct SplitDNSNameTesterView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-            Text("Test a Name")
-                .font(SGTypography.caption)
+            Text("TEST A NAME")
+                .font(SGTypography.metricLabel)
+                .tracking(0.8)
                 .foregroundStyle(SGColor.textSecondary)
 
             HStack(spacing: SGSpacing.small) {
@@ -115,6 +128,10 @@ struct SplitDNSNameTesterView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .submitLabel(.search)
+                    .padding(.horizontal, SGSpacing.xSmall)
+                    .padding(.vertical, 8)
+                    .background(SGColor.surfaceElevated)
+                    .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
                     .onChange(of: query) { _, _ in
                         if lookupResult?.hostname != normalizedQuery {
                             lookupResult = nil
@@ -127,15 +144,33 @@ struct SplitDNSNameTesterView: View {
                 Button {
                     runLookup()
                 } label: {
-                    if isTesting {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Text("Test")
+                    Group {
+                        if isTesting {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(SGColor.pureWhite)
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.caption.weight(.black))
+                                Text("TEST")
+                                    .font(SGTypography.displayCompact)
+                                    .tracking(0.8)
+                            }
+                        }
                     }
+                    .padding(.horizontal, SGSpacing.small)
+                    .padding(.vertical, 8)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(
+                    BrutalistButtonStyle(
+                        fill: SGColor.popPink,
+                        foreground: SGColor.pureWhite,
+                        borderWidth: SGBorder.regular,
+                        shadowOffset: SGShadow.small,
+                        showGrain: true
+                    )
+                )
                 .disabled(normalizedQuery.isEmpty || isTesting)
             }
 
@@ -153,14 +188,16 @@ struct SplitDNSNameTesterView: View {
     private func routeBadgeRow(_ decision: SplitDNSConfiguration.DNSRouteDecision) -> some View {
         let label: String
         let detail: String
-        let tint: Color
+        let fill: Color
+        let onPop: Bool
 
         switch decision {
         case .tunnelDNS(let matchedDomain):
             let serverText = dnsServers.map(\.stringRepresentation).joined(separator: ", ")
             label = "VPN DNS (\(serverText))"
             detail = matchedDomain.map { "Matched \($0)" } ?? "All domains routed through tunnel"
-            tint = SGColor.accent
+            fill = SGColor.popPurple
+            onPop = true
         case .normalDNS(let reason):
             label = "Normal DNS"
             switch reason {
@@ -169,48 +206,61 @@ struct SplitDNSNameTesterView: View {
             case .notInMatchDomains:
                 detail = "Not in split DNS list"
             }
-            tint = SGColor.textSecondary
+            fill = SGColor.surfaceElevated
+            onPop = false
         }
 
         return HStack(spacing: SGSpacing.xSmall) {
             Image(systemName: "arrow.triangle.branch")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(tint)
+                .font(.caption.weight(.black))
+                .foregroundStyle(onPop ? SGColor.inkOnPop : SGColor.textPrimary)
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)
-                    .font(SGTypography.caption.weight(.semibold))
-                    .foregroundStyle(tint)
+                    .font(SGTypography.caption.weight(.bold))
+                    .foregroundStyle(onPop ? SGColor.inkOnPop : SGColor.textPrimary)
                 Text(detail)
                     .font(SGTypography.metricLabel)
-                    .foregroundStyle(SGColor.textSecondary)
+                    .foregroundStyle(onPop ? SGColor.inkOnPop.opacity(0.8) : SGColor.textSecondary)
             }
         }
+        .padding(SGSpacing.xSmall)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(fill)
+        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
     }
 
     private func lookupResultView(_ result: DNSLookupResult) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             if result.succeeded {
                 HStack(spacing: SGSpacing.xxSmall) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(SGColor.statusActive)
+                    Image(systemName: "checkmark.square.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SGColor.inkOnPop)
                     Text(result.addresses.joined(separator: ", "))
-                        .font(SGTypography.monoCompact)
-                        .foregroundStyle(SGColor.textPrimary)
+                        .font(SGTypography.monoCompact.weight(.semibold))
+                        .foregroundStyle(SGColor.inkOnPop)
                         .textSelection(.enabled)
                     Text("(\(result.durationMilliseconds) ms)")
                         .font(SGTypography.metricLabel)
-                        .foregroundStyle(SGColor.textTertiary)
+                        .foregroundStyle(SGColor.inkOnPop.opacity(0.75))
                 }
+                .padding(SGSpacing.xSmall)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SGColor.popGreen)
+                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
             } else {
                 HStack(spacing: SGSpacing.xxSmall) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(SGColor.statusError)
+                    Image(systemName: "xmark.octagon.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(SGColor.pureWhite)
                     Text(result.errorMessage ?? "Could not resolve")
                         .font(SGTypography.caption)
-                        .foregroundStyle(SGColor.statusError)
+                        .foregroundStyle(SGColor.pureWhite)
                 }
+                .padding(SGSpacing.xSmall)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(SGColor.popRed)
+                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
             }
 
             if !isTunnelActive {

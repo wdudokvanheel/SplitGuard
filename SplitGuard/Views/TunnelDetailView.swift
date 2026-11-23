@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct TunnelDetailView: View {
+    @Environment(\.dismiss) private var dismiss
     let store: TunnelStore
     let tunnel: TunnelContainer
     let onDeleted: () -> Void
@@ -24,86 +25,83 @@ struct TunnelDetailView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                TunnelHeroCardView(
-                    tunnelName: tunnel.name,
-                    endpoint: viewModel.primaryEndpoint,
-                    displayState: displayState,
-                    rxText: viewModel.hasAnyLiveStats ? viewModel.totalRxFormatted : "0 B",
-                    txText: viewModel.hasAnyLiveStats ? viewModel.totalTxFormatted : "0 B",
-                    handshakeText: viewModel.latestHandshakeText ?? "Pending",
-                    onToggle: { isOn in
-                        store.setTunnelActive(isOn, for: tunnel)
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: tunnel.name,
+                enableSwipeBack: true,
+                leading: {
+                    BrutalistBackButton {
+                        dismiss()
                     }
-                )
-            }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-
-            if !viewModel.interfaceRows.isEmpty {
-                Section(tr("tunnelSectionTitleInterface")) {
-                    ForEach(viewModel.interfaceRows) { row in
-                        detailRow(row)
+                },
+                trailing: {
+                    BrutalistHeaderButton(
+                        title: "Edit",
+                        systemImage: "pencil",
+                        fill: SGColor.popYellow,
+                        foreground: SGColor.inkOnPop
+                    ) {
+                        PrivateDataConfirmation.confirmAccess(to: tr("iosViewPrivateData")) {
+                            showEditSheet = true
+                        }
                     }
                 }
-            }
-
-            SplitDNSDetailSection(
-                splitDNS: viewModel.splitDNSConfiguration,
-                dnsServers: viewModel.dnsServers,
-                warnings: viewModel.splitDNSWarnings,
-                isTunnelActive: displayState.status == .active
             )
 
-            ForEach(viewModel.peers) { peer in
-                Section(peerSectionTitle(for: peer)) {
-                    if displayState.status == .active || peer.hasLiveStats {
-                        peerTransferStrip(peer)
-                    }
-                    ForEach(peer.configRows) { row in
-                        detailRow(row)
-                    }
-                }
-            }
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    TunnelDetailHeroCard(
+                        tunnelName: tunnel.name,
+                        endpoint: viewModel.primaryEndpoint,
+                        displayState: displayState,
+                        isFavorite: store.isFavorite(tunnel),
+                        rxText: viewModel.hasAnyLiveStats ? viewModel.totalRxFormatted : "0 B",
+                        txText: viewModel.hasAnyLiveStats ? viewModel.totalTxFormatted : "0 B",
+                        handshakeText: viewModel.latestHandshakeText ?? "Pending",
+                        onToggle: { isOn in
+                            store.setTunnelActive(isOn, for: tunnel)
+                        },
+                        onToggleFavorite: {
+                            withAnimation(.snappy(duration: 0.2)) {
+                                store.toggleFavorite(tunnel)
+                            }
+                        }
+                    )
 
-            Section(tr("tunnelSectionTitleOnDemand")) {
-                LabeledContent(tr("tunnelOnDemandKey"), value: viewModel.onDemandInterfaceSummary)
-                if let ssidSummary = viewModel.onDemandSSIDSummary {
-                    LabeledContent(tr("tunnelOnDemandSSIDsKey"), value: ssidSummary)
-                }
-                ForEach(viewModel.onDemandSelectedSSIDs, id: \.self) { ssid in
-                    Label(ssid, systemImage: "wifi")
-                        .font(SGTypography.subheadline)
-                        .foregroundStyle(SGColor.textSecondary)
-                }
-            }
+                    if !viewModel.interfaceRows.isEmpty {
+                        brutalistFieldSection(
+                            title: tr("tunnelSectionTitleInterface"),
+                            rows: viewModel.interfaceRows
+                        )
+                    }
 
-            Section {
-                Button(role: .destructive) {
-                    showDeleteConfirmation = true
-                } label: {
-                    HStack {
-                        Spacer()
-                        Text(tr("deleteTunnelButtonTitle"))
-                            .fontWeight(.medium)
-                        Spacer()
+                    SplitDNSDetailCard(
+                        splitDNS: viewModel.splitDNSConfiguration,
+                        dnsServers: viewModel.dnsServers,
+                        warnings: viewModel.splitDNSWarnings,
+                        isTunnelActive: displayState.status == .active
+                    )
+
+                    ForEach(viewModel.peers) { peer in
+                        peerCard(peer)
                     }
+
+                    TunnelDetailOnDemandCard(
+                        interfaceSummary: viewModel.onDemandInterfaceSummary,
+                        ssidSummary: viewModel.onDemandSSIDSummary,
+                        selectedSSIDs: viewModel.onDemandSelectedSSIDs
+                    )
+
+                    deleteButton
                 }
+                .padding(.horizontal, SGSpacing.medium)
+                .padding(.top, SGSpacing.medium)
+                .padding(.bottom, SGSpacing.xxLarge)
             }
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle(tunnel.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") {
-                    PrivateDataConfirmation.confirmAccess(to: tr("iosViewPrivateData")) {
-                        showEditSheet = true
-                    }
-                }
-            }
-        }
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showEditSheet) {
             TunnelEditorView(store: store, tunnel: tunnel) { _ in
                 viewModel.refreshStaticConfiguration()
@@ -139,62 +137,136 @@ struct TunnelDetailView: View {
             Button(tr("actionCancel"), role: .cancel) {}
         }
     }
+}
 
-    private func peerSectionTitle(for peer: PeerDisplaySnapshot) -> String {
+private extension TunnelDetailView {
+    func peerSectionTitle(for peer: PeerDisplaySnapshot) -> String {
         if viewModel.peers.count > 1 {
             return "\(tr("tunnelSectionTitlePeer")) \(peer.index + 1)"
         }
         return tr("tunnelSectionTitlePeer")
     }
 
-    private func peerTransferStrip(_ peer: PeerDisplaySnapshot) -> some View {
-        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-            HStack {
-                Label(tr("tunnelPeerRxBytes"), systemImage: "arrow.down")
-                    .font(SGTypography.subheadline)
-                    .foregroundStyle(SGColor.textSecondary)
-                Spacer()
-                Text(peer.rxBytesText ?? "0 B")
-                    .font(SGTypography.metricValue)
-                    .foregroundStyle(SGColor.textPrimary)
+    func brutalistFieldSection(title: String, rows: [DetailFieldRow]) -> some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(title: title)
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    detailRow(row)
+                    if index < rows.count - 1 {
+                        Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+                    }
+                }
             }
-
-            HStack {
-                Label(tr("tunnelPeerTxBytes"), systemImage: "arrow.up")
-                    .font(SGTypography.subheadline)
-                    .foregroundStyle(SGColor.textSecondary)
-                Spacer()
-                Text(peer.txBytesText ?? "0 B")
-                    .font(SGTypography.metricValue)
-                    .foregroundStyle(SGColor.textPrimary)
-            }
-
-            HStack {
-                Label(tr("tunnelPeerLastHandshakeTime"), systemImage: "clock")
-                    .font(SGTypography.subheadline)
-                    .foregroundStyle(SGColor.textSecondary)
-                Spacer()
-                Text(peer.lastHandshakeText ?? "No handshake yet")
-                    .font(SGTypography.subheadline)
-                    .foregroundStyle(peer.lastHandshakeText == nil ? SGColor.textTertiary : SGColor.textPrimary)
-            }
+            .padding(.horizontal, SGSpacing.medium)
+            .padding(.vertical, SGSpacing.xSmall)
+            .background(SGColor.surfaceCard)
         }
-        .padding(.vertical, SGSpacing.xxSmall)
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+
+    func peerCard(_ peer: PeerDisplaySnapshot) -> some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(title: peerSectionTitle(for: peer))
+            VStack(spacing: 0) {
+                if displayState.status == .active || peer.hasLiveStats {
+                    peerTransferStrip(peer)
+                    Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
+                }
+                ForEach(Array(peer.configRows.enumerated()), id: \.element.id) { index, row in
+                    detailRow(row)
+                    if index < peer.configRows.count - 1 {
+                        Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+                    }
+                }
+            }
+            .padding(.horizontal, SGSpacing.medium)
+            .padding(.vertical, SGSpacing.xSmall)
+            .background(SGColor.surfaceCard)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+
+    var deleteButton: some View {
+        Button {
+            showDeleteConfirmation = true
+        } label: {
+            HStack(spacing: SGSpacing.xSmall) {
+                Image(systemName: "trash.fill")
+                    .font(.subheadline.weight(.bold))
+                Text(tr("deleteTunnelButtonTitle").uppercased())
+                    .font(SGTypography.displayButton)
+                    .tracking(1.0)
+            }
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(
+            BrutalistButtonStyle(
+                fill: SGColor.popRed,
+                foreground: SGColor.pureWhite,
+                borderWidth: SGBorder.regular,
+                shadowOffset: SGShadow.medium,
+                fullWidth: true,
+                showGrain: true
+            )
+        )
+        .padding(.top, SGSpacing.xSmall)
+    }
+
+    func peerTransferStrip(_ peer: PeerDisplaySnapshot) -> some View {
+        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+            metricLine(label: tr("tunnelPeerRxBytes"), value: peer.rxBytesText ?? "0 B", accent: SGColor.popBlue)
+            metricLine(label: tr("tunnelPeerTxBytes"), value: peer.txBytesText ?? "0 B", accent: SGColor.popGreen)
+            metricLine(
+                label: tr("tunnelPeerLastHandshakeTime"),
+                value: peer.lastHandshakeText ?? "No handshake yet",
+                accent: SGColor.popYellow
+            )
+        }
+        .padding(.vertical, SGSpacing.xSmall)
+    }
+
+    func metricLine(label: String, value: String, accent: Color) -> some View {
+        HStack(spacing: SGSpacing.xSmall) {
+            Rectangle()
+                .fill(accent)
+                .frame(width: 8, height: 8)
+                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+            Text(label)
+                .font(SGTypography.caption)
+                .foregroundStyle(SGColor.textSecondary)
+            Spacer()
+            Text(value)
+                .font(SGTypography.metricValue)
+                .foregroundStyle(SGColor.textPrimary)
+                .contentTransition(.numericText())
+        }
     }
 
     @ViewBuilder
-    private func detailRow(_ row: DetailFieldRow) -> some View {
+    func detailRow(_ row: DetailFieldRow) -> some View {
         let content = VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
             HStack {
-                Text(row.label)
-                    .font(SGTypography.caption)
+                Text(row.label.uppercased())
+                    .font(SGTypography.metricLabel)
+                    .tracking(0.6)
                     .foregroundStyle(SGColor.textSecondary)
                 Spacer()
                 if copiedFieldID == row.id {
-                    Label("Copied", systemImage: "checkmark")
+                    Text("COPIED")
                         .font(SGTypography.metricLabel)
-                        .foregroundStyle(SGColor.accent)
-                        .transition(.opacity)
+                        .foregroundStyle(SGColor.inkOnPop)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(SGColor.popGreen)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+                        .transition(.scale.combined(with: .opacity))
+                } else if row.isCopyable {
+                    Image(systemName: "doc.on.doc")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(SGColor.textTertiary)
                 }
             }
             Text(row.value)
@@ -202,15 +274,11 @@ struct TunnelDetailView: View {
                 .foregroundStyle(SGColor.textPrimary)
                 .textSelection(.enabled)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, SGSpacing.xSmall)
 
         if row.isCopyable {
-            Button {
-                copyValue(row)
-            } label: {
-                content
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+            Button { copyValue(row) } label: {
+                content.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         } else {
@@ -218,141 +286,16 @@ struct TunnelDetailView: View {
         }
     }
 
-    private func copyValue(_ row: DetailFieldRow) {
+    func copyValue(_ row: DetailFieldRow) {
         UIPasteboard.general.string = row.value
-        withAnimation(.easeInOut(duration: 0.15)) {
-            copiedFieldID = row.id
-        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(.snappy(duration: 0.16)) { copiedFieldID = row.id }
         let targetID = row.id
         Task {
             try? await Task.sleep(for: .seconds(1.5))
             if copiedFieldID == targetID {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    copiedFieldID = nil
-                }
+                withAnimation(.easeInOut(duration: 0.2)) { copiedFieldID = nil }
             }
         }
-    }
-}
-
-private struct TunnelHeroCardView: View {
-    let tunnelName: String
-    let endpoint: String?
-    let displayState: TunnelDisplayState
-    let rxText: String
-    let txText: String
-    let handshakeText: String
-    let onToggle: (Bool) -> Void
-
-    var body: some View {
-        VStack(spacing: SGSpacing.medium) {
-            HStack(spacing: SGSpacing.small) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: SGRadius.medium, style: .continuous)
-                        .fill(displayState.statusColor.opacity(0.16))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: displayState.status.symbolName)
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(displayState.statusColor)
-                }
-
-                VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
-                    Text(tunnelName)
-                        .font(SGTypography.cardTitle)
-                        .foregroundStyle(SGColor.textPrimary)
-                        .lineLimit(1)
-
-                    SGStatusBadge(
-                        title: displayState.statusText,
-                        color: displayState.statusColor,
-                        isAnimated: displayState.status.isTransitioning
-                    )
-
-                    if let endpoint {
-                        Text(endpoint)
-                            .font(SGTypography.monoCompact)
-                            .foregroundStyle(SGColor.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
-
-                Spacer(minLength: SGSpacing.xSmall)
-
-                Toggle(
-                    isOn: Binding(
-                        get: { displayState.isSwitchOn },
-                        set: onToggle
-                    )
-                ) {
-                    EmptyView()
-                }
-                .labelsHidden()
-                .tint(displayState.switchTint)
-                .disabled(!displayState.isSwitchInteractive)
-                .accessibilityLabel("Toggle \(tunnelName)")
-            }
-
-            if displayState.status == .active {
-                Divider()
-                HStack(spacing: SGSpacing.small) {
-                    metricTile(
-                        title: "Received",
-                        value: rxText,
-                        systemImage: "arrow.down.circle.fill",
-                        tint: SGColor.accent
-                    )
-                    metricTile(
-                        title: "Sent",
-                        value: txText,
-                        systemImage: "arrow.up.circle.fill",
-                        tint: SGColor.statusActive
-                    )
-                    metricTile(
-                        title: "Handshake",
-                        value: handshakeText,
-                        systemImage: "clock.arrow.circlepath",
-                        tint: SGColor.textSecondary
-                    )
-                }
-            }
-        }
-        .padding(SGSpacing.medium)
-        .background(
-            RoundedRectangle(cornerRadius: SGRadius.large, style: .continuous)
-                .fill(SGColor.surfaceCard)
-                .overlay(
-                    RoundedRectangle(cornerRadius: SGRadius.large, style: .continuous)
-                        .strokeBorder(
-                            displayState.status == .active
-                                ? displayState.statusColor.opacity(0.32)
-                                : SGColor.borderSubtle,
-                            lineWidth: 1
-                        )
-                )
-        )
-    }
-
-    private func metricTile(
-        title: String,
-        value: String,
-        systemImage: String,
-        tint: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
-            HStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.caption2)
-                    .foregroundStyle(tint)
-                Text(title)
-                    .font(SGTypography.metricLabel)
-                    .foregroundStyle(SGColor.textSecondary)
-            }
-            Text(value)
-                .font(SGTypography.metricValue)
-                .foregroundStyle(SGColor.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

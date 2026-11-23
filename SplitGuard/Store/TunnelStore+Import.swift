@@ -25,6 +25,7 @@ extension TunnelStore {
             return
         }
 
+        let existingIDs = Set(tunnels.map(ObjectIdentifier.init))
         TunnelImporter.importFromFile(
             urls: stagedResult.stagedURLs,
             into: manager,
@@ -33,7 +34,13 @@ extension TunnelStore {
         ) { [weak self] in
             DispatchQueue.main.async {
                 _ = FileManager.deleteFile(at: stagingDirectory)
-                self?.syncTunnelsFromManager()
+                guard let self else {
+                    completion?()
+                    return
+                }
+                self.syncTunnelsFromManager()
+                let addedTunnels = self.tunnels.filter { !existingIDs.contains(ObjectIdentifier($0)) }
+                self.evaluateSplitDNSSuggestion(for: addedTunnels)
                 completion?()
             }
         }
@@ -78,8 +85,9 @@ extension TunnelStore {
             DispatchQueue.main.async {
                 guard let self else { return }
                 switch result {
-                case .success:
+                case .success(let createdTunnel):
                     self.syncTunnelsFromManager()
+                    self.evaluateSplitDNSSuggestion(for: [createdTunnel])
                     completion?(true)
                 case .failure(let error):
                     self.present(error: error)

@@ -93,6 +93,23 @@ struct TunnelDisplayState: Equatable {
         return status.statusColor
     }
 
+    var heroBannerColor: Color {
+        switch status {
+        case .active:
+            return SGColor.popGreen
+        case .deactivating:
+            return SGColor.popRed
+        case .activating, .reasserting, .restarting, .waiting:
+            return SGColor.popYellow
+        case .inactive:
+            return isOnDemandEnabled ? SGColor.popYellow : SGColor.popBlue
+        }
+    }
+
+    var isInactiveBadge: Bool {
+        status == .inactive && !isOnDemandEnabled
+    }
+
     var statusText: String {
         if hasOnDemandRules && !isOnDemandEnabled && status == .inactive {
             return tr("tunnelStatusOnDemandDisabled")

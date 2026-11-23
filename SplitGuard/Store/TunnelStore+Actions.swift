@@ -15,6 +15,7 @@ extension TunnelStore {
         }
 
         if let tunnel {
+            let previousName = tunnel.name
             manager.modify(
                 tunnel: tunnel,
                 tunnelConfiguration: configuration,
@@ -26,6 +27,11 @@ extension TunnelStore {
                     if let error {
                         completion(.failure(error))
                     } else {
+                        if self.favoriteTunnelName == previousName,
+                           let newName = configuration.name,
+                           newName != previousName {
+                            self.setFavorite(tunnel)
+                        }
                         self.syncTunnelsFromManager()
                         completion(.success(tunnel))
                     }
@@ -128,5 +134,58 @@ extension TunnelStore {
     func consumeRequestedNavigationTunnelID() -> ObjectIdentifier? {
         defer { requestedNavigationTunnelID = nil }
         return requestedNavigationTunnelID
+    }
+
+    func evaluateSplitDNSSuggestion(for newlyAddedTunnels: [TunnelContainer]) {
+        guard pendingSplitDNSSuggestion == nil else { return }
+        for tunnel in newlyAddedTunnels {
+            guard tunnel.splitDNSConfiguration.mode == .allDomains,
+                  let configuration = tunnel.tunnelConfiguration else { continue }
+            let endpoints = configuration.peers.compactMap(\.endpoint)
+            guard let suggestedDomain = SplitDNSConfiguration.endpointDomainSuggestion(from: endpoints) else {
+                continue
+            }
+            pendingSplitDNSSuggestion = SplitDNSSuggestionPrompt(
+                tunnelID: ObjectIdentifier(tunnel),
+                tunnelName: tunnel.name,
+                suggestedDomain: suggestedDomain,
+                dnsServers: configuration.interface.dns.map(\.stringRepresentation)
+            )
+            return
+        }
+    }
+
+    func applySplitDNSSuggestion(
+        for tunnelID: ObjectIdentifier,
+        domains: [SplitDNSConfiguration.Domain],
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        guard let tunnel = tunnel(for: tunnelID),
+              let configuration = tunnel.tunnelConfiguration else {
+            pendingSplitDNSSuggestion = nil
+            completion?(false)
+            return
+        }
+        let splitDNS = SplitDNSConfiguration(mode: .onlyDomains, domains: domains)
+        saveTunnel(
+            existing: tunnel,
+            configuration: configuration,
+            splitDNSConfiguration: splitDNS,
+            onDemandOption: tunnel.onDemandOption
+        ) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success:
+                self.pendingSplitDNSSuggestion = nil
+                completion?(true)
+            case .failure(let error):
+                self.present(error: error)
+                completion?(false)
+            }
+        }
+    }
+
+    func dismissSplitDNSSuggestion() {
+        pendingSplitDNSSuggestion = nil
     }
 }

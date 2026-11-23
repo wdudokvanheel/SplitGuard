@@ -73,8 +73,17 @@
 	<string>SplitGuard uses the camera to scan WireGuard configuration QR codes.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>SplitGuard uses Face ID to protect private keys and tunnel exports.</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>BebasNeue-Regular.ttf</string>
+		<string>IBMPlexSans-Variable.ttf</string>
+		<string>IBMPlexSans-Italic-Variable.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

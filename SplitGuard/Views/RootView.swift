@@ -11,6 +11,11 @@ struct RootView: View {
     @State private var showPasteSheet = false
     @State private var showCreateTunnel = false
     @State private var showSettings = false
+    @State private var presentedSplitDNSPrompt: SplitDNSSuggestionPrompt?
+
+    private var isBlockingModalActive: Bool {
+        showFileImporter || showQRScanner || showPasteSheet || showCreateTunnel || showSettings
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -41,11 +46,25 @@ struct RootView: View {
                         navigationPath.removeAll { $0 == tunnelID }
                     }
                 } else {
-                    ContentUnavailableView(
-                        "Tunnel Removed",
-                        systemImage: "shield.slash",
-                        description: Text("This tunnel is no longer available.")
-                    )
+                    VStack(spacing: 0) {
+                        BrutalistHeaderBar(
+                            title: "Tunnel Removed",
+                            leading: {
+                                BrutalistBackButton {
+                                    navigationPath.removeAll { $0 == tunnelID }
+                                }
+                            }
+                        )
+                        BrutalistUnavailableCard(
+                            title: "Tunnel Removed",
+                            message: "This tunnel is no longer available.",
+                            systemImage: "shield.slash.fill",
+                            accent: SGColor.popRed
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .background(SGColor.surfacePrimary.ignoresSafeArea())
+                    .toolbar(.hidden, for: .navigationBar)
                 }
             }
         }
@@ -85,6 +104,9 @@ struct RootView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(store: store)
         }
+        .sheet(item: $presentedSplitDNSPrompt) { prompt in
+            FirstRunSplitDNSSheet(store: store, prompt: prompt)
+        }
         .alert(
             store.activeAlert?.title ?? "",
             isPresented: Binding(
@@ -122,8 +144,17 @@ struct RootView: View {
         .onChange(of: store.requestedNavigationTunnelID) { _, _ in
             navigateToRequestedTunnelIfNeeded()
         }
+        .onChange(of: store.pendingSplitDNSSuggestion) { _, _ in
+            scheduleSplitDNSPromptPresentationIfReady()
+        }
+        .onChange(of: isBlockingModalActive) { _, isActive in
+            if !isActive {
+                scheduleSplitDNSPromptPresentationIfReady(delay: 0.35)
+            }
+        }
         .onAppear {
             navigateToRequestedTunnelIfNeeded()
+            scheduleSplitDNSPromptPresentationIfReady()
         }
     }
 
@@ -132,6 +163,20 @@ struct RootView: View {
         guard store.tunnel(for: tunnelID) != nil else { return }
         if navigationPath.last != tunnelID {
             navigationPath = [tunnelID]
+        }
+    }
+
+    private func scheduleSplitDNSPromptPresentationIfReady(delay: TimeInterval = 0.05) {
+        guard let pending = store.pendingSplitDNSSuggestion,
+              !isBlockingModalActive,
+              presentedSplitDNSPrompt == nil else { return }
+        let targetID = pending.id
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !isBlockingModalActive,
+                  presentedSplitDNSPrompt == nil,
+                  store.pendingSplitDNSSuggestion?.id == targetID else { return }
+            presentedSplitDNSPrompt = store.pendingSplitDNSSuggestion
         }
     }
 }

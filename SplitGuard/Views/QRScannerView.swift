@@ -23,7 +23,20 @@ struct QRScannerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: tr("scanQRCodeViewTitle"),
+                leading: {
+                    BrutalistHeaderButton(
+                        title: tr("actionCancel"),
+                        fill: SGColor.surfaceCard,
+                        foreground: SGColor.textPrimary
+                    ) {
+                        dismiss()
+                    }
+                }
+            )
+
             Group {
                 switch cameraState {
                 case .checking:
@@ -34,56 +47,58 @@ struct QRScannerView: View {
                 case .authorized:
                     scannerContent
                 case .denied:
-                    cameraDeniedView
+                    QRScannerCameraFallbackView(isDenied: true, onSwitchToPaste: onSwitchToPaste)
                 case .unavailable:
-                    cameraUnavailableView
+                    QRScannerCameraFallbackView(isDenied: false, onSwitchToPaste: onSwitchToPaste)
                 }
             }
-            .navigationTitle(tr("scanQRCodeViewTitle"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("actionCancel")) {
-                        dismiss()
+        }
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .task {
+            await checkCameraAvailability()
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { scannedConfiguration != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        scannedConfiguration = nil
+                        tunnelName = ""
+                        isScanningPaused = false
                     }
                 }
-            }
-            .task {
-                await checkCameraAvailability()
-            }
-            .sheet(
-                isPresented: Binding(
-                    get: { scannedConfiguration != nil },
-                    set: { isPresented in
-                        if !isPresented {
-                            scannedConfiguration = nil
-                            tunnelName = ""
-                            isScanningPaused = false
-                        }
-                    }
-                )
-            ) {
-                nameScannedTunnelSheet
-            }
-            .alert(
-                scanError?.title ?? "",
-                isPresented: Binding(
-                    get: { scanError != nil },
-                    set: { isPresented in
-                        if !isPresented {
-                            scanError = nil
-                            isScanningPaused = false
-                        }
-                    }
-                )
-            ) {
-                Button(tr("actionOK"), role: .cancel) {
-                    scanError = nil
+            )
+        ) {
+            QRNameScannedTunnelSheet(
+                tunnelName: $tunnelName,
+                scannedConfiguration: scannedConfiguration,
+                scannedSplitDNS: scannedSplitDNS,
+                onCancel: {
+                    scannedConfiguration = nil
+                    tunnelName = ""
                     isScanningPaused = false
+                },
+                onSave: saveScannedTunnel
+            )
+        }
+        .alert(
+            scanError?.title ?? "",
+            isPresented: Binding(
+                get: { scanError != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        scanError = nil
+                        isScanningPaused = false
+                    }
                 }
-            } message: {
-                Text(scanError?.message ?? "")
+            )
+        ) {
+            Button(tr("actionOK"), role: .cancel) {
+                scanError = nil
+                isScanningPaused = false
             }
+        } message: {
+            Text(scanError?.message ?? "")
         }
     }
 
@@ -99,107 +114,35 @@ struct QRScannerView: View {
             VStack(spacing: SGSpacing.xLarge) {
                 Spacer()
 
-                RoundedRectangle(cornerRadius: SGRadius.large + 4, style: .continuous)
-                    .strokeBorder(.white.opacity(0.9), lineWidth: 2.5)
+                Rectangle()
+                    .strokeBorder(SGColor.popYellow, lineWidth: 4)
                     .frame(width: 248, height: 248)
-                    .background(
-                        RoundedRectangle(cornerRadius: SGRadius.large + 4, style: .continuous)
-                            .fill(.black.opacity(0.08))
+                    .background(SGColor.pureBlack.opacity(0.08))
+                    .overlay(
+                        Rectangle()
+                            .strokeBorder(SGColor.pureBlack, lineWidth: 1.5)
+                            .padding(-2)
                     )
 
-                Text(tr("scanQRCodeTipText"))
-                    .font(SGTypography.subheadline)
-                    .foregroundStyle(.white)
+                Text(tr("scanQRCodeTipText").uppercased())
+                    .font(SGTypography.badge)
+                    .tracking(0.8)
+                    .foregroundStyle(SGColor.inkOnPop)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, SGSpacing.medium)
-                    .padding(.vertical, SGSpacing.xSmall)
-                    .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+                    .padding(.vertical, SGSpacing.xSmall + 2)
+                    .background(SGColor.creme)
+                    .overlay(Rectangle().strokeBorder(SGColor.pureBlack, lineWidth: SGBorder.regular))
+                    .background(
+                        Rectangle()
+                            .fill(SGColor.pureBlack)
+                            .offset(x: SGShadow.small, y: SGShadow.small)
+                    )
                     .padding(.horizontal, SGSpacing.large)
 
                 Spacer()
             }
         }
-    }
-
-    private var cameraDeniedView: some View {
-        ContentUnavailableView {
-            Label("Camera Access Needed", systemImage: "camera.fill")
-        } description: {
-            Text("Allow camera access in Settings to scan configuration QR codes.")
-        } actions: {
-            Button("Open Settings") {
-                if let url = URL(string: UIApplication.openSettingsURLString) {
-                    UIApplication.shared.open(url)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-
-            Button("Paste Configuration Instead", action: onSwitchToPaste)
-                .buttonStyle(.bordered)
-        }
-        .background(SGColor.surfacePrimary)
-    }
-
-    private var cameraUnavailableView: some View {
-        ContentUnavailableView {
-            Label(tr("alertScanQRCodeCameraUnsupportedTitle"), systemImage: "camera.metering.unknown")
-        } description: {
-            Text(tr("alertScanQRCodeCameraUnsupportedMessage"))
-        } actions: {
-            Button("Paste Configuration Instead", action: onSwitchToPaste)
-                .buttonStyle(.borderedProminent)
-        }
-        .background(SGColor.surfacePrimary)
-    }
-
-    private var nameScannedTunnelSheet: some View {
-        NavigationStack {
-            Form {
-                Section(tr("alertScanQRCodeNamePromptTitle")) {
-                    TextField("e.g. Home VPN", text: $tunnelName)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                }
-
-                if let config = scannedConfiguration {
-                    Section("Detected Configuration") {
-                        if let endpoint = config.peers.first?.endpoint?.stringRepresentation {
-                            LabeledContent("Endpoint", value: endpoint)
-                        }
-                        if !config.interface.dns.isEmpty {
-                            LabeledContent(
-                                "DNS",
-                                value: config.interface.dns.map(\.stringRepresentation).joined(separator: ", ")
-                            )
-                        }
-                        if scannedSplitDNS.mode == .onlyDomains && !scannedSplitDNS.normalizedDomainNames.isEmpty {
-                            LabeledContent(
-                                "Split DNS",
-                                value: scannedSplitDNS.normalizedDomainNames.joined(separator: ", ")
-                            )
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Name Tunnel")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("actionCancel")) {
-                        scannedConfiguration = nil
-                        tunnelName = ""
-                        isScanningPaused = false
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(tr("actionSave")) {
-                        saveScannedTunnel()
-                    }
-                    .disabled(tunnelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-        .presentationDetents([.medium])
     }
 
     private func checkCameraAvailability() async {
@@ -233,8 +176,7 @@ struct QRScannerView: View {
             return
         }
 
-        let feedback = UINotificationFeedbackGenerator()
-        feedback.notificationOccurred(.success)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         scannedSplitDNS = SplitDNSConfigCodec.extract(from: payload)
         scannedConfiguration = config
     }
@@ -244,13 +186,11 @@ struct QRScannerView: View {
         let name = tunnelName.trimmingCharacters(in: .whitespacesAndNewlines)
         let splitDNS = scannedSplitDNS
         store.addConfiguration(config, splitDNSConfiguration: splitDNS, named: name) { succeeded in
+            scannedConfiguration = nil
+            scannedSplitDNS = .allDomains
             if succeeded {
-                scannedConfiguration = nil
-                scannedSplitDNS = .allDomains
                 dismiss()
             } else {
-                scannedConfiguration = nil
-                scannedSplitDNS = .allDomains
                 tunnelName = ""
                 isScanningPaused = false
             }
@@ -258,120 +198,145 @@ struct QRScannerView: View {
     }
 }
 
-private struct QRCameraPreviewView: UIViewControllerRepresentable {
-    let isPaused: Bool
-    let onCodeScanned: (String) -> Void
-    let onFailure: (String, String) -> Void
+private struct QRNameScannedTunnelSheet: View {
+    @Binding var tunnelName: String
+    let scannedConfiguration: TunnelConfiguration?
+    let scannedSplitDNS: SplitDNSConfiguration
+    let onCancel: () -> Void
+    let onSave: () -> Void
 
-    func makeUIViewController(context: Context) -> QRCameraController {
-        let controller = QRCameraController()
-        controller.onCodeScanned = onCodeScanned
-        controller.onFailure = onFailure
-        return controller
+    var body: some View {
+        VStack(spacing: 0) {
+            BrutalistHeaderBar(
+                title: "Name Tunnel",
+                leading: {
+                    BrutalistHeaderButton(
+                        title: tr("actionCancel"),
+                        fill: SGColor.surfaceCard,
+                        foreground: SGColor.textPrimary,
+                        action: onCancel
+                    )
+                },
+                trailing: {
+                    BrutalistHeaderButton(
+                        title: tr("actionSave"),
+                        fill: SGColor.popGreen,
+                        foreground: SGColor.inkOnPop,
+                        showGrain: true,
+                        action: onSave
+                    )
+                    .disabled(tunnelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            )
+
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    VStack(spacing: 0) {
+                        BrutalistSectionBar(title: tr("alertScanQRCodeNamePromptTitle"))
+                        TextField("e.g. Home VPN", text: $tunnelName)
+                            .font(SGTypography.body)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .padding(.horizontal, SGSpacing.xSmall)
+                            .padding(.vertical, 10)
+                            .background(SGColor.surfaceElevated)
+                            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
+                            .padding(SGSpacing.medium)
+                            .background(SGColor.surfaceCard)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+                    .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+
+                    if let config = scannedConfiguration {
+                        VStack(spacing: 0) {
+                            BrutalistSectionBar(title: "Detected Configuration")
+                            VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+                                if let endpoint = config.peers.first?.endpoint?.stringRepresentation {
+                                    detectedInfoRow(label: "ENDPOINT", value: endpoint)
+                                }
+                                if !config.interface.dns.isEmpty {
+                                    detectedInfoRow(
+                                        label: "DNS",
+                                        value: config.interface.dns.map(\.stringRepresentation).joined(separator: ", ")
+                                    )
+                                }
+                                if scannedSplitDNS.mode == .onlyDomains && !scannedSplitDNS.normalizedDomainNames.isEmpty {
+                                    detectedInfoRow(
+                                        label: "SPLIT DNS",
+                                        value: scannedSplitDNS.normalizedDomainNames.joined(separator: ", ")
+                                    )
+                                }
+                            }
+                            .padding(SGSpacing.medium)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(SGColor.surfaceCard)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+                        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+                    }
+                }
+                .padding(SGSpacing.medium)
+            }
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
+        }
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
+        .presentationDetents([.medium])
     }
 
-    func updateUIViewController(_ uiViewController: QRCameraController, context: Context) {
-        uiViewController.setPaused(isPaused)
+    private func detectedInfoRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(SGTypography.metricLabel)
+                .foregroundStyle(SGColor.textSecondary)
+            Spacer()
+            Text(value)
+                .font(SGTypography.monoCompact.weight(.semibold))
+                .foregroundStyle(SGColor.textPrimary)
+        }
     }
 }
 
-private final class QRCameraController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    var onCodeScanned: ((String) -> Void)?
-    var onFailure: ((String, String) -> Void)?
+private struct QRScannerCameraFallbackView: View {
+    let isDenied: Bool
+    let onSwitchToPaste: () -> Void
 
-    private let captureSession = AVCaptureSession()
-    private let metadataOutput = AVCaptureMetadataOutput()
-    private var previewLayer: AVCaptureVideoPreviewLayer?
-    private var isConfigured = false
-    private var isPaused = false
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .black
-        configureSession()
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        previewLayer?.frame = view.bounds
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        updateRunningState()
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        stopSession()
-    }
-
-    func setPaused(_ paused: Bool) {
-        guard isPaused != paused else { return }
-        isPaused = paused
-        updateRunningState()
-    }
-
-    private func configureSession() {
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device),
-              captureSession.canAddInput(input),
-              captureSession.canAddOutput(metadataOutput) else {
-            onFailure?(
-                tr("alertScanQRCodeCameraUnsupportedTitle"),
-                tr("alertScanQRCodeCameraUnsupportedMessage")
+    var body: some View {
+        VStack(spacing: SGSpacing.medium) {
+            BrutalistUnavailableCard(
+                title: isDenied ? "Camera Access Needed" : tr("alertScanQRCodeCameraUnsupportedTitle"),
+                message: isDenied
+                    ? "Allow camera access in Settings to scan configuration QR codes."
+                    : tr("alertScanQRCodeCameraUnsupportedMessage"),
+                systemImage: isDenied ? "camera.fill" : "camera.metering.unknown",
+                accent: isDenied ? SGColor.popYellow : SGColor.popPurple
             )
-            return
-        }
 
-        captureSession.addInput(input)
-        captureSession.addOutput(metadataOutput)
-        metadataOutput.setMetadataObjectsDelegate(self, queue: .main)
-        metadataOutput.metadataObjectTypes = [.qr]
+            VStack(spacing: SGSpacing.small) {
+                if isDenied {
+                    Button("OPEN SETTINGS") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(SGTypography.displayButton)
+                    .padding(.vertical, 12)
+                    .buttonStyle(BrutalistButtonStyle(fill: SGColor.popBlue, fullWidth: true))
+                }
 
-        let layer = AVCaptureVideoPreviewLayer(session: captureSession)
-        layer.videoGravity = .resizeAspectFill
-        layer.frame = view.bounds
-        view.layer.insertSublayer(layer, at: 0)
-        previewLayer = layer
-        isConfigured = true
-        updateRunningState()
-    }
-
-    private func updateRunningState() {
-        guard isConfigured else { return }
-        if isPaused {
-            stopSession()
-        } else if !captureSession.isRunning {
-            let session = captureSession
-            DispatchQueue.global(qos: .userInitiated).async {
-                session.startRunning()
+                Button("PASTE CONFIGURATION INSTEAD", action: onSwitchToPaste)
+                    .font(isDenied ? SGTypography.displayCompact : SGTypography.displayButton)
+                    .padding(.vertical, 12)
+                    .buttonStyle(
+                        BrutalistButtonStyle(
+                            fill: isDenied ? SGColor.surfaceCard : SGColor.popPink,
+                            foreground: isDenied ? SGColor.textPrimary : SGColor.pureWhite,
+                            fullWidth: true
+                        )
+                    )
             }
+            .padding(.horizontal, SGSpacing.medium)
         }
-    }
-
-    private func stopSession() {
-        guard captureSession.isRunning else { return }
-        let session = captureSession
-        DispatchQueue.global(qos: .userInitiated).async {
-            session.stopRunning()
-        }
-    }
-
-    func metadataOutput(
-        _ output: AVCaptureMetadataOutput,
-        didOutput metadataObjects: [AVMetadataObject],
-        from connection: AVCaptureConnection
-    ) {
-        guard !isPaused else { return }
-        guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              let stringValue = object.stringValue else {
-            onFailure?(
-                tr("alertScanQRCodeUnreadableQRCodeTitle"),
-                tr("alertScanQRCodeUnreadableQRCodeMessage")
-            )
-            return
-        }
-        onCodeScanned?(stringValue)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(SGColor.surfacePrimary.ignoresSafeArea())
     }
 }
