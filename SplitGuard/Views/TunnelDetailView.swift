@@ -9,6 +9,7 @@ struct TunnelDetailView: View {
     @State private var viewModel: TunnelDetailViewModel
     @State private var isVisible = false
     @State private var showDeleteConfirmation = false
+    @State private var showEditSheet = false
     @State private var copiedFieldID: String?
 
     init(store: TunnelStore, tunnel: TunnelContainer, onDeleted: @escaping () -> Void) {
@@ -87,6 +88,20 @@ struct TunnelDetailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(tunnel.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") {
+                    PrivateDataConfirmation.confirmAccess(to: tr("iosViewPrivateData")) {
+                        showEditSheet = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            TunnelEditorView(store: store, tunnel: tunnel) { _ in
+                viewModel.refreshStaticConfiguration()
+            }
+        }
         .onAppear {
             isVisible = true
             viewModel.refreshStaticConfiguration()

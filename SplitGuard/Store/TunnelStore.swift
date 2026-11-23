@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import WireGuardKit
 
-struct AlertItem: Identifiable, Equatable {
+struct AlertItem: Identifiable, Equatable, Error {
     let id = UUID()
     let title: String
     let message: String
@@ -46,9 +46,11 @@ final class TunnelStore {
     private(set) var hasOnDemandRulesByTunnel: [ObjectIdentifier: Bool] = [:]
 
     var activeAlert: AlertItem?
+    var requestedNavigationTunnelID: ObjectIdentifier?
 
     var manager: TunnelsManager?
     var pendingOpenedURLs: [URL] = []
+    var pendingQuickActionTunnelName: String?
     private var alertQueue: [AlertItem] = []
     private var observations: [ObjectIdentifier: [NSKeyValueObservation]] = [:]
 
@@ -89,6 +91,7 @@ final class TunnelStore {
         isLoading = false
         syncTunnelsFromManager()
         flushPendingOpenedURLs()
+        flushPendingQuickAction()
     }
 
     func tunnel(for id: ObjectIdentifier) -> TunnelContainer? {
@@ -216,9 +219,10 @@ final class TunnelStore {
             let id = ObjectIdentifier(tunnel)
             statusByTunnel[id] = tunnel.status
             onDemandEnabledByTunnel[id] = tunnel.isActivateOnDemandEnabled
-            hasOnDemandRulesByTunnel[id] = tunnel.hasOnDemandRules
+            hasOnDemandRulesByTunnel[id] = tunnel.hasOnDemandRules || tunnel.onDemandOption != .off
             installObserversIfNeeded(for: tunnel, id: id)
         }
+        updateQuickActions()
     }
 
     private func installObserversIfNeeded(for tunnel: TunnelContainer, id: ObjectIdentifier) {

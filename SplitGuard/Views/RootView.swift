@@ -9,6 +9,8 @@ struct RootView: View {
     @State private var showFileImporter = false
     @State private var showQRScanner = false
     @State private var showPasteSheet = false
+    @State private var showCreateTunnel = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -23,8 +25,14 @@ struct RootView: View {
                 onScanQRCode: {
                     showQRScanner = true
                 },
+                onCreateFromScratch: {
+                    showCreateTunnel = true
+                },
                 onPasteConfig: {
                     showPasteSheet = true
+                },
+                onOpenSettings: {
+                    showSettings = true
                 }
             )
             .navigationDestination(for: ObjectIdentifier.self) { tunnelID in
@@ -68,8 +76,14 @@ struct RootView: View {
                 }
             )
         }
+        .sheet(isPresented: $showCreateTunnel) {
+            TunnelEditorView(store: store)
+        }
         .sheet(isPresented: $showPasteSheet) {
             PasteConfigSheet(store: store)
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(store: store)
         }
         .alert(
             store.activeAlert?.title ?? "",
@@ -92,13 +106,32 @@ struct RootView: View {
             store.importFromOpenedURL(url)
         }
         .onChange(of: scenePhase) { _, newPhase in
-            if newPhase == .active {
+            switch newPhase {
+            case .active:
                 store.refreshStatuses()
+            case .inactive, .background:
+                store.updateQuickActions()
+            @unknown default:
+                break
             }
         }
         .onChange(of: store.revision) { _, _ in
             let validIDs = Set(store.tunnels.map(ObjectIdentifier.init))
             navigationPath.removeAll { !validIDs.contains($0) }
+        }
+        .onChange(of: store.requestedNavigationTunnelID) { _, _ in
+            navigateToRequestedTunnelIfNeeded()
+        }
+        .onAppear {
+            navigateToRequestedTunnelIfNeeded()
+        }
+    }
+
+    private func navigateToRequestedTunnelIfNeeded() {
+        guard let tunnelID = store.consumeRequestedNavigationTunnelID() else { return }
+        guard store.tunnel(for: tunnelID) != nil else { return }
+        if navigationPath.last != tunnelID {
+            navigationPath = [tunnelID]
         }
     }
 }

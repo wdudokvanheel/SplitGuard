@@ -3,6 +3,8 @@ import SwiftUI
 struct TunnelRowView: View {
     let tunnel: TunnelContainer
     let displayState: TunnelDisplayState
+    var isSelecting: Bool = false
+    var isSelected: Bool = false
     let onSelect: () -> Void
     let onToggle: (Bool) -> Void
 
@@ -21,7 +23,13 @@ struct TunnelRowView: View {
         HStack(spacing: SGSpacing.small) {
             Button(action: onSelect) {
                 HStack(spacing: SGSpacing.small) {
-                    statusIndicator
+                    if isSelecting {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(isSelected ? SGColor.accent : SGColor.textTertiary)
+                    } else {
+                        statusIndicator
+                    }
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(tunnel.name)
@@ -39,29 +47,31 @@ struct TunnelRowView: View {
             }
             .buttonStyle(.plain)
 
-            Toggle(
-                isOn: Binding(
-                    get: { displayState.isSwitchOn },
-                    set: { newValue in
-                        onToggle(newValue)
-                    }
-                )
-            ) {
-                EmptyView()
-            }
-            .labelsHidden()
-            .tint(displayState.switchTint)
-            .disabled(!displayState.isSwitchInteractive)
-            .accessibilityLabel("Toggle \(tunnel.name)")
+            if !isSelecting {
+                Toggle(
+                    isOn: Binding(
+                        get: { displayState.isSwitchOn },
+                        set: { newValue in
+                            onToggle(newValue)
+                        }
+                    )
+                ) {
+                    EmptyView()
+                }
+                .labelsHidden()
+                .tint(displayState.switchTint)
+                .disabled(!displayState.isSwitchInteractive)
+                .accessibilityLabel("Toggle \(tunnel.name)")
 
-            Button(action: onSelect) {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(SGColor.textTertiary)
-                    .padding(.leading, 2)
+                Button(action: onSelect) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SGColor.textTertiary)
+                        .padding(.leading, 2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHidden(true)
             }
-            .buttonStyle(.plain)
-            .accessibilityHidden(true)
         }
     }
 
