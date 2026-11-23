@@ -251,7 +251,7 @@ private extension TunnelListView {
             }
 
             Section {
-                ForEach(store.tunnels, id: \.name) { tunnel in
+                ForEach(store.tunnels, id: \.self) { tunnel in
                     let tunnelID = ObjectIdentifier(tunnel)
                     TunnelRowView(
                         tunnel: tunnel,
@@ -284,7 +284,7 @@ private extension TunnelListView {
             }
         }
         .listStyle(.insetGrouped)
-        .animation(.snappy(duration: 0.25), value: store.activeTunnel?.name)
+        .animation(.snappy(duration: 0.25), value: store.activeTunnel.map(ObjectIdentifier.init))
     }
 
     func toggleSelection(for tunnelID: ObjectIdentifier) {
