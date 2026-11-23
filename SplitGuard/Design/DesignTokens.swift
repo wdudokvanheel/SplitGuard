@@ -40,7 +40,7 @@ enum SGColor {
 
     static let surfacePrimary = adaptive(
         light: UIColor(red: 0xFE / 255.0, green: 0xFB / 255.0, blue: 0xE9 / 255.0, alpha: 1),
-        dark: UIColor(red: 0x12 / 255.0, green: 0x11 / 255.0, blue: 0x10 / 255.0, alpha: 1)
+        dark: UIColor(red: 0x0B / 255.0, green: 0x0A / 255.0, blue: 0x09 / 255.0, alpha: 1)
     )
 
     static let surfaceCard = adaptive(
