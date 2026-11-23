@@ -11,6 +11,7 @@ struct QRScannerView: View {
     @State private var cameraState: CameraAuthorizationState = .checking
     @State private var isScanningPaused = false
     @State private var scannedConfiguration: TunnelConfiguration?
+    @State private var scannedSplitDNS: SplitDNSConfiguration = .allDomains
     @State private var tunnelName = ""
     @State private var scanError: AlertItem?
 
@@ -171,6 +172,12 @@ struct QRScannerView: View {
                                 value: config.interface.dns.map(\.stringRepresentation).joined(separator: ", ")
                             )
                         }
+                        if scannedSplitDNS.mode == .onlyDomains && !scannedSplitDNS.normalizedDomainNames.isEmpty {
+                            LabeledContent(
+                                "Split DNS",
+                                value: scannedSplitDNS.normalizedDomainNames.joined(separator: ", ")
+                            )
+                        }
                     }
                 }
             }
@@ -228,18 +235,22 @@ struct QRScannerView: View {
 
         let feedback = UINotificationFeedbackGenerator()
         feedback.notificationOccurred(.success)
+        scannedSplitDNS = SplitDNSConfigCodec.extract(from: payload)
         scannedConfiguration = config
     }
 
     private func saveScannedTunnel() {
         guard let config = scannedConfiguration else { return }
         let name = tunnelName.trimmingCharacters(in: .whitespacesAndNewlines)
-        store.addConfiguration(config, named: name) { succeeded in
+        let splitDNS = scannedSplitDNS
+        store.addConfiguration(config, splitDNSConfiguration: splitDNS, named: name) { succeeded in
             if succeeded {
                 scannedConfiguration = nil
+                scannedSplitDNS = .allDomains
                 dismiss()
             } else {
                 scannedConfiguration = nil
+                scannedSplitDNS = .allDomains
                 tunnelName = ""
                 isScanningPaused = false
             }

@@ -42,12 +42,14 @@
 		689D237BB62B1BA8DAC2DBD5 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE31FAF8762586763D26D62 /* NetworkExtension.framework */; };
 		6AFD8E0C29F72D3E2FA41D8C /* TunnelStatus+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8DAFD7AC9C8490A078F5B2 /* TunnelStatus+Presentation.swift */; };
 		7611136A6831C5468A8BCB6B /* RecentTunnelsTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C2928CE6A2FE3BA6B697F1 /* RecentTunnelsTracker.swift */; };
+		76BCE410B75ADE0E650D4C1D /* DNSLookupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7F4ABFCF6DF80093CC65422 /* DNSLookupService.swift */; };
 		7E7E1147BFE0ABDAC8A9CC37 /* MockTunnels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 432F6EF72241004D0B1FF676 /* MockTunnels.swift */; };
 		7F5429C99DD735645E2B8808 /* ringlogger.c in Sources */ = {isa = PBXBuildFile; fileRef = B966673221473E73BA5E79D4 /* ringlogger.c */; };
 		8DE33817CBC043893EED2303 /* TunnelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34C11A99F94310FC82CCBA36 /* TunnelViewModel.swift */; };
 		8F4F754A77B78910E8A51C13 /* libz.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = EEEAE7EA54DBBB38278B2E5C /* libz.tbd */; };
 		8FF5FDD483C0DFAE6DF2DCC3 /* LocalizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F55B4FBF3A6457D14825C3 /* LocalizationHelper.swift */; };
 		96CD8E49056A7108C847FDD9 /* TunnelEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE8575BE590E8A1AE8CC1BB /* TunnelEditorViewModel.swift */; };
+		97FEB316C673568B79DD8E8E /* SplitDNSSectionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */; };
 		9A873252EC57656E04213F3C /* String+ArrayConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99D045FCC97BC9F8630ED25 /* String+ArrayConversion.swift */; };
 		9B4E8F936DECFE0897B42A8B /* LogViewHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF52B3A26282A6F585DED02E /* LogViewHelper.swift */; };
 		A0693A83631790B3E997BFAF /* NETunnelProviderProtocol+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE97DF84571F614B64B4BFD6 /* NETunnelProviderProtocol+Extension.swift */; };
@@ -65,13 +67,16 @@
 		CA1F19FCBC6E303F5B4FF3A1 /* WireGuardAppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = D407625E036C514D9FCA4085 /* WireGuardAppError.swift */; };
 		CBDACD3A14D869B3603BE67D /* TunnelListCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1509232A600A9086FB51E73 /* TunnelListCards.swift */; };
 		CFF7123B2C9646AF8197D818 /* unzip.c in Sources */ = {isa = PBXBuildFile; fileRef = FBDE6AB18CB93E6A1151F7D5 /* unzip.c */; };
+		D01DAFD4914739F40D301BAC /* TunnelEditorViewModel+SplitDNS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */; };
 		D0434EC50BF54F27025B6042 /* TunnelStore+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */; };
 		D1CB991E8000EAFE5591D4B4 /* FileManager+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D9E727A436204948BE6DD3 /* FileManager+Extension.swift */; };
 		D30F0970191DB43FB91BD9FD /* TunnelDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411AB6DBB507C03E2A128A98 /* TunnelDetailViewModel.swift */; };
 		DFDC9D4F66A97DB163C26194 /* SplitGuardNetworkExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2EB03D0F47E35C1E5D9AF252 /* SplitGuardNetworkExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E0989F77741562BB02881EC9 /* PasteConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D4F3516E1C76A2E94CC214 /* PasteConfigSheet.swift */; };
+		E401F0489921D6C6F6B956D8 /* Phase3Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F61772503B86D09B430FFE /* Phase3Tests.swift */; };
 		E8E16F58027421BDB3734D54 /* TunnelStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C3CAF79ACB4011BE6A6979B /* TunnelStatus.swift */; };
 		EA213D42FE3BAF2B07ABA351 /* QuickActionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C70D3913402F5D3142EC56 /* QuickActionManager.swift */; };
+		ED9611BF43A1B12BFF97B944 /* SplitDNSNameTesterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */; };
 		EE4652B4A7A31706FDE2A10C /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51829E4D1692EF4D887041CE /* QRScannerView.swift */; };
 		F078F4EAFD972858D908C1DC /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB57FE22D91C53BC22379910 /* Logger.swift */; };
 		F11A84875F302971C7AEA646 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637A768D8E0AEC2F38706A1E /* PacketTunnelProvider.swift */; };
@@ -142,6 +147,7 @@
 		1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Actions.swift"; sourceTree = "<group>"; };
 		27D9E727A436204948BE6DD3 /* FileManager+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileManager+Extension.swift"; sourceTree = "<group>"; };
+		2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelEditorViewModel+SplitDNS.swift"; sourceTree = "<group>"; };
 		29A46F4A365280CFED506CDC /* SplitGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitGuardTests.swift; sourceTree = "<group>"; };
 		2A92D35C48FB67DEE25E0CBF /* zip.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = zip.h; sourceTree = "<group>"; };
 		2EB03D0F47E35C1E5D9AF252 /* SplitGuardNetworkExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SplitGuardNetworkExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -152,8 +158,10 @@
 		41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		432F6EF72241004D0B1FF676 /* MockTunnels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockTunnels.swift; sourceTree = "<group>"; };
 		4415DEBA4AC1294F90EC7E33 /* wireguard-apple */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wireguard-apple"; path = "Vendor/wireguard-apple"; sourceTree = SOURCE_ROOT; };
+		45F61772503B86D09B430FFE /* Phase3Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase3Tests.swift; sourceTree = "<group>"; };
 		482C1B571E2E8767AC276171 /* SplitGuardApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitGuardApp.swift; sourceTree = "<group>"; };
 		4F8E1A5E2ED59BA28D5BC0BD /* TunnelRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelRowView.swift; sourceTree = "<group>"; };
+		5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSSectionViews.swift; sourceTree = "<group>"; };
 		51829E4D1692EF4D887041CE /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		5ADBDD0D8D2CF7388CD8E2A9 /* TunnelListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelListView.swift; sourceTree = "<group>"; };
 		5C9B663AAD5CAFE2E32DC6A0 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -189,9 +197,11 @@
 		E712D927A2AD49A16AFF8D64 /* TunnelConfiguration+UapiConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelConfiguration+UapiConfig.swift"; sourceTree = "<group>"; };
 		E74A322AB5C391058ED9FA85 /* ErrorPresenterProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorPresenterProtocol.swift; sourceTree = "<group>"; };
 		E7E9EFF7A2B8250E862F8CA0 /* TunnelStore+Import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Import.swift"; sourceTree = "<group>"; };
+		EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSNameTesterView.swift; sourceTree = "<group>"; };
 		EE97DF84571F614B64B4BFD6 /* NETunnelProviderProtocol+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NETunnelProviderProtocol+Extension.swift"; sourceTree = "<group>"; };
 		EEEAE7EA54DBBB38278B2E5C /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		F4E0A41A009AD8C5D9303D50 /* TunnelStore+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Delegates.swift"; sourceTree = "<group>"; };
+		F7F4ABFCF6DF80093CC65422 /* DNSLookupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSLookupService.swift; sourceTree = "<group>"; };
 		FB57FE22D91C53BC22379910 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		FBDE6AB18CB93E6A1151F7D5 /* unzip.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = unzip.c; sourceTree = "<group>"; };
 		FD3808DA29DA85A5FCBC007F /* unzip.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = unzip.h; sourceTree = "<group>"; };
@@ -237,9 +247,11 @@
 		0C7FBFB0087F17BA1499BCA1 /* Store */ = {
 			isa = PBXGroup;
 			children = (
+				F7F4ABFCF6DF80093CC65422 /* DNSLookupService.swift */,
 				1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */,
 				411AB6DBB507C03E2A128A98 /* TunnelDetailViewModel.swift */,
 				6EE8575BE590E8A1AE8CC1BB /* TunnelEditorViewModel.swift */,
+				2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */,
 				CBD61FA8EC01D06D9B4EF132 /* TunnelStore.swift */,
 				2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */,
 				F4E0A41A009AD8C5D9303D50 /* TunnelStore+Delegates.swift */,
@@ -302,6 +314,7 @@
 			isa = PBXGroup;
 			children = (
 				688A6C2D928EEBD9106831DA /* Phase2Tests.swift */,
+				45F61772503B86D09B430FFE /* Phase3Tests.swift */,
 				29A46F4A365280CFED506CDC /* SplitGuardTests.swift */,
 			);
 			path = SplitGuardTests;
@@ -338,6 +351,8 @@
 				51829E4D1692EF4D887041CE /* QRScannerView.swift */,
 				5C9B663AAD5CAFE2E32DC6A0 /* RootView.swift */,
 				1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */,
+				EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */,
+				5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */,
 				19A772A1AC6281A9CDF7E4FE /* SSIDOptionEditorView.swift */,
 				D88DC25A86D70CDECF4CB7E9 /* TunnelDetailView.swift */,
 				9FF68E8C97AC816AE312C630 /* TunnelEditorView.swift */,
@@ -626,7 +641,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.gemini/antigravity-cli/bin:/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
+			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.gemini/antigravity-cli/bin:/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -638,6 +653,7 @@
 				3A67C03C2CC90098F34EC355 /* ActivateOnDemandOption.swift in Sources */,
 				549F7E01275BA8FB99897C2A /* ActivateOnDemandViewModel.swift in Sources */,
 				584E0E6DFB314C805B869BBD /* ActivityShareSheet.swift in Sources */,
+				76BCE410B75ADE0E650D4C1D /* DNSLookupService.swift in Sources */,
 				3D70C18625D4D7389F4D80F8 /* DesignTokens.swift in Sources */,
 				F686AF227130986A7D812FA3 /* ErrorPresenterProtocol.swift in Sources */,
 				A25558217519F76E1ED22757 /* FileManager+Extension.swift in Sources */,
@@ -658,6 +674,8 @@
 				1C5F3887F4505EB3C16BA3FC /* RootView.swift in Sources */,
 				5160F0AF764BEF049F5128A3 /* SSIDOptionEditorView.swift in Sources */,
 				470B878CA2F741DE6748D1A8 /* SettingsView.swift in Sources */,
+				ED9611BF43A1B12BFF97B944 /* SplitDNSNameTesterView.swift in Sources */,
+				97FEB316C673568B79DD8E8E /* SplitDNSSectionViews.swift in Sources */,
 				1AD9A1E5ECFD6FA287F075EA /* SplitGuardApp.swift in Sources */,
 				9A873252EC57656E04213F3C /* String+ArrayConversion.swift in Sources */,
 				3DDA4619D2DF64DA192D3EDF /* TunnelConfiguration+UapiConfig.swift in Sources */,
@@ -665,6 +683,7 @@
 				3F73AAA843A8D5B49F6EB29D /* TunnelDetailView.swift in Sources */,
 				D30F0970191DB43FB91BD9FD /* TunnelDetailViewModel.swift in Sources */,
 				038E7FBBAF9A4116CCD8E7E1 /* TunnelEditorView.swift in Sources */,
+				D01DAFD4914739F40D301BAC /* TunnelEditorViewModel+SplitDNS.swift in Sources */,
 				96CD8E49056A7108C847FDD9 /* TunnelEditorViewModel.swift in Sources */,
 				A58B53A1BDF76FAE1AB528A4 /* TunnelErrors.swift in Sources */,
 				34524B0183CDBE7F192687F3 /* TunnelImporter.swift in Sources */,
@@ -703,6 +722,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B597480F7F68E9BABE5C3047 /* Phase2Tests.swift in Sources */,
+				E401F0489921D6C6F6B956D8 /* Phase3Tests.swift in Sources */,
 				C3892C849C2A5C055AF61D0C /* SplitGuardTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

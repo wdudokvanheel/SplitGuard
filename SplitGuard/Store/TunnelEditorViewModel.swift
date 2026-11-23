@@ -31,10 +31,15 @@ final class TunnelEditorViewModel {
     var ssidOption: ActivateOnDemandViewModel.OnDemandSSIDOption = .anySSID
     var selectedSSIDs: [String] = []
 
+    var splitDNSMode: SplitDNSConfiguration.Mode = .allDomains
+    var splitDNSDomains: [SplitDNSConfiguration.Domain] = []
+    var newSplitDNSDomain = ""
+    var splitDNSInputError: String?
+
     var validationAlert: AlertItem?
     var isSaving = false
 
-    private let tunnelViewModel: TunnelViewModel
+    let tunnelViewModel: TunnelViewModel
     private let onDemandViewModel: ActivateOnDemandViewModel
     private var previousDNSValue = ""
 
@@ -171,7 +176,21 @@ final class TunnelEditorViewModel {
         selectedSSIDs = onDemandViewModel.selectedSSIDs
     }
 
-    func buildValidatedPayload() -> Result<(TunnelConfiguration, ActivateOnDemandOption), AlertItem> {
+    struct ValidatedPayload {
+        let configuration: TunnelConfiguration
+        let splitDNSConfiguration: SplitDNSConfiguration
+        let onDemandOption: ActivateOnDemandOption
+    }
+
+    func buildValidatedPayload() -> Result<ValidatedPayload, AlertItem> {
+        let validatedSplitDNS: SplitDNSConfiguration
+        switch validateSplitDNSForSave() {
+        case .failure(let alert):
+            return .failure(alert)
+        case .success(let config):
+            validatedSplitDNS = config
+        }
+
         let saveResult = tunnelViewModel.save()
         syncValidationErrors()
 
@@ -184,7 +203,11 @@ final class TunnelEditorViewModel {
         case .saved(let configuration):
             normalizeSSIDSettings()
             let onDemandOption = onDemandViewModel.toOnDemandOption()
-            return .success((configuration, onDemandOption))
+            return .success(ValidatedPayload(
+                configuration: configuration,
+                splitDNSConfiguration: validatedSplitDNS,
+                onDemandOption: onDemandOption
+            ))
         }
     }
 
@@ -192,12 +215,13 @@ final class TunnelEditorViewModel {
         switch buildValidatedPayload() {
         case .failure(let alert):
             validationAlert = alert
-        case .success(let (configuration, onDemandOption)):
+        case .success(let payload):
             isSaving = true
             store.saveTunnel(
                 existing: existingTunnel,
-                configuration: configuration,
-                onDemandOption: onDemandOption
+                configuration: payload.configuration,
+                splitDNSConfiguration: payload.splitDNSConfiguration,
+                onDemandOption: payload.onDemandOption
             ) { [weak self] result in
                 guard let self else { return }
                 self.isSaving = false
@@ -231,6 +255,12 @@ final class TunnelEditorViewModel {
         isWiFiOnDemandEnabled = onDemandViewModel.isWiFiInterfaceEnabled
         ssidOption = onDemandViewModel.ssidOption
         selectedSSIDs = onDemandViewModel.selectedSSIDs
+
+        let existingSplitDNS = existingTunnel?.splitDNSConfiguration ?? .allDomains
+        splitDNSMode = existingSplitDNS.mode
+        splitDNSDomains = existingSplitDNS.domains
+        newSplitDNSDomain = ""
+        splitDNSInputError = nil
     }
 
     private func peerData(for peerID: UUID) -> TunnelViewModel.PeerData? {
@@ -261,7 +291,9 @@ final class TunnelEditorViewModel {
         peerErrorFieldsByID = updatedPeerErrors
         peerRevision += 1
     }
+}
 
+extension TunnelEditorViewModel {
     static func fetchConnectedSSID() async -> String? {
         #if targetEnvironment(simulator)
         return "Simulator Wi-Fi"

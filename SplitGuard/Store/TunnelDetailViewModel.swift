@@ -41,6 +41,9 @@ final class TunnelDetailViewModel {
     private(set) var onDemandInterfaceSummary: String = ""
     private(set) var onDemandSSIDSummary: String?
     private(set) var onDemandSelectedSSIDs: [String] = []
+    private(set) var splitDNSConfiguration: SplitDNSConfiguration = .allDomains
+    private(set) var dnsServers: [DNSServer] = []
+    private(set) var splitDNSWarnings: [SplitDNSConfiguration.ValidationWarning] = []
     private(set) var totalRxBytes: UInt64 = 0
     private(set) var totalTxBytes: UInt64 = 0
     private(set) var latestHandshakeText: String?
@@ -128,6 +131,15 @@ final class TunnelDetailViewModel {
         peers = buildPeerSnapshots()
         updateLiveSummary(from: configuration)
         updateOnDemandSummary()
+        updateSplitDNSSummary(from: configuration)
+    }
+
+    private func updateSplitDNSSummary(from configuration: TunnelConfiguration?) {
+        let splitDNS = tunnel.splitDNSConfiguration
+        splitDNSConfiguration = splitDNS
+        dnsServers = configuration?.interface.dns ?? []
+        let allowedIPs = configuration?.peers.flatMap(\.allowedIPs) ?? []
+        splitDNSWarnings = splitDNS.validationWarnings(dnsServers: dnsServers, allowedIPs: allowedIPs)
     }
 
     private func buildInterfaceRows() -> [DetailFieldRow] {

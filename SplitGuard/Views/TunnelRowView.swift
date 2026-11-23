@@ -107,6 +107,18 @@ struct TunnelRowView: View {
                     .foregroundStyle(SGColor.textSecondary)
             }
 
+            if tunnel.splitDNSConfiguration.mode == .onlyDomains {
+                Text("Split DNS")
+                    .font(SGTypography.metricLabel)
+                    .foregroundStyle(SGColor.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(SGColor.accent.opacity(0.14))
+                    )
+            }
+
             if displayState.hasOnDemandRules {
                 Text(tr("tunnelListCaptionOnDemand"))
                     .font(SGTypography.metricLabel)

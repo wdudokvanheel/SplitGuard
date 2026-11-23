@@ -54,6 +54,7 @@ extension TunnelStore {
 
     func addConfiguration(
         _ configuration: TunnelConfiguration,
+        splitDNSConfiguration: SplitDNSConfiguration = .allDomains,
         named rawName: String,
         completion: ((Bool) -> Void)? = nil
     ) {
@@ -70,7 +71,10 @@ extension TunnelStore {
         }
 
         configuration.name = trimmedName
-        manager.add(tunnelConfiguration: configuration) { [weak self] result in
+        manager.add(
+            tunnelConfiguration: configuration,
+            splitDNSConfiguration: splitDNSConfiguration
+        ) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
                 switch result {
@@ -98,8 +102,14 @@ extension TunnelStore {
         }
 
         do {
+            let splitDNS = SplitDNSConfigCodec.extract(from: text)
             let configuration = try TunnelConfiguration(fromWgQuickConfig: text, called: trimmedName)
-            addConfiguration(configuration, named: trimmedName, completion: completion)
+            addConfiguration(
+                configuration,
+                splitDNSConfiguration: splitDNS,
+                named: trimmedName,
+                completion: completion
+            )
         } catch let appError as WireGuardAppError {
             present(error: appError)
             completion?(false)

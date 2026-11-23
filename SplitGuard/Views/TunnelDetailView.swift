@@ -49,6 +49,13 @@ struct TunnelDetailView: View {
                 }
             }
 
+            SplitDNSDetailSection(
+                splitDNS: viewModel.splitDNSConfiguration,
+                dnsServers: viewModel.dnsServers,
+                warnings: viewModel.splitDNSWarnings,
+                isTunnelActive: displayState.status == .active
+            )
+
             ForEach(viewModel.peers) { peer in
                 Section(peerSectionTitle(for: peer)) {
                     if displayState.status == .active || peer.hasLiveStats {

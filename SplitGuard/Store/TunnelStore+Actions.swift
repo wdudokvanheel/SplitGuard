@@ -5,6 +5,7 @@ extension TunnelStore {
     func saveTunnel(
         existing tunnel: TunnelContainer?,
         configuration: TunnelConfiguration,
+        splitDNSConfiguration: SplitDNSConfiguration = .allDomains,
         onDemandOption: ActivateOnDemandOption,
         completion: @escaping (Result<TunnelContainer, TunnelsManagerError>) -> Void
     ) {
@@ -17,6 +18,7 @@ extension TunnelStore {
             manager.modify(
                 tunnel: tunnel,
                 tunnelConfiguration: configuration,
+                splitDNSConfiguration: splitDNSConfiguration,
                 onDemandOption: onDemandOption
             ) { [weak self] error in
                 DispatchQueue.main.async {
@@ -32,6 +34,7 @@ extension TunnelStore {
         } else {
             manager.add(
                 tunnelConfiguration: configuration,
+                splitDNSConfiguration: splitDNSConfiguration,
                 onDemandOption: onDemandOption
             ) { [weak self] result in
                 DispatchQueue.main.async {
@@ -73,12 +76,15 @@ extension TunnelStore {
     }
 
     func exportAllTunnelsZip(completion: @escaping (Result<URL, AlertItem>) -> Void) {
-        let configurations = tunnels.compactMap(\.tunnelConfiguration)
+        let entries: [(TunnelConfiguration, SplitDNSConfiguration)] = tunnels.compactMap { tunnel in
+            guard let configuration = tunnel.tunnelConfiguration else { return nil }
+            return (configuration, tunnel.splitDNSConfiguration)
+        }
         let destinationURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("splitguard-export.zip")
         _ = FileManager.deleteFile(at: destinationURL)
 
-        ZipExporter.exportConfigFiles(tunnelConfigurations: configurations, to: destinationURL) { error in
+        ZipExporter.exportConfigFiles(entries: entries, to: destinationURL) { error in
             DispatchQueue.main.async {
                 if let error {
                     _ = FileManager.deleteFile(at: destinationURL)

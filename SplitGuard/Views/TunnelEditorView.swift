@@ -24,6 +24,10 @@ struct TunnelEditorView: View {
                 interfaceNetworkSection
                 peersSections
                 addPeerSection
+                SplitDNSEditorSection(
+                    viewModel: viewModel,
+                    isTunnelActive: viewModel.existingTunnel.map { store.status(for: $0) == .active } ?? false
+                )
                 onDemandSection
             }
             .navigationTitle(viewModel.navigationTitle)
