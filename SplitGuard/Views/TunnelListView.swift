@@ -134,90 +134,107 @@ private extension TunnelListView {
     }
 
     var tunnelListContent: some View {
-        ScrollView {
-            VStack(spacing: SGSpacing.medium) {
-                headerBar
+        VStack(spacing: 0) {
+            topBar
 
-                if !isSelecting, let errorBanner = store.lastActivationError {
-                    ActivationErrorCardView(banner: errorBanner) {
-                        withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
-                            store.dismissActivationErrorBanner()
-                        }
-                    }
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
-
-                if !isSelecting, let featured = featuredTunnel {
-                    FeaturedTunnelHeroCardView(
-                        tunnel: featured,
-                        displayState: store.displayState(for: featured),
-                        isFavorite: store.isFavorite(featured),
-                        rxText: liveMetrics.hasLiveStats ? liveMetrics.rxFormatted : "0 B",
-                        txText: liveMetrics.hasLiveStats ? liveMetrics.txFormatted : "0 B",
-                        handshakeText: liveMetrics.handshakeAgeText ?? "Pending",
-                        onOpenDetail: { onSelectTunnel(featured) },
-                        onToggleConnection: { isOn in
-                            store.setTunnelActive(isOn, for: featured)
-                        },
-                        onToggleFavorite: {
+            ScrollView {
+                VStack(spacing: SGSpacing.medium) {
+                    if !isSelecting, let errorBanner = store.lastActivationError {
+                        ActivationErrorCardView(banner: errorBanner) {
                             withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
-                                store.toggleFavorite(featured)
+                                store.dismissActivationErrorBanner()
                             }
                         }
-                    )
-                }
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    }
 
-                BrutalistSectionBar(
-                    title: isSelecting ? "Select Tunnels" : "Tunnels",
-                    trailingText: "\(store.tunnels.count)"
-                )
-
-                LazyVStack(spacing: SGSpacing.small) {
-                    ForEach(Array(store.tunnels.enumerated()), id: \.element) { index, tunnel in
-                        let tunnelID = ObjectIdentifier(tunnel)
-                        TunnelRowView(
-                            tunnel: tunnel,
-                            displayState: store.displayState(for: tunnel),
-                            rowIndex: index,
-                            isFavorite: store.isFavorite(tunnel),
-                            isSelecting: isSelecting,
-                            isSelected: selectedTunnelIDs.contains(tunnelID),
-                            onSelect: {
-                                if isSelecting {
-                                    toggleSelection(for: tunnelID)
-                                } else {
-                                    onSelectTunnel(tunnel)
-                                }
-                            },
-                            onToggle: { isOn in
-                                store.setTunnelActive(isOn, for: tunnel)
+                    if !isSelecting, let featured = featuredTunnel {
+                        FeaturedTunnelHeroCardView(
+                            tunnel: featured,
+                            displayState: store.displayState(for: featured),
+                            isFavorite: store.isFavorite(featured),
+                            rxText: liveMetrics.hasLiveStats ? liveMetrics.rxFormatted : "0 B",
+                            txText: liveMetrics.hasLiveStats ? liveMetrics.txFormatted : "0 B",
+                            handshakeText: liveMetrics.handshakeAgeText ?? "Pending",
+                            onOpenDetail: { onSelectTunnel(featured) },
+                            onToggleConnection: { isOn in
+                                store.setTunnelActive(isOn, for: featured)
                             },
                             onToggleFavorite: {
                                 withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
-                                    store.toggleFavorite(tunnel)
+                                    store.toggleFavorite(featured)
                                 }
-                            },
-                            onDelete: {
-                                tunnelPendingDelete = tunnel
                             }
                         )
                     }
+
+                    BrutalistSectionBar(
+                        title: isSelecting ? "Select Tunnels" : "Tunnels",
+                        trailingText: "\(store.tunnels.count)"
+                    )
+
+                    LazyVStack(spacing: SGSpacing.small) {
+                        ForEach(Array(store.tunnels.enumerated()), id: \.element) { index, tunnel in
+                            let tunnelID = ObjectIdentifier(tunnel)
+                            TunnelRowView(
+                                tunnel: tunnel,
+                                displayState: store.displayState(for: tunnel),
+                                rowIndex: index,
+                                isFavorite: store.isFavorite(tunnel),
+                                isSelecting: isSelecting,
+                                isSelected: selectedTunnelIDs.contains(tunnelID),
+                                onSelect: {
+                                    if isSelecting {
+                                        toggleSelection(for: tunnelID)
+                                    } else {
+                                        onSelectTunnel(tunnel)
+                                    }
+                                },
+                                onToggle: { isOn in
+                                    store.setTunnelActive(isOn, for: tunnel)
+                                },
+                                onToggleFavorite: {
+                                    withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
+                                        store.toggleFavorite(tunnel)
+                                    }
+                                },
+                                onDelete: {
+                                    tunnelPendingDelete = tunnel
+                                }
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal, SGSpacing.medium)
+                .padding(.top, SGSpacing.medium)
+                .padding(.bottom, SGSpacing.xxLarge)
+            }
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+            .background(SGColor.surfacePrimary.ignoresSafeArea())
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if isSelecting {
+                    MultiSelectBottomBarView(selectedCount: selectedTunnels.count) {
+                        showMultiDeleteConfirmation = true
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, SGSpacing.medium)
-            .padding(.top, SGSpacing.small)
-            .padding(.bottom, SGSpacing.xxLarge)
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if isSelecting {
-                MultiSelectBottomBarView(selectedCount: selectedTunnels.count) {
-                    showMultiDeleteConfirmation = true
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: featuredTunnel.map(ObjectIdentifier.init))
+    }
+
+    var topBar: some View {
+        VStack(spacing: 0) {
+            headerBar
+                .padding(.horizontal, SGSpacing.medium)
+                .padding(.vertical, SGSpacing.small)
+                .background(SGColor.surfacePrimary)
+
+            Rectangle()
+                .fill(SGColor.borderInk)
+                .frame(height: SGBorder.regular)
+        }
     }
 
     var headerBar: some View {
