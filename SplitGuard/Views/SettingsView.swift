@@ -29,8 +29,9 @@ struct SettingsView: View {
                 }
                 .padding(.horizontal, SGSpacing.medium)
                 .padding(.top, SGSpacing.medium)
-                .padding(.bottom, SGSpacing.xxLarge)
+                .padding(.bottom, SGSpacing.large)
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
@@ -344,6 +345,7 @@ struct LicenseAttributionView: View {
                 }
                 .padding(SGSpacing.medium)
             }
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())

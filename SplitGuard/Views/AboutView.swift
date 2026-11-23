@@ -11,6 +11,7 @@ enum AppMetadata {
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let store: TunnelStore
 
     var body: some View {
@@ -26,14 +27,14 @@ struct AboutView: View {
             )
 
             ScrollView {
-                VStack(spacing: SGSpacing.large) {
+                VStack(spacing: SGSpacing.medium) {
                     appIdentitySection
                     sourceCodeSection
                     attributionSection
                 }
                 .padding(.horizontal, SGSpacing.medium)
-                .padding(.top, SGSpacing.large)
-                .padding(.bottom, SGSpacing.xxLarge)
+                .padding(.top, SGSpacing.medium)
+                .padding(.bottom, SGSpacing.large)
             }
             .scrollBounceBehavior(.basedOnSize, axes: .vertical)
             .background(SGColor.surfacePrimary.ignoresSafeArea())
@@ -43,7 +44,7 @@ struct AboutView: View {
     }
 
     private var appIdentitySection: some View {
-        VStack(spacing: SGSpacing.medium) {
+        VStack(spacing: SGSpacing.small) {
             Image("AppLogo")
                 .resizable()
                 .scaledToFit()
@@ -70,24 +71,42 @@ struct AboutView: View {
                 .font(SGTypography.displayHero)
                 .tracking(1.0)
 
-                Text("VERSION \(AppMetadata.versionText)")
-                    .font(SGTypography.monoCompact.weight(.bold))
-                    .foregroundStyle(SGColor.inkOnPop)
-                    .padding(.horizontal, SGSpacing.small)
-                    .padding(.vertical, 5)
-                    .background(SGColor.popYellow)
-                    .overlay(
-                        Rectangle()
-                            .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin)
-                    )
-
-                Text("WireGuard-Go \(store.backendVersion)")
-                    .font(SGTypography.monoCompact)
-                    .foregroundStyle(SGColor.textSecondary)
+                versionBadges
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, SGSpacing.small)
+        .padding(.vertical, SGSpacing.xxSmall)
+    }
+
+    @ViewBuilder
+    private var versionBadges: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: SGSpacing.xSmall))
+            : AnyLayout(HStackLayout(spacing: SGSpacing.xSmall))
+
+        layout {
+            Text("VERSION \(AppMetadata.versionText)")
+                .font(SGTypography.monoCompact.weight(.bold))
+                .foregroundStyle(SGColor.inkOnPop)
+                .padding(.horizontal, SGSpacing.small)
+                .padding(.vertical, 5)
+                .background(SGColor.popYellow)
+                .overlay(
+                    Rectangle()
+                        .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin)
+                )
+
+            Text("WIREGUARD-GO \(store.backendVersion)")
+                .font(SGTypography.monoCompact.weight(.medium))
+                .foregroundStyle(SGColor.textSecondary)
+                .padding(.horizontal, SGSpacing.small)
+                .padding(.vertical, 5)
+                .background(SGColor.surfaceElevated)
+                .overlay(
+                    Rectangle()
+                        .strokeBorder(SGColor.borderSubtle, lineWidth: SGBorder.thin)
+                )
+        }
     }
 
     private var sourceCodeSection: some View {
