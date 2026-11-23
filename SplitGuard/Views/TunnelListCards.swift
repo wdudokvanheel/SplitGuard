@@ -23,13 +23,7 @@ struct FeaturedTunnelHeroCardView: View {
     }
 
     private var roleLabel: String? {
-        if isFavorite {
-            return "FAVOURITE TUNNEL"
-        }
-        if displayState.status == .inactive {
-            return "PRIMARY TUNNEL"
-        }
-        return nil
+        displayState.status == .inactive ? "PRIMARY TUNNEL" : nil
     }
 
     private var featureTags: [String] {
