@@ -234,6 +234,7 @@
 		EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSNameTesterView.swift; sourceTree = "<group>"; };
 		EE97DF84571F614B64B4BFD6 /* NETunnelProviderProtocol+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NETunnelProviderProtocol+Extension.swift"; sourceTree = "<group>"; };
 		EEEAE7EA54DBBB38278B2E5C /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
+		F155393E9987A5017EA37843 /* WireGuardEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WireGuardEngine; path = Packages/WireGuardEngine; sourceTree = SOURCE_ROOT; };
 		F4E0A41A009AD8C5D9303D50 /* TunnelStore+Delegates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Delegates.swift"; sourceTree = "<group>"; };
 		F7F4ABFCF6DF80093CC65422 /* DNSLookupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSLookupService.swift; sourceTree = "<group>"; };
 		FB57FE22D91C53BC22379910 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
@@ -442,8 +443,9 @@
 			isa = PBXGroup;
 			children = (
 				4415DEBA4AC1294F90EC7E33 /* wireguard-apple */,
+				F155393E9987A5017EA37843 /* WireGuardEngine */,
 			);
-			name = Packages;
+			path = Packages;
 			sourceTree = "<group>";
 		};
 		85519334D20DDAD515073E8D /* Model */ = {
@@ -672,6 +674,7 @@
 			mainGroup = 8D659E79DA8507BCD17F0198;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				56F973E38AFAF9D278758CF2 /* XCLocalSwiftPackageReference "Packages/WireGuardEngine" */,
 				17D9BE1D6E5E2D5E6062530F /* XCLocalSwiftPackageReference "Vendor/wireguard-apple" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -729,7 +732,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "export PATH=\"/Volumes/ext/Users/wesley/.gemini/antigravity-cli/bin:/Volumes/ext/Users/wesley/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
+			shellScript = "export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\"\nif which swiftlint >/dev/null; then\n  swiftlint --quiet\nelse\n  echo \"warning: SwiftLint not installed\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1249,6 +1252,10 @@
 		17D9BE1D6E5E2D5E6062530F /* XCLocalSwiftPackageReference "Vendor/wireguard-apple" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "Vendor/wireguard-apple";
+		};
+		56F973E38AFAF9D278758CF2 /* XCLocalSwiftPackageReference "Packages/WireGuardEngine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/WireGuardEngine;
 		};
 /* End XCLocalSwiftPackageReference section */
 

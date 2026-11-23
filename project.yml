@@ -20,6 +20,8 @@ settings:
 packages:
   WireGuardKit:
     path: Vendor/wireguard-apple
+  WireGuardEngine:
+    path: Packages/WireGuardEngine
 
 targets:
   WireGuardGoBridgeiOS:
@@ -113,7 +115,7 @@ targets:
       - name: SwiftLint
         basedOnDependencyAnalysis: false
         script: |
-          export PATH="${PATH}:/usr/local/bin:/opt/homebrew/bin"
+          export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
           if which swiftlint >/dev/null; then
             swiftlint --quiet
           else

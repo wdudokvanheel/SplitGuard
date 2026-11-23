@@ -1,6 +1,9 @@
 # Reference upstream clone (vendored subset lives in Vendor/wireguard-apple/)
 docs/wireguard-apple/
 
+# Local Swift WireGuard migration notes and evidence
+/docs/swift-wireguard/
+
 # Xcode & SwiftPM
 .DS_Store
 *.xcuserdatad
