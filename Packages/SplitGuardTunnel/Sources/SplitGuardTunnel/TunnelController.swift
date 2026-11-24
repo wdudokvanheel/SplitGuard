@@ -12,6 +12,11 @@ public enum TunnelLogLevel: Int32, Sendable {
     case error = 1
 }
 
+public enum EndpointResolutionPolicy: Sendable, Equatable {
+    case required
+    case bestEffort
+}
+
 public enum TunnelControllerError: Error, Sendable {
     case invalidState
     case dnsResolution([DNSResolutionError])
@@ -35,6 +40,13 @@ extension NEPacketTunnelProvider: TunnelProviderHost {}
 struct TunnelNetworkPath: Sendable, Equatable {
     let isSatisfiable: Bool
     let summary: String
+    let physicalInterfaceIndex: UInt32?
+
+    init(isSatisfiable: Bool, summary: String, physicalInterfaceIndex: UInt32? = nil) {
+        self.isSatisfiable = isSatisfiable
+        self.summary = summary
+        self.physicalInterfaceIndex = physicalInterfaceIndex
+    }
 }
 
 protocol PathMonitoring: AnyObject, Sendable {
@@ -52,7 +64,8 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
                 monitor.pathUpdateHandler = { path in
                     callback(TunnelNetworkPath(
                         isSatisfiable: path.status.isSatisfiable,
-                        summary: "\(path.status) route and interface order \(path.availableInterfaces)"
+                        summary: "\(path.status) route and interface order \(path.availableInterfaces)",
+                        physicalInterfaceIndex: Self.physicalInterfaceIndex(from: path.availableInterfaces)
                     ))
                 }
             } else {
@@ -68,6 +81,25 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
     func cancel() {
         monitor.cancel()
     }
+
+    static func physicalInterfaceIndex(from interfaces: [NWInterface]) -> UInt32? {
+        if let primary = interfaces.first(where: {
+            ($0.type == .wifi || $0.type == .cellular || $0.type == .wiredEthernet) && $0.index > 0
+        }) {
+            return UInt32(primary.index)
+        }
+        if let fallback = interfaces.first(where: { interface in
+            guard interface.type != .loopback, interface.index > 0 else { return false }
+            let name = interface.name
+            return !name.hasPrefix("utun")
+                && !name.hasPrefix("ipsec")
+                && !name.hasPrefix("ppp")
+                && !name.hasPrefix("lo")
+        }) {
+            return UInt32(fallback.index)
+        }
+        return nil
+    }
 }
 
 private struct UncheckedSendableBox<Value>: @unchecked Sendable {
@@ -75,8 +107,9 @@ private struct UncheckedSendableBox<Value>: @unchecked Sendable {
 }
 
 /// SplitGuard-owned tunnel controller bridging `NEPacketTunnelProvider` and `WireGuardDevice`
-/// using typed configuration, typed status snapshots, structured engine events, and in-place
-/// pause/resume across network transitions.
+/// using typed configuration, typed status snapshots, structured engine events, in-place
+/// pause/resume across network transitions, split DNS exclusion interception, and best-effort
+/// endpoint resolution with caching for kill-switch tunnels.
 public final class TunnelController: @unchecked Sendable {
     private enum State {
         case stopped
@@ -84,7 +117,9 @@ public final class TunnelController: @unchecked Sendable {
             device: WireGuardDevice,
             tunnel: PacketFlowTunnelDevice,
             settingsGenerator: PacketTunnelSettingsGenerator,
-            paused: Bool
+            paused: Bool,
+            endpointResolutionPolicy: EndpointResolutionPolicy,
+            pendingHostnameIndices: Set<Int>
         )
     }
 
@@ -101,7 +136,7 @@ public final class TunnelController: @unchecked Sendable {
     static let defaultPauseOnOffline = false
     #endif
 
-    /// Capped exponential backoff for rebind/resume retries (500ms, 1s, 2s, 4s, 8s, capped at 10s).
+    /// Capped exponential backoff for rebind/resume/endpoint retries (500ms, 1s, 2s, 4s, 8s, capped at 10s).
     static func defaultRetryDelayMilliseconds(forAttempt attempt: Int) -> Int {
         guard attempt > 0 else { return 500 }
         return min(10_000, 500 << min(attempt - 1, 5))
@@ -113,11 +148,14 @@ public final class TunnelController: @unchecked Sendable {
     private let retryDelayMilliseconds: (Int) -> Int
     private let makePathMonitor: () -> PathMonitoring
     private let pauseOnOffline: Bool
+    private let endpointCache: any EndpointCaching
+    private let resolveEndpoints: @Sendable ([Endpoint?]) -> [Result<Endpoint, DNSResolutionError>?]
+    private let physicalResolver: any PhysicalResolver
 
     private let workQueue = DispatchQueue(label: "SplitGuard.TunnelController.work")
     private let retryTimer: DispatchSourceTimer
     private var nextRetry: DispatchTime?
-    private var retryOperation: RetryOperation = .rebind
+    private var pendingSocketOperation: RetryOperation?
     private var retryAttempts = 0
 
     private var state: State = .stopped
@@ -130,10 +168,18 @@ public final class TunnelController: @unchecked Sendable {
     private let activeDeviceLock = NSLock()
     private var activeDevice: WireGuardDevice?
     private var installedHook: (hook: any PacketHook, filter: PacketHookFilter)?
+    private var activeInterceptor: SplitDNSInterceptor?
+
+    private let physicalInterfaceLock = NSLock()
+    private var physicalInterfaceIndexStorage: UInt32?
 
     public var onEvent: (@Sendable (DeviceEvent) -> Void)? {
         get { eventHandlerLock.withLock { eventHandler } }
         set { eventHandlerLock.withLock { eventHandler = newValue } }
+    }
+
+    public var currentPhysicalInterfaceIndex: UInt32? {
+        physicalInterfaceLock.withLock { physicalInterfaceIndexStorage }
     }
 
     public convenience init(
@@ -146,6 +192,9 @@ public final class TunnelController: @unchecked Sendable {
             retryDelayMilliseconds: Self.defaultRetryDelayMilliseconds,
             makePathMonitor: { SystemPathMonitor() },
             pauseOnOffline: Self.defaultPauseOnOffline,
+            endpointCache: FileEndpointCache(),
+            resolveEndpoints: { DNSResolver.resolveSync(endpoints: $0) },
+            physicalResolver: DNSSDResolver(),
             logHandler: logHandler
         )
     }
@@ -156,6 +205,11 @@ public final class TunnelController: @unchecked Sendable {
         retryDelayMilliseconds: @escaping (Int) -> Int = TunnelController.defaultRetryDelayMilliseconds,
         makePathMonitor: @escaping () -> PathMonitoring = { SystemPathMonitor() },
         pauseOnOffline: Bool = TunnelController.defaultPauseOnOffline,
+        endpointCache: any EndpointCaching = FileEndpointCache(fileURL: nil),
+        resolveEndpoints: @escaping @Sendable ([Endpoint?]) -> [Result<Endpoint, DNSResolutionError>?] = {
+            DNSResolver.resolveSync(endpoints: $0)
+        },
+        physicalResolver: any PhysicalResolver = DNSSDResolver(),
         logHandler: @escaping @Sendable (TunnelLogLevel, String) -> Void
     ) {
         self.provider = provider
@@ -163,6 +217,9 @@ public final class TunnelController: @unchecked Sendable {
         self.retryDelayMilliseconds = retryDelayMilliseconds
         self.makePathMonitor = makePathMonitor
         self.pauseOnOffline = pauseOnOffline
+        self.endpointCache = endpointCache
+        self.resolveEndpoints = resolveEndpoints
+        self.physicalResolver = physicalResolver
         self.logHandler = logHandler
 
         retryTimer = DispatchSource.makeTimerSource(queue: workQueue)
@@ -175,7 +232,7 @@ public final class TunnelController: @unchecked Sendable {
     deinit {
         retryTimer.cancel()
         pathMonitor?.cancel()
-        if case .running(let device, _, _, _) = state {
+        if case .running(let device, _, _, _, _, _) = state {
             activeDeviceLock.withLock { activeDevice = nil }
             workQueue.async { device.close() }
         }
@@ -186,6 +243,7 @@ public final class TunnelController: @unchecked Sendable {
     public func start(
         tunnelConfiguration: TunnelConfiguration,
         splitDNSConfiguration: SplitDNSConfiguration = .allDomains,
+        endpointResolution: EndpointResolutionPolicy = .required,
         completionHandler: @escaping @Sendable (TunnelControllerError?) -> Void
     ) {
         let boxedConfig = UncheckedSendableBox(value: tunnelConfiguration)
@@ -213,21 +271,18 @@ public final class TunnelController: @unchecked Sendable {
             }
 
             do {
-                let settingsGenerator = try self.makeSettingsGenerator(
+                let (settingsGenerator, pendingHostnameIndices) = try self.makeSettingsGenerator(
                     with: boxedConfig.value,
-                    splitDNSConfiguration: splitDNSConfiguration
+                    splitDNSConfiguration: splitDNSConfiguration,
+                    endpointResolution: endpointResolution
                 )
                 let networkSettings = settingsGenerator.generateNetworkSettings()
                 try self.setNetworkSettings(networkSettings, on: provider)
 
-                let reresolved = settingsGenerator.reresolvedEndpoints()
-                self.logEndpointResolutionResults(reresolved.map(\.1))
-                let effectiveEndpoints: [Endpoint?] = reresolved.map { _, result in
-                    if case .some(.success((_, let endpoint))) = result {
-                        return endpoint
-                    }
-                    return nil
-                }
+                let effectiveEndpoints = self.resolveEffectiveEndpoints(
+                    for: settingsGenerator,
+                    policy: endpointResolution
+                )
 
                 let deviceConfig: DeviceConfiguration
                 do {
@@ -254,6 +309,11 @@ public final class TunnelController: @unchecked Sendable {
                     Self.logEvent(event, to: self.logHandler)
                     self.onEvent?(event)
                 }
+
+                self.configureSplitDNSInterceptor(
+                    for: boxedConfig.value,
+                    splitDNSConfiguration: splitDNSConfiguration
+                )
 
                 if let hookEntry = self.activeDeviceLock.withLock({ self.installedHook }) {
                     device.setHook(hookEntry.hook, matching: hookEntry.filter)
@@ -282,17 +342,25 @@ public final class TunnelController: @unchecked Sendable {
                     device: device,
                     tunnel: tunnel,
                     settingsGenerator: settingsGenerator,
-                    paused: false
+                    paused: false,
+                    endpointResolutionPolicy: endpointResolution,
+                    pendingHostnameIndices: pendingHostnameIndices
                 )
                 self.pathMonitor = monitor
                 monitor.start(queue: self.workQueue)
+                if !pendingHostnameIndices.isEmpty {
+                    self.retryAttempts = 1
+                    self.scheduleRetryTimer()
+                }
                 self.logHandler(.verbose, "WireGuard engine started (\(Self.engineVersion))")
                 completionHandler(nil)
             } catch let error as TunnelControllerError {
                 monitor.cancel()
+                self.clearActiveInterceptorIfNeeded()
                 completionHandler(error)
             } catch {
                 monitor.cancel()
+                self.clearActiveInterceptorIfNeeded()
                 self.logHandler(.error, "Starting tunnel failed with unexpected error: \(error.localizedDescription)")
                 completionHandler(.startEngine(error))
             }
@@ -301,15 +369,18 @@ public final class TunnelController: @unchecked Sendable {
 
     public func stop(completionHandler: @escaping @Sendable (TunnelControllerError?) -> Void) {
         workQueue.async {
-            guard case .running(let device, _, _, _) = self.state else {
+            guard case .running(let device, _, _, _, _, _) = self.state else {
                 completionHandler(.invalidState)
                 return
             }
 
             self.cancelRetry()
+            self.pendingSocketOperation = nil
             self.retryAttempts = 0
             self.pathMonitor?.cancel()
             self.pathMonitor = nil
+            self.physicalInterfaceLock.withLock { self.physicalInterfaceIndexStorage = nil }
+            self.clearActiveInterceptorIfNeeded()
             self.activeDeviceLock.withLock { self.activeDevice = nil }
             self.state = .stopped
             device.close()
@@ -320,15 +391,25 @@ public final class TunnelController: @unchecked Sendable {
     public func update(
         tunnelConfiguration: TunnelConfiguration,
         splitDNSConfiguration: SplitDNSConfiguration = .allDomains,
+        endpointResolution: EndpointResolutionPolicy? = nil,
         completionHandler: @escaping @Sendable (TunnelControllerError?) -> Void
     ) {
         let boxedConfig = UncheckedSendableBox(value: tunnelConfiguration)
         workQueue.async {
-            guard case .running(let device, let tunnel, _, let paused) = self.state,
+            guard case .running(
+                let device,
+                let tunnel,
+                _,
+                let paused,
+                let currentPolicy,
+                _
+            ) = self.state,
                   let provider = self.provider else {
                 completionHandler(.invalidState)
                 return
             }
+
+            let effectivePolicy = endpointResolution ?? currentPolicy
 
             provider.reasserting = true
             defer {
@@ -336,21 +417,18 @@ public final class TunnelController: @unchecked Sendable {
             }
 
             do {
-                let settingsGenerator = try self.makeSettingsGenerator(
+                let (settingsGenerator, pendingHostnameIndices) = try self.makeSettingsGenerator(
                     with: boxedConfig.value,
-                    splitDNSConfiguration: splitDNSConfiguration
+                    splitDNSConfiguration: splitDNSConfiguration,
+                    endpointResolution: effectivePolicy
                 )
                 let networkSettings = settingsGenerator.generateNetworkSettings()
                 try self.setNetworkSettings(networkSettings, on: provider)
 
-                let reresolved = settingsGenerator.reresolvedEndpoints()
-                self.logEndpointResolutionResults(reresolved.map(\.1))
-                let effectiveEndpoints: [Endpoint?] = reresolved.map { _, result in
-                    if case .some(.success((_, let endpoint))) = result {
-                        return endpoint
-                    }
-                    return nil
-                }
+                let effectiveEndpoints = self.resolveEffectiveEndpoints(
+                    for: settingsGenerator,
+                    policy: effectivePolicy
+                )
 
                 let deviceConfig: DeviceConfiguration
                 do {
@@ -372,12 +450,23 @@ public final class TunnelController: @unchecked Sendable {
                 device.disableSomeRoamingForBrokenMobileSemantics()
                 #endif
 
+                self.configureSplitDNSInterceptor(
+                    for: boxedConfig.value,
+                    splitDNSConfiguration: splitDNSConfiguration
+                )
+
                 self.state = .running(
                     device: device,
                     tunnel: tunnel,
                     settingsGenerator: settingsGenerator,
-                    paused: paused
+                    paused: paused,
+                    endpointResolutionPolicy: effectivePolicy,
+                    pendingHostnameIndices: pendingHostnameIndices
                 )
+                if !pendingHostnameIndices.isEmpty && !paused && self.nextRetry == nil {
+                    self.retryAttempts = max(1, self.retryAttempts)
+                    self.scheduleRetryTimer()
+                }
                 completionHandler(nil)
             } catch let error as TunnelControllerError {
                 completionHandler(error)
@@ -390,7 +479,7 @@ public final class TunnelController: @unchecked Sendable {
 
     public func wake() {
         workQueue.async {
-            if case .running(let device, _, _, _) = self.state {
+            if case .running(let device, _, _, _, _, _) = self.state {
                 device.reevaluateDeadlines()
             }
         }
@@ -398,7 +487,7 @@ public final class TunnelController: @unchecked Sendable {
 
     public func status(completionHandler: @escaping @Sendable (DeviceStatus?) -> Void) {
         workQueue.async {
-            guard case .running(let device, _, _, _) = self.state else {
+            guard case .running(let device, _, _, _, _, _) = self.state else {
                 completionHandler(nil)
                 return
             }
@@ -411,7 +500,27 @@ public final class TunnelController: @unchecked Sendable {
         device?.initiateHandshake(for: publicKey)
     }
 
-    public func setHook(_ hook: (any PacketHook)?, matching filter: PacketHookFilter) {
+    /// Runs a diagnostic physical-interface DNS lookup using the active physical resolver.
+    public func probePhysicalDNS(
+        name: String,
+        recordType: UInt16 = 1,
+        recordClass: UInt16 = 1,
+        completion: @escaping @Sendable (Result<DNSLookupResponse, Error>, UInt32?) -> Void
+    ) {
+        let interfaceIndex = currentPhysicalInterfaceIndex
+        physicalResolver.resolve(
+            name: name,
+            recordType: recordType,
+            recordClass: recordClass,
+            interfaceIndex: interfaceIndex
+        ) { result in
+            completion(result, interfaceIndex)
+        }
+    }
+
+    // MARK: - Internal Hook & Packet Delivery
+
+    func setHook(_ hook: (any PacketHook)?, matching filter: PacketHookFilter) {
         let device: WireGuardDevice? = activeDeviceLock.withLock {
             installedHook = hook.map { ($0, filter) }
             return activeDevice
@@ -419,7 +528,7 @@ public final class TunnelController: @unchecked Sendable {
         device?.setHook(hook, matching: filter)
     }
 
-    public func clearHook() {
+    func clearHook() {
         let device: WireGuardDevice? = activeDeviceLock.withLock {
             installedHook = nil
             return activeDevice
@@ -434,18 +543,97 @@ public final class TunnelController: @unchecked Sendable {
         try device.deliverToTunnel(packet)
     }
 
+    private func configureSplitDNSInterceptor(
+        for tunnelConfiguration: TunnelConfiguration,
+        splitDNSConfiguration: SplitDNSConfiguration
+    ) {
+        guard !splitDNSConfiguration.exclusions.isEmpty else {
+            clearActiveInterceptorIfNeeded()
+            return
+        }
+
+        let dnsHosts = Set(tunnelConfiguration.interface.dns.compactMap {
+            WireGuardEngine.IPAddress(bytes: $0.address.rawValue)
+        })
+        guard !dnsHosts.isEmpty else {
+            clearActiveInterceptorIfNeeded()
+            return
+        }
+
+        let interceptor = SplitDNSInterceptor(
+            configuration: splitDNSConfiguration,
+            dnsServers: tunnelConfiguration.interface.dns,
+            resolver: physicalResolver,
+            interfaceIndexProvider: { [weak self] in
+                self?.currentPhysicalInterfaceIndex
+            },
+            deliverToTunnel: { [weak self] packet in
+                guard let self else { throw PacketDeliveryError.deviceNotRunning }
+                try self.deliverToTunnel(packet)
+            },
+            logHandler: logHandler
+        )
+        activeDeviceLock.withLock {
+            activeInterceptor = interceptor
+        }
+        setHook(interceptor, matching: .udp(port: 53, hosts: dnsHosts))
+        logHandler(
+            .verbose,
+            "Split DNS exclusion interceptor installed for \(splitDNSConfiguration.exclusions.count) exclusion(s)"
+        )
+    }
+
+    private func clearActiveInterceptorIfNeeded() {
+        let hadInterceptor: Bool = activeDeviceLock.withLock {
+            let active = activeInterceptor != nil
+            activeInterceptor = nil
+            return active
+        }
+        if hadInterceptor {
+            clearHook()
+        }
+    }
+
     // MARK: - Path Monitoring & Retry Handling
 
     private func didReceivePathUpdate(_ path: TunnelNetworkPath) {
+        physicalInterfaceLock.withLock {
+            physicalInterfaceIndexStorage = path.physicalInterfaceIndex
+        }
         logHandler(.verbose, "Network change detected with \(path.summary)")
 
-        guard case .running(let device, let tunnel, let settingsGenerator, let paused) = state else {
+        guard case .running(
+            let device,
+            let tunnel,
+            var settingsGenerator,
+            let paused,
+            let endpointPolicy,
+            var pendingHostnameIndices
+        ) = state else {
             return
         }
 
         guard pauseOnOffline else {
+            if !pendingHostnameIndices.isEmpty {
+                let updated = resolvePendingHostnameEndpoints(
+                    device: device,
+                    settingsGenerator: settingsGenerator,
+                    pendingIndices: pendingHostnameIndices
+                )
+                settingsGenerator = updated.settingsGenerator
+                pendingHostnameIndices = updated.remainingIndices
+                state = .running(
+                    device: device,
+                    tunnel: tunnel,
+                    settingsGenerator: settingsGenerator,
+                    paused: paused,
+                    endpointResolutionPolicy: endpointPolicy,
+                    pendingHostnameIndices: pendingHostnameIndices
+                )
+            }
             device.reevaluateDeadlines()
             bumpSockets(device)
+            scheduleEndpointRetryIfNeeded()
             return
         }
 
@@ -453,15 +641,28 @@ public final class TunnelController: @unchecked Sendable {
             guard !paused else { return }
             logHandler(.verbose, "Connectivity offline, pausing engine.")
             cancelRetry()
+            pendingSocketOperation = nil
             retryAttempts = 0
             state = .running(
                 device: device,
                 tunnel: tunnel,
                 settingsGenerator: settingsGenerator,
-                paused: true
+                paused: true,
+                endpointResolutionPolicy: endpointPolicy,
+                pendingHostnameIndices: pendingHostnameIndices
             )
             try? device.pause(reason: .offline)
             return
+        }
+
+        if !pendingHostnameIndices.isEmpty {
+            let updated = resolvePendingHostnameEndpoints(
+                device: device,
+                settingsGenerator: settingsGenerator,
+                pendingIndices: pendingHostnameIndices
+            )
+            settingsGenerator = updated.settingsGenerator
+            pendingHostnameIndices = updated.remainingIndices
         }
 
         let reresolved = settingsGenerator.reresolvedEndpoints()
@@ -481,19 +682,33 @@ public final class TunnelController: @unchecked Sendable {
                 device: device,
                 tunnel: tunnel,
                 settingsGenerator: settingsGenerator,
-                paused: false
+                paused: false,
+                endpointResolutionPolicy: endpointPolicy,
+                pendingHostnameIndices: pendingHostnameIndices
             )
             cancelRetry()
+            pendingSocketOperation = nil
             retryAttempts = 0
             attemptResume(device)
         } else {
+            state = .running(
+                device: device,
+                tunnel: tunnel,
+                settingsGenerator: settingsGenerator,
+                paused: false,
+                endpointResolutionPolicy: endpointPolicy,
+                pendingHostnameIndices: pendingHostnameIndices
+            )
             device.reevaluateDeadlines()
             bumpSockets(device)
         }
+
+        scheduleEndpointRetryIfNeeded()
     }
 
     private func bumpSockets(_ device: WireGuardDevice) {
         cancelRetry()
+        pendingSocketOperation = nil
         retryAttempts = 0
         if case .paused = device.status().state {
             attemptResume(device)
@@ -507,10 +722,12 @@ public final class TunnelController: @unchecked Sendable {
         retryAttempts += 1
         do {
             try device.rebind(attempt: retryAttempts, final: false)
+            pendingSocketOperation = nil
             retryAttempts = 0
             device.sendKeepalivesToPeersWithCurrentKeypair()
         } catch {
-            scheduleRetry(.rebind)
+            pendingSocketOperation = .rebind
+            scheduleRetryTimer()
         }
     }
 
@@ -519,19 +736,31 @@ public final class TunnelController: @unchecked Sendable {
         retryAttempts += 1
         do {
             try device.resume(attempt: retryAttempts, final: false)
+            pendingSocketOperation = nil
             retryAttempts = 0
             #if os(iOS)
             device.disableSomeRoamingForBrokenMobileSemantics()
             #endif
             device.sendKeepalivesToPeersWithCurrentKeypair()
         } catch {
-            scheduleRetry(.resume)
+            pendingSocketOperation = .resume
+            scheduleRetryTimer()
         }
     }
 
-    private func scheduleRetry(_ operation: RetryOperation) {
-        retryOperation = operation
-        let delay = max(1, retryDelayMilliseconds(retryAttempts))
+    private func scheduleEndpointRetryIfNeeded() {
+        guard case .running(_, _, _, let paused, _, let pendingIndices) = state,
+              !paused,
+              !pendingIndices.isEmpty,
+              nextRetry == nil else {
+            return
+        }
+        retryAttempts = max(1, retryAttempts + 1)
+        scheduleRetryTimer()
+    }
+
+    private func scheduleRetryTimer() {
+        let delay = max(1, retryDelayMilliseconds(max(1, retryAttempts)))
         let deadline = DispatchTime.now() + .milliseconds(delay)
         nextRetry = deadline
         retryTimer.schedule(deadline: deadline)
@@ -548,51 +777,197 @@ public final class TunnelController: @unchecked Sendable {
             retryTimer.schedule(deadline: nextRetry)
             return
         }
-        guard case .running(let device, _, _, let paused) = state, !paused else {
+        guard case .running(
+            let device,
+            let tunnel,
+            let settingsGenerator,
+            let paused,
+            let endpointPolicy,
+            let pendingHostnameIndices
+        ) = state, !paused else {
             cancelRetry()
+            pendingSocketOperation = nil
             return
         }
-        switch retryOperation {
-        case .rebind:
-            attemptRebind(device)
-        case .resume:
-            attemptResume(device)
+
+        cancelRetry()
+
+        if let socketOperation = pendingSocketOperation {
+            switch socketOperation {
+            case .rebind:
+                attemptRebind(device)
+            case .resume:
+                attemptResume(device)
+            }
         }
+
+        if !pendingHostnameIndices.isEmpty {
+            let updated = resolvePendingHostnameEndpoints(
+                device: device,
+                settingsGenerator: settingsGenerator,
+                pendingIndices: pendingHostnameIndices
+            )
+            state = .running(
+                device: device,
+                tunnel: tunnel,
+                settingsGenerator: updated.settingsGenerator,
+                paused: paused,
+                endpointResolutionPolicy: endpointPolicy,
+                pendingHostnameIndices: updated.remainingIndices
+            )
+            if updated.remainingIndices.isEmpty && pendingSocketOperation == nil {
+                retryAttempts = 0
+            } else if !updated.remainingIndices.isEmpty && self.nextRetry == nil {
+                retryAttempts += 1
+                scheduleRetryTimer()
+            }
+        }
+    }
+
+    private func resolvePendingHostnameEndpoints(
+        device: WireGuardDevice,
+        settingsGenerator: PacketTunnelSettingsGenerator,
+        pendingIndices: Set<Int>
+    ) -> (settingsGenerator: PacketTunnelSettingsGenerator, remainingIndices: Set<Int>) {
+        let peers = settingsGenerator.tunnelConfiguration.peers
+        var updatedResolved = settingsGenerator.resolvedEndpoints
+        var remaining = pendingIndices
+        var updates: [WireGuardPublicKey: IPEndpoint?] = [:]
+
+        let sortedIndices = pendingIndices.sorted()
+        let queryEndpoints: [Endpoint?] = sortedIndices.map { index in
+            index < peers.count ? peers[index].endpoint : nil
+        }
+        let results = resolveEndpoints(queryEndpoints)
+
+        for (offset, peerIndex) in sortedIndices.enumerated() {
+            guard peerIndex < peers.count,
+                  let originalEndpoint = peers[peerIndex].endpoint,
+                  let hostname = originalEndpoint.hostname() else {
+                remaining.remove(peerIndex)
+                continue
+            }
+            guard let result = results[offset] else { continue }
+            switch result {
+            case .success(let resolved):
+                endpointCache.store(resolvedEndpoint: resolved, for: hostname)
+                updatedResolved[peerIndex] = resolved
+                remaining.remove(peerIndex)
+                if let publicKey = WireGuardPublicKey(rawValue: peers[peerIndex].publicKey.rawValue),
+                   let ipEndpoint = resolved.toIPEndpoint() {
+                    updates[publicKey] = ipEndpoint
+                }
+                logHandler(.verbose, "Resolved pending endpoint \(hostname) to \(resolved.host)")
+            case .failure(let error):
+                logHandler(.verbose, "Pending endpoint resolution failed for \(hostname): \(error.errorDescription ?? "(nil)")")
+            }
+        }
+
+        if !updates.isEmpty {
+            device.updateEndpoints(updates)
+        }
+
+        let newGenerator = PacketTunnelSettingsGenerator(
+            tunnelConfiguration: settingsGenerator.tunnelConfiguration,
+            resolvedEndpoints: updatedResolved,
+            splitDNSConfiguration: settingsGenerator.splitDNSConfiguration
+        )
+        return (newGenerator, remaining)
     }
 
     // MARK: - Settings & DNS Resolution
 
     private func makeSettingsGenerator(
         with tunnelConfiguration: TunnelConfiguration,
-        splitDNSConfiguration: SplitDNSConfiguration
-    ) throws -> PacketTunnelSettingsGenerator {
-        let resolvedEndpoints = try resolvePeers(for: tunnelConfiguration)
-        return PacketTunnelSettingsGenerator(
+        splitDNSConfiguration: SplitDNSConfiguration,
+        endpointResolution: EndpointResolutionPolicy
+    ) throws -> (PacketTunnelSettingsGenerator, Set<Int>) {
+        let (resolvedEndpoints, pendingHostnameIndices) = try resolvePeers(
+            for: tunnelConfiguration,
+            policy: endpointResolution
+        )
+        let generator = PacketTunnelSettingsGenerator(
             tunnelConfiguration: tunnelConfiguration,
             resolvedEndpoints: resolvedEndpoints,
             splitDNSConfiguration: splitDNSConfiguration
         )
+        return (generator, pendingHostnameIndices)
     }
 
-    private func resolvePeers(for tunnelConfiguration: TunnelConfiguration) throws -> [Endpoint?] {
+    private func resolvePeers(
+        for tunnelConfiguration: TunnelConfiguration,
+        policy: EndpointResolutionPolicy
+    ) throws -> ([Endpoint?], Set<Int>) {
         let endpoints = tunnelConfiguration.peers.map(\.endpoint)
-        let resolutionResults = DNSResolver.resolveSync(endpoints: endpoints)
-        let resolutionErrors = resolutionResults.compactMap { result -> DNSResolutionError? in
-            if case .some(.failure(let error)) = result {
-                return error
+        let resolutionResults = resolveEndpoints(endpoints)
+
+        if policy == .required {
+            let resolutionErrors = resolutionResults.compactMap { result -> DNSResolutionError? in
+                if case .some(.failure(let error)) = result {
+                    return error
+                }
+                return nil
             }
-            return nil
+            guard resolutionErrors.isEmpty else {
+                throw TunnelControllerError.dnsResolution(resolutionErrors)
+            }
         }
-        guard resolutionErrors.isEmpty else {
-            throw TunnelControllerError.dnsResolution(resolutionErrors)
-        }
-        return try resolutionResults.map { result -> Endpoint? in
-            guard let result else { return nil }
+
+        var resolved: [Endpoint?] = []
+        resolved.reserveCapacity(endpoints.count)
+        var pendingHostnameIndices: Set<Int> = []
+
+        for (index, (originalEndpoint, result)) in zip(endpoints, resolutionResults).enumerated() {
+            guard let originalEndpoint else {
+                resolved.append(nil)
+                continue
+            }
             switch result {
-            case .success(let endpoint):
+            case .some(.success(let endpoint)):
+                if let hostname = originalEndpoint.hostname() {
+                    endpointCache.store(resolvedEndpoint: endpoint, for: hostname)
+                }
+                resolved.append(endpoint)
+            case .some(.failure(let error)):
+                if policy == .required {
+                    throw TunnelControllerError.dnsResolution([error])
+                }
+                if let hostname = originalEndpoint.hostname(),
+                   let cached = endpointCache.cachedEndpoint(for: hostname, port: originalEndpoint.port) {
+                    logHandler(.verbose, "DNS resolution failed for \(hostname); starting with cached endpoint \(cached.host)")
+                    resolved.append(cached)
+                    pendingHostnameIndices.insert(index)
+                } else {
+                    logHandler(.verbose, "DNS resolution failed for \(error.address) with no cached address; starting peer without endpoint")
+                    resolved.append(nil)
+                    pendingHostnameIndices.insert(index)
+                }
+            case .none:
+                resolved.append(nil)
+            }
+        }
+
+        return (resolved, pendingHostnameIndices)
+    }
+
+    private func resolveEffectiveEndpoints(
+        for settingsGenerator: PacketTunnelSettingsGenerator,
+        policy: EndpointResolutionPolicy
+    ) -> [Endpoint?] {
+        let reresolved = settingsGenerator.reresolvedEndpoints()
+        logEndpointResolutionResults(reresolved.map(\.1))
+        return zip(settingsGenerator.resolvedEndpoints, reresolved).map { initialEndpoint, pair in
+            switch pair.1 {
+            case .some(.success((_, let endpoint))):
                 return endpoint
-            case .failure(let error):
-                throw TunnelControllerError.dnsResolution([error])
+            case .some(.failure):
+                // Under .bestEffort, keep the initial/cached IP if DNS64 re-resolution fails while offline.
+                if policy == .bestEffort, let initialEndpoint, initialEndpoint.hasHostAsIPAddress() {
+                    return initialEndpoint
+                }
+                return nil
+            case .none:
+                return nil
             }
         }
     }
