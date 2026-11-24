@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2017-2023 WireGuard LLC. All Rights Reserved.
 
 import Foundation
 
-/// The HMAC and HKDF constructions in wireguard-go device/noise-helpers.go.
+/// WireGuard Noise_IKpsk2 HMAC-BLAKE2s and HKDF (KDF1/KDF2/KDF3) constructions.
 enum NoiseKDF {
     static func hmac(key: Data, _ parts: Data...) -> Data {
         authenticate(key: key, parts: parts)

@@ -31,8 +31,7 @@
 		3A67C03C2CC90098F34EC355 /* ActivateOnDemandOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4384A55A8FC6B7C979886DA /* ActivateOnDemandOption.swift */; };
 		3C836C1652ECEAF7111CC35B /* LogViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D11E4CBFFF5A3AA4FDD8A0D /* LogViewerView.swift */; };
 		3D70C18625D4D7389F4D80F8 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */; };
-		3DAD8F69E96E0AD988DDAB36 /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3BB50F9F602F4F539EF1B425 /* WireGuardKit */; };
-		3DDA4619D2DF64DA192D3EDF /* TunnelConfiguration+UapiConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E712D927A2AD49A16AFF8D64 /* TunnelConfiguration+UapiConfig.swift */; };
+		3DAD8F69E96E0AD988DDAB36 /* SplitGuardTunnel in Frameworks */ = {isa = PBXBuildFile; productRef = C539B74A4DA865A482C4CC89 /* SplitGuardTunnel */; };
 		3F0C408820AAD5431418A28F /* TunnelStore+Import.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E9EFF7A2B8250E862F8CA0 /* TunnelStore+Import.swift */; };
 		3F73AAA843A8D5B49F6EB29D /* TunnelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88DC25A86D70CDECF4CB7E9 /* TunnelDetailView.swift */; };
 		4142B88E5EA46B20336D3B41 /* ZipImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605DB91EC5EE98CEC3D57BE8 /* ZipImporter.swift */; };
@@ -43,7 +42,7 @@
 		549F7E01275BA8FB99897C2A /* ActivateOnDemandViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11D930029D4D5E69BE4FCE3D /* ActivateOnDemandViewModel.swift */; };
 		572019D7EE53B682C70E0E95 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 74AA22DD990F320C842EEE4C /* Localizable.strings */; };
 		584E0E6DFB314C805B869BBD /* ActivityShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98F809C92138DB32C35B2C6 /* ActivityShareSheet.swift */; };
-		625D5E2C83FA3EF5A1452EE5 /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 41A83668E2214265BA496921 /* WireGuardKit */; };
+		625D5E2C83FA3EF5A1452EE5 /* WireGuardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 9E0463F16B88C0DBBE752975 /* WireGuardEngine */; };
 		6627E8AF02A0CACFBAFF8328 /* TunnelEditorCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2875C00C2AD5E898AE254BCD /* TunnelEditorCards.swift */; };
 		66CC82E4AC17504CBBD6F06E /* QRCameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D12B41820538FC44A6C090F2 /* QRCameraController.swift */; };
 		689D237BB62B1BA8DAC2DBD5 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE31FAF8762586763D26D62 /* NetworkExtension.framework */; };
@@ -73,9 +72,11 @@
 		A5C5EAE7B24AF991C3879A28 /* TunnelConfiguration+WgQuickConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C250453E4E54D76DE945F564 /* TunnelConfiguration+WgQuickConfig.swift */; };
 		AAB1FBF200572D4570F2C71A /* String+ArrayConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99D045FCC97BC9F8630ED25 /* String+ArrayConversion.swift */; };
 		AB1B18C57C16AD51A845B600 /* Phase5Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98081A9FCCA44F5CED64D14D /* Phase5Tests.swift */; };
+		B22D074381BE7B4B5B6153C8 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220C443FF34F909838758525 /* PacketTunnelProvider.swift */; };
 		B4E6AE2BF46E43C9551EE4F6 /* TunnelListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ADBDD0D8D2CF7388CD8E2A9 /* TunnelListView.swift */; };
 		B518D24AEAD220AB299D4DF3 /* BrutalistComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B24BB06DA07083BD9674F4C /* BrutalistComponents.swift */; };
 		B597480F7F68E9BABE5C3047 /* Phase2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 688A6C2D928EEBD9106831DA /* Phase2Tests.swift */; };
+		B5B0399FD8897962C4A9F85C /* WireGuardEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 348440084B9B4E7485226A0B /* WireGuardEngine */; };
 		B696AF616F5136BB072B21DC /* NETunnelProviderProtocol+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE97DF84571F614B64B4BFD6 /* NETunnelProviderProtocol+Extension.swift */; };
 		BF9D12D4FB3F50481DC11AC8 /* ringlogger.c in Sources */ = {isa = PBXBuildFile; fileRef = B966673221473E73BA5E79D4 /* ringlogger.c */; };
 		C2888389E4E82A4D407F1AE4 /* InteropPing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DD032C3076414B283486C4 /* InteropPing.swift */; };
@@ -87,7 +88,9 @@
 		D01DAFD4914739F40D301BAC /* TunnelEditorViewModel+SplitDNS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */; };
 		D0434EC50BF54F27025B6042 /* TunnelStore+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */; };
 		D1CB991E8000EAFE5591D4B4 /* FileManager+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D9E727A436204948BE6DD3 /* FileManager+Extension.swift */; };
+		D238ECF947BF8466FADDE9E1 /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3BB50F9F602F4F539EF1B425 /* WireGuardKit */; };
 		D30F0970191DB43FB91BD9FD /* TunnelDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 411AB6DBB507C03E2A128A98 /* TunnelDetailViewModel.swift */; };
+		D8C8D4DE3A10702C4AA69347 /* WireGuardKit in Frameworks */ = {isa = PBXBuildFile; productRef = 41A83668E2214265BA496921 /* WireGuardKit */; };
 		D9814EDACFD043A9827A6877 /* FirstRunSplitDNSSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4488EBB7BD6BC5C04014B740 /* FirstRunSplitDNSSheet.swift */; };
 		DB44824458FB2FB23E6621DF /* InteropBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = B373DEE0FAF012CBA41950AD /* InteropBenchmark.swift */; };
 		DBF32B2C57F12EF96C806B02 /* BrutalistNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16598782F20CF26C5896572 /* BrutalistNavigation.swift */; };
@@ -99,7 +102,6 @@
 		ED9611BF43A1B12BFF97B944 /* SplitDNSNameTesterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */; };
 		EE4652B4A7A31706FDE2A10C /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51829E4D1692EF4D887041CE /* QRScannerView.swift */; };
 		F078F4EAFD972858D908C1DC /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB57FE22D91C53BC22379910 /* Logger.swift */; };
-		F11A84875F302971C7AEA646 /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637A768D8E0AEC2F38706A1E /* PacketTunnelProvider.swift */; };
 		F21EF0B71B444BB2A2F4AFEB /* BrutalistControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0EAA5CC75D69B8B6595FC53 /* BrutalistControls.swift */; };
 		F686AF227130986A7D812FA3 /* ErrorPresenterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E74A322AB5C391058ED9FA85 /* ErrorPresenterProtocol.swift */; };
 		F7E2DE5B6B428DD5EFE61529 /* InteropCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 693C67D6D915CA4D9EE61188 /* InteropCommand.swift */; };
@@ -123,20 +125,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = F1A35F1FF7450EE5B0930C01;
 			remoteInfo = SplitGuard;
-		};
-		91B209C34F9970DCF49F01D5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E8A70CC741407A2E9D9FFFAB /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 5F00CEF353CE0F3558646150;
-			remoteInfo = WireGuardGoBridgeiOS;
-		};
-		EEE50E3D5E5303561DD3E89F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E8A70CC741407A2E9D9FFFAB /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 5F00CEF353CE0F3558646150;
-			remoteInfo = WireGuardGoBridgeiOS;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -168,6 +156,7 @@
 		1A8DAFD7AC9C8490A078F5B2 /* TunnelStatus+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStatus+Presentation.swift"; sourceTree = "<group>"; };
 		1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerViewModel.swift; sourceTree = "<group>"; };
 		1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		220C443FF34F909838758525 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
 		2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Actions.swift"; sourceTree = "<group>"; };
 		23DD032C3076414B283486C4 /* InteropPing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteropPing.swift; sourceTree = "<group>"; };
 		27D9E727A436204948BE6DD3 /* FileManager+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileManager+Extension.swift"; sourceTree = "<group>"; };
@@ -197,7 +186,6 @@
 		5EC73C8F8D9F3F29ABB54850 /* TunnelsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelsManager.swift; sourceTree = "<group>"; };
 		605DB91EC5EE98CEC3D57BE8 /* ZipImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipImporter.swift; sourceTree = "<group>"; };
 		6163850E13A2BE1677901ED6 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Base; path = Base.lproj/Localizable.strings; sourceTree = "<group>"; };
-		637A768D8E0AEC2F38706A1E /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
 		657D089C8282769C0D7FE83A /* TunnelDetailCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelDetailCards.swift; sourceTree = "<group>"; };
 		688A6C2D928EEBD9106831DA /* Phase2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase2Tests.swift; sourceTree = "<group>"; };
 		693C67D6D915CA4D9EE61188 /* InteropCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteropCommand.swift; sourceTree = "<group>"; };
@@ -212,6 +200,7 @@
 		98081A9FCCA44F5CED64D14D /* Phase5Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Phase5Tests.swift; sourceTree = "<group>"; };
 		9B24BB06DA07083BD9674F4C /* BrutalistComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrutalistComponents.swift; sourceTree = "<group>"; };
 		9C5794A83ACCDF8A06820EA6 /* ZipExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipExporter.swift; sourceTree = "<group>"; };
+		9CB75CE4153F5A27ECABD530 /* SplitGuardTunnel */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SplitGuardTunnel; path = Packages/SplitGuardTunnel; sourceTree = SOURCE_ROOT; };
 		9EDC93B76216C0AE72EDDEE9 /* ErrorNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorNotifier.swift; sourceTree = "<group>"; };
 		9FF68E8C97AC816AE312C630 /* TunnelEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelEditorView.swift; sourceTree = "<group>"; };
 		A1509232A600A9086FB51E73 /* TunnelListCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelListCards.swift; sourceTree = "<group>"; };
@@ -238,7 +227,6 @@
 		D88DC25A86D70CDECF4CB7E9 /* TunnelDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelDetailView.swift; sourceTree = "<group>"; };
 		D949C22A5EAB79B7914F4D3B /* TunnelLiveMetricsMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelLiveMetricsMonitor.swift; sourceTree = "<group>"; };
 		E16598782F20CF26C5896572 /* BrutalistNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrutalistNavigation.swift; sourceTree = "<group>"; };
-		E712D927A2AD49A16AFF8D64 /* TunnelConfiguration+UapiConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelConfiguration+UapiConfig.swift"; sourceTree = "<group>"; };
 		E74A322AB5C391058ED9FA85 /* ErrorPresenterProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorPresenterProtocol.swift; sourceTree = "<group>"; };
 		E7E9EFF7A2B8250E862F8CA0 /* TunnelStore+Import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Import.swift"; sourceTree = "<group>"; };
 		EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSNameTesterView.swift; sourceTree = "<group>"; };
@@ -258,7 +246,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3DAD8F69E96E0AD988DDAB36 /* WireGuardKit in Frameworks */,
+				3DAD8F69E96E0AD988DDAB36 /* SplitGuardTunnel in Frameworks */,
+				B5B0399FD8897962C4A9F85C /* WireGuardEngine in Frameworks */,
+				D238ECF947BF8466FADDE9E1 /* WireGuardKit in Frameworks */,
 				689D237BB62B1BA8DAC2DBD5 /* NetworkExtension.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -267,7 +257,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				625D5E2C83FA3EF5A1452EE5 /* WireGuardKit in Frameworks */,
+				625D5E2C83FA3EF5A1452EE5 /* WireGuardEngine in Frameworks */,
+				D8C8D4DE3A10702C4AA69347 /* WireGuardKit in Frameworks */,
 				11B353D705F6133F71070E77 /* NetworkExtension.framework in Frameworks */,
 				8F4F754A77B78910E8A51C13 /* libz.tbd in Frameworks */,
 			);
@@ -363,6 +354,7 @@
 		1F87CB5F87FC7EA2EB837148 /* SplitGuardNetworkExtension */ = {
 			isa = PBXGroup;
 			children = (
+				220C443FF34F909838758525 /* PacketTunnelProvider.swift */,
 				B97E633EA4D203AA314F3036 /* PrivacyInfo.xcprivacy */,
 			);
 			path = SplitGuardNetworkExtension;
@@ -393,7 +385,6 @@
 			children = (
 				B4384A55A8FC6B7C979886DA /* ActivateOnDemandOption.swift */,
 				432F6EF72241004D0B1FF676 /* MockTunnels.swift */,
-				E712D927A2AD49A16AFF8D64 /* TunnelConfiguration+UapiConfig.swift */,
 				03360A1CF6DE682EB8231BB9 /* TunnelErrors.swift */,
 				5EC73C8F8D9F3F29ABB54850 /* TunnelsManager.swift */,
 				0C3CAF79ACB4011BE6A6979B /* TunnelStatus.swift */,
@@ -475,6 +466,7 @@
 		77314806360CF7EE5B576D6C /* Packages */ = {
 			isa = PBXGroup;
 			children = (
+				9CB75CE4153F5A27ECABD530 /* SplitGuardTunnel */,
 				4415DEBA4AC1294F90EC7E33 /* wireguard-apple */,
 				F155393E9987A5017EA37843 /* WireGuardEngine */,
 			);
@@ -577,33 +569,12 @@
 			isa = PBXGroup;
 			children = (
 				9EDC93B76216C0AE72EDDEE9 /* ErrorNotifier.swift */,
-				637A768D8E0AEC2F38706A1E /* PacketTunnelProvider.swift */,
 			);
 			name = WireGuardNetworkExtension;
 			path = "Vendor/wireguard-apple/Sources/WireGuardNetworkExtension";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
-
-/* Begin PBXLegacyTarget section */
-		5F00CEF353CE0F3558646150 /* WireGuardGoBridgeiOS */ = {
-			isa = PBXLegacyTarget;
-			buildArgumentsString = "$(ACTION)";
-			buildConfigurationList = C9A04461C34DBB415AAFC4F8 /* Build configuration list for PBXLegacyTarget "WireGuardGoBridgeiOS" */;
-			buildPhases = (
-				38852C8F6F58404251CA4877 /* Sources */,
-			);
-			buildToolPath = /usr/bin/make;
-			buildWorkingDirectory = "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardKitGo";
-			dependencies = (
-			);
-			name = WireGuardGoBridgeiOS;
-			packageProductDependencies = (
-			);
-			passBuildSettingsInEnvironment = 1;
-			productName = WireGuardGoBridgeiOS;
-		};
-/* End PBXLegacyTarget section */
 
 /* Begin PBXNativeTarget section */
 		56672309613B00967D72E06A /* SplitGuardNetworkExtension */ = {
@@ -617,10 +588,11 @@
 			buildRules = (
 			);
 			dependencies = (
-				628BF8FDB972B38A9764B161 /* PBXTargetDependency */,
 			);
 			name = SplitGuardNetworkExtension;
 			packageProductDependencies = (
+				C539B74A4DA865A482C4CC89 /* SplitGuardTunnel */,
+				348440084B9B4E7485226A0B /* WireGuardEngine */,
 				3BB50F9F602F4F539EF1B425 /* WireGuardKit */,
 			);
 			productName = SplitGuardNetworkExtension;
@@ -658,11 +630,11 @@
 			buildRules = (
 			);
 			dependencies = (
-				ADC057142F6A2CD66CC43B77 /* PBXTargetDependency */,
 				0D17C767421A41183EB97A39 /* PBXTargetDependency */,
 			);
 			name = SplitGuard;
 			packageProductDependencies = (
+				9E0463F16B88C0DBBE752975 /* WireGuardEngine */,
 				41A83668E2214265BA496921 /* WireGuardKit */,
 			);
 			productName = SplitGuard;
@@ -679,10 +651,6 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					56672309613B00967D72E06A = {
-						DevelopmentTeam = L23NTUN6KV;
-						ProvisioningStyle = Automatic;
-					};
-					5F00CEF353CE0F3558646150 = {
 						DevelopmentTeam = L23NTUN6KV;
 						ProvisioningStyle = Automatic;
 					};
@@ -706,6 +674,7 @@
 			mainGroup = 8D659E79DA8507BCD17F0198;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				180B531DFF2CE41723CF00EF /* XCLocalSwiftPackageReference "Packages/SplitGuardTunnel" */,
 				56F973E38AFAF9D278758CF2 /* XCLocalSwiftPackageReference "Packages/WireGuardEngine" */,
 				17D9BE1D6E5E2D5E6062530F /* XCLocalSwiftPackageReference "Vendor/wireguard-apple" */,
 			);
@@ -717,7 +686,6 @@
 				F1A35F1FF7450EE5B0930C01 /* SplitGuard */,
 				56672309613B00967D72E06A /* SplitGuardNetworkExtension */,
 				9980DE9A797D949C009D27F5 /* SplitGuardTests */,
-				5F00CEF353CE0F3558646150 /* WireGuardGoBridgeiOS */,
 			);
 		};
 /* End PBXProject section */
@@ -813,7 +781,6 @@
 				97FEB316C673568B79DD8E8E /* SplitDNSSectionViews.swift in Sources */,
 				1AD9A1E5ECFD6FA287F075EA /* SplitGuardApp.swift in Sources */,
 				9A873252EC57656E04213F3C /* String+ArrayConversion.swift in Sources */,
-				3DDA4619D2DF64DA192D3EDF /* TunnelConfiguration+UapiConfig.swift in Sources */,
 				07E6D3DF8288B3A7B124AC2C /* TunnelConfiguration+WgQuickConfig.swift in Sources */,
 				42B67446132A62568414AA64 /* TunnelDetailCards.swift in Sources */,
 				3F73AAA843A8D5B49F6EB29D /* TunnelDetailView.swift in Sources */,
@@ -848,13 +815,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		38852C8F6F58404251CA4877 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		8E4093E412A77F12DA886BB1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -877,7 +837,7 @@
 				4BA73EA1AD039899437763F1 /* Keychain.swift in Sources */,
 				F078F4EAFD972858D908C1DC /* Logger.swift in Sources */,
 				A0693A83631790B3E997BFAF /* NETunnelProviderProtocol+Extension.swift in Sources */,
-				F11A84875F302971C7AEA646 /* PacketTunnelProvider.swift in Sources */,
+				B22D074381BE7B4B5B6153C8 /* PacketTunnelProvider.swift in Sources */,
 				AAB1FBF200572D4570F2C71A /* String+ArrayConversion.swift in Sources */,
 				A5C5EAE7B24AF991C3879A28 /* TunnelConfiguration+WgQuickConfig.swift in Sources */,
 				BF9D12D4FB3F50481DC11AC8 /* ringlogger.c in Sources */,
@@ -896,16 +856,6 @@
 			isa = PBXTargetDependency;
 			target = F1A35F1FF7450EE5B0930C01 /* SplitGuard */;
 			targetProxy = 4E771D73FCD42B0DA28C4B05 /* PBXContainerItemProxy */;
-		};
-		628BF8FDB972B38A9764B161 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 5F00CEF353CE0F3558646150 /* WireGuardGoBridgeiOS */;
-			targetProxy = EEE50E3D5E5303561DD3E89F /* PBXContainerItemProxy */;
-		};
-		ADC057142F6A2CD66CC43B77 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 5F00CEF353CE0F3558646150 /* WireGuardGoBridgeiOS */;
-			targetProxy = 91B209C34F9970DCF49F01D5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -938,10 +888,6 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(CONFIGURATION_BUILD_DIR)",
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.bitechular.splitguard.network-extension";
 				PRODUCT_NAME = SplitGuardNetworkExtension;
 				SDKROOT = iphoneos;
@@ -960,7 +906,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(CONFIGURATION_BUILD_DIR)",
 					"$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/Shared/Logging",
 					"$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive/3rdparty/minizip",
 				);
@@ -969,10 +914,6 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(CONFIGURATION_BUILD_DIR)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.bitechular.splitguard;
 				PRODUCT_NAME = SplitGuard;
@@ -998,10 +939,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(CONFIGURATION_BUILD_DIR)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "com.bitechular.splitguard.network-extension";
 				PRODUCT_NAME = SplitGuardNetworkExtension;
@@ -1099,19 +1036,6 @@
 			};
 			name = Debug;
 		};
-		7C947E76A43F1D9979CC1A91 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.bitechular.WireGuardGoBridgeiOS;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
 		C04CFFD9D9241DA47D4D2115 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1174,19 +1098,6 @@
 			};
 			name = Release;
 		};
-		CA848CAD04436F134C066F2A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.bitechular.WireGuardGoBridgeiOS;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 		D23A9F609B5D63585AF4CB52 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1196,7 +1107,6 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(CONFIGURATION_BUILD_DIR)",
 					"$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/Shared/Logging",
 					"$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive/3rdparty/minizip",
 				);
@@ -1205,10 +1115,6 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
-				);
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(CONFIGURATION_BUILD_DIR)",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.bitechular.splitguard;
 				PRODUCT_NAME = SplitGuard;
@@ -1275,21 +1181,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		C9A04461C34DBB415AAFC4F8 /* Build configuration list for PBXLegacyTarget "WireGuardGoBridgeiOS" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				7C947E76A43F1D9979CC1A91 /* Debug */,
-				CA848CAD04436F134C066F2A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
 		17D9BE1D6E5E2D5E6062530F /* XCLocalSwiftPackageReference "Vendor/wireguard-apple" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "Vendor/wireguard-apple";
+		};
+		180B531DFF2CE41723CF00EF /* XCLocalSwiftPackageReference "Packages/SplitGuardTunnel" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SplitGuardTunnel;
 		};
 		56F973E38AFAF9D278758CF2 /* XCLocalSwiftPackageReference "Packages/WireGuardEngine" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -1298,6 +1199,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		348440084B9B4E7485226A0B /* WireGuardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WireGuardEngine;
+		};
 		3BB50F9F602F4F539EF1B425 /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WireGuardKit;
@@ -1305,6 +1210,14 @@
 		41A83668E2214265BA496921 /* WireGuardKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WireGuardKit;
+		};
+		9E0463F16B88C0DBBE752975 /* WireGuardEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WireGuardEngine;
+		};
+		C539B74A4DA865A482C4CC89 /* SplitGuardTunnel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SplitGuardTunnel;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -22,22 +22,17 @@ packages:
     path: Vendor/wireguard-apple
   WireGuardEngine:
     path: Packages/WireGuardEngine
+  SplitGuardTunnel:
+    path: Packages/SplitGuardTunnel
 
 targets:
-  WireGuardGoBridgeiOS:
-    platform: iOS
-    legacy:
-      toolPath: /usr/bin/make
-      arguments: $(ACTION)
-      passSettings: true
-      workingDirectory: $(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardKitGo
-
   SplitGuardNetworkExtension:
     type: app-extension
     platform: iOS
     deploymentTarget: "26.0"
     sources:
-      - path: Vendor/wireguard-apple/Sources/WireGuardNetworkExtension
+      - path: SplitGuardNetworkExtension/PacketTunnelProvider.swift
+      - path: Vendor/wireguard-apple/Sources/WireGuardNetworkExtension/ErrorNotifier.swift
       - path: Vendor/wireguard-apple/Sources/Shared
         excludes:
           - NotificationToken.swift
@@ -45,8 +40,8 @@ targets:
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
-      - target: WireGuardGoBridgeiOS
-        embed: false
+      - package: SplitGuardTunnel
+      - package: WireGuardEngine
       - package: WireGuardKit
       - sdk: NetworkExtension.framework
     settings:
@@ -57,9 +52,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: SplitGuardNetworkExtension/SplitGuardNetworkExtension.entitlements
         SWIFT_OBJC_BRIDGING_HEADER: SplitGuardNetworkExtension/SplitGuardNetworkExtension-Bridging-Header.h
         ENABLE_DEBUG_DYLIB: NO
-        LIBRARY_SEARCH_PATHS:
-          - "$(inherited)"
-          - "$(CONFIGURATION_BUILD_DIR)"
         HEADER_SEARCH_PATHS:
           - "$(inherited)"
           - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/Shared/Logging"
@@ -87,10 +79,9 @@ targets:
         excludes:
           - ZipArchive/3rdparty/minizip/MiniZip64_info.txt
     dependencies:
-      - target: WireGuardGoBridgeiOS
-        embed: false
       - target: SplitGuardNetworkExtension
         embed: true
+      - package: WireGuardEngine
       - package: WireGuardKit
       - sdk: NetworkExtension.framework
       - sdk: libz.tbd
@@ -103,12 +94,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_OBJC_BRIDGING_HEADER: SplitGuard/SplitGuard-Bridging-Header.h
-        LIBRARY_SEARCH_PATHS:
-          - "$(inherited)"
-          - "$(CONFIGURATION_BUILD_DIR)"
         HEADER_SEARCH_PATHS:
           - "$(inherited)"
-          - "$(CONFIGURATION_BUILD_DIR)"
           - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/Shared/Logging"
           - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive/3rdparty/minizip"
         LD_RUNPATH_SEARCH_PATHS:

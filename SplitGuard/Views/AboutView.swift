@@ -30,7 +30,6 @@ struct AboutView: View {
                 VStack(spacing: SGSpacing.medium) {
                     appIdentitySection
                     sourceCodeSection
-                    attributionSection
                 }
                 .padding(.horizontal, SGSpacing.medium)
                 .padding(.top, SGSpacing.medium)
@@ -96,7 +95,7 @@ struct AboutView: View {
                         .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin)
                 )
 
-            Text("WIREGUARD-GO \(store.backendVersion)")
+            Text("WIREGUARD ENGINE \(store.backendVersion)")
                 .font(SGTypography.monoCompact.weight(.medium))
                 .foregroundStyle(SGColor.textSecondary)
                 .padding(.horizontal, SGSpacing.small)
@@ -152,44 +151,5 @@ struct AboutView: View {
             )
             .accessibilityAddTraits(.isLink)
         }
-    }
-
-    private var attributionSection: some View {
-        VStack(spacing: 0) {
-            BrutalistSectionBar(title: "Attribution")
-
-            VStack(alignment: .leading, spacing: SGSpacing.small) {
-                Text(
-                    "SplitGuard uses the WireGuard tunnel, cryptography, and configuration code " +
-                        "from wireguard-apple and wireguard-go under the MIT License."
-                )
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textSecondary)
-
-                Text("\"WireGuard\" is a registered trademark of Jason A. Donenfeld.")
-                    .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.textTertiary)
-
-                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
-
-                NavigationLink(value: AppRoute.licenses) {
-                    HStack {
-                        Label("Open Source Licenses", systemImage: "doc.plaintext")
-                            .font(SGTypography.subheadline.weight(.bold))
-                            .foregroundStyle(SGColor.textPrimary)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(SGColor.textPrimary)
-                    }
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(SGSpacing.medium)
-            .background(SGColor.surfaceCard)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
-        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 }

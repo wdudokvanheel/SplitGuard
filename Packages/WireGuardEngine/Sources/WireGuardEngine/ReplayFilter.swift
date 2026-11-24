@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-// Copyright (C) 2017-2023 WireGuard LLC. All Rights Reserved.
 
 /// The reference counts in blocks of 64 bits and keeps one extra block in the ring.
 struct ReplayFilter {

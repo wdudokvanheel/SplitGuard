@@ -134,9 +134,6 @@ final class DeviceEventDispatcher: @unchecked Sendable {
         if let posix = error as? POSIXError {
             return posix.code.rawValue
         }
-        if let uapi = error as? UAPIError {
-            return Int32(clamping: -uapi.code)
-        }
         let nsError = error as NSError
         if nsError.domain == NSPOSIXErrorDomain, nsError.code > 0 {
             return Int32(clamping: nsError.code)

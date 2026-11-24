@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WireGuardEngine
 import WireGuardKit
 
 struct AlertItem: Identifiable, Equatable, Error {
@@ -84,7 +85,7 @@ final class TunnelStore {
     }
 
     var backendVersion: String {
-        WIREGUARD_GO_VERSION
+        WireGuardEngineVersion.current
     }
 
     var activeTunnel: TunnelContainer? {

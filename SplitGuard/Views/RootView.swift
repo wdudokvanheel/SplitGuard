@@ -11,7 +11,6 @@ enum AppRoute: Hashable {
     case settings
     case about
     case logViewer
-    case licenses
     case splitDNSSuggestion(SplitDNSSuggestionPrompt)
 }
 
@@ -28,7 +27,7 @@ struct RootView: View {
             case .tunnelDetail:
                 return false
             case .addTunnel, .qrScanner, .createTunnel, .editTunnel,
-                 .pasteConfig, .settings, .about, .logViewer, .licenses, .splitDNSSuggestion:
+                 .pasteConfig, .settings, .about, .logViewer, .splitDNSSuggestion:
                 return true
             }
         }
@@ -167,7 +166,7 @@ struct RootView: View {
             PasteConfigSheet(store: store) { navigationPath.removeAll() }
         case .splitDNSSuggestion(let prompt):
             FirstRunSplitDNSSheet(store: store, prompt: prompt)
-        case .settings, .about, .logViewer, .licenses:
+        case .settings, .about, .logViewer:
             utilityDestination(for: route)
         }
     }
@@ -181,8 +180,6 @@ struct RootView: View {
             AboutView(store: store)
         case .logViewer:
             LogViewerView()
-        case .licenses:
-            LicenseAttributionView()
         default:
             EmptyView()
         }

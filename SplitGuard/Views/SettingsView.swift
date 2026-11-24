@@ -101,7 +101,7 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 versionRow(label: "APP VERSION", value: AppMetadata.versionText)
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
-                versionRow(label: tr("settingsVersionKeyWireGuardGoBackend").uppercased(), value: store.backendVersion)
+                versionRow(label: "WIREGUARD ENGINE", value: store.backendVersion)
             }
             .padding(.horizontal, SGSpacing.medium)
             .padding(.vertical, SGSpacing.xSmall)
@@ -210,7 +210,7 @@ struct SettingsView: View {
                         .font(SGTypography.displayCompact)
                         .tracking(0.8)
                         .foregroundStyle(SGColor.textPrimary)
-                    Text("Version, source code, and attribution")
+                    Text("Version and source code")
                         .font(SGTypography.caption)
                         .foregroundStyle(SGColor.textSecondary)
                 }
@@ -270,89 +270,5 @@ struct AppearanceSettingsSection: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
-    }
-}
-
-struct LicenseAttributionView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    private let mitLicenseText = """
-    Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy of \
-    this software and associated documentation files (the "Software"), to deal in \
-    the Software without restriction, including without limitation the rights to \
-    use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of \
-    the Software, and to permit persons to whom the Software is furnished to do so, \
-    subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all \
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR \
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS \
-    FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR \
-    COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER \
-    IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN \
-    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-    """
-
-    private let fontLicenseNotice = """
-    Typography includes Bebas Neue (Copyright © 2010-2018 Dharma Type) and \
-    IBM Plex Sans (Copyright © 2017 IBM Corp.), both licensed under the SIL Open Font License 1.1.
-    """
-
-    var body: some View {
-        VStack(spacing: 0) {
-            BrutalistHeaderBar(
-                title: "Licenses",
-                enableSwipeBack: true,
-                leading: {
-                    BrutalistBackButton {
-                        dismiss()
-                    }
-                }
-            )
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: SGSpacing.medium) {
-                    VStack(alignment: .leading, spacing: SGSpacing.small) {
-                        Text("WIREGUARD-APPLE & WIREGUARD-GO")
-                            .font(SGTypography.displayCompact)
-                            .foregroundStyle(SGColor.textPrimary)
-                        Text("MIT License")
-                            .font(SGTypography.badge)
-                            .foregroundStyle(SGColor.textSecondary)
-                        Text(mitLicenseText)
-                            .font(SGTypography.monoCompact)
-                            .foregroundStyle(SGColor.textPrimary)
-                            .textSelection(.enabled)
-                    }
-                    .padding(SGSpacing.medium)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .brutalistCard(fill: SGColor.surfaceCard, shadowOffset: SGShadow.small)
-
-                    VStack(alignment: .leading, spacing: SGSpacing.small) {
-                        Text("TYPOGRAPHY")
-                            .font(SGTypography.displayCompact)
-                            .foregroundStyle(SGColor.textPrimary)
-                        Text("SIL Open Font License 1.1")
-                            .font(SGTypography.badge)
-                            .foregroundStyle(SGColor.textSecondary)
-                        Text(fontLicenseNotice)
-                            .font(SGTypography.caption)
-                            .foregroundStyle(SGColor.textPrimary)
-                    }
-                    .padding(SGSpacing.medium)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .brutalistCard(fill: SGColor.surfaceCard, shadowOffset: SGShadow.small)
-                }
-                .padding(SGSpacing.medium)
-            }
-            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
-            .background(SGColor.surfacePrimary.ignoresSafeArea())
-        }
-        .background(SGColor.surfacePrimary.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
