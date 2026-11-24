@@ -57,7 +57,7 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
         }
 
         let decision = configuration.routeDecision(for: query.name, dnsServers: dnsServers)
-        guard case .normalDNS = decision else {
+        guard case .normalDNS(reason: .excluded) = decision else {
             return .pass
         }
 
