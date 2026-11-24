@@ -81,6 +81,7 @@ public final class WireGuardDevice {
         var peer: WireGuardPeer?
         let created: Bool
         var keepaliveEnabled = false
+        var ignoredKeepaliveInterval: UInt16 = 0
     }
 
     private static let maxPeers = 1 << 16
@@ -159,7 +160,10 @@ public final class WireGuardDevice {
                 let value = String(decoding: line[line.index(after: equals)...], as: UTF8.self)
                 if key == "public_key" {
                     finishConfig(selection)
+                    let keepaliveEnabled = selection?.keepaliveEnabled ?? false
                     selection = try selectPeer(value[...])
+                    // The Go parser retains pkaOn until the next keepalive field.
+                    selection?.keepaliveEnabled = keepaliveEnabled
                 } else if let selected = selection {
                     selection = try setPeerField(key, value[...], selected)
                 } else {
@@ -286,7 +290,7 @@ public final class WireGuardDevice {
             guard value == "true" else { throw invalid }
             if let peer, key == "remove" || selected.created {
                 removePeer(peer.publicKey)
-                return PeerSelection(peer: nil, created: selected.created)
+                return PeerSelection(peer: nil, created: selected.created, keepaliveEnabled: selected.keepaliveEnabled)
             }
         case "preshared_key":
             guard let preshared = NoisePresharedKey(hex: value) else { throw invalid }
@@ -305,6 +309,9 @@ public final class WireGuardDevice {
                     $0.persistentKeepaliveInterval = interval
                     return wasDisabled && interval != 0
                 }
+            } else {
+                selected.keepaliveEnabled = selected.ignoredKeepaliveInterval == 0 && interval != 0
+                selected.ignoredKeepaliveInterval = interval
             }
         case "replace_allowed_ips":
             guard value == "true" else { throw invalid }

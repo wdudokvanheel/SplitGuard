@@ -81,17 +81,16 @@ final class PacketLane<Element> {
     }
 
     func offer(_ item: Element, token: UInt64) -> Bool {
-        let accepted = lock.withLock {
+        lock.withLock {
             guard token == self.token, packets.append(item) else {
                 metrics.dropped += 1
                 return false
             }
             metrics.admitted += 1
             metrics.peak = max(metrics.peak, packets.count)
+            if packets.count == 1 { ready.add(data: 1) }
             return true
         }
-        if accepted { ready.add(data: 1) }
-        return accepted
     }
 
     var depth: Int { lock.withLock { packets.count } }

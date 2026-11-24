@@ -65,12 +65,12 @@ extension WireGuardDevice {
         return keypair
     }
 
-    func requestStagedDrain(_ peer: WireGuardPeer) {
+    func requestStagedDrain(_ peer: WireGuardPeer, wake: Bool = true) {
         guard let io, canRun(peer, io: io), peer.withState({ $0.staged.count > 0 }) else { return }
         if usableSendingSession(peer) != nil {
-            if io.readyPeers.updateValue(peer, forKey: ObjectIdentifier(peer)) == nil {
-                io.outboundReady.add(data: 1)
-            }
+            let wasIdle = io.readyPeers.isEmpty
+            io.readyPeers[ObjectIdentifier(peer)] = peer
+            if wake && wasIdle { io.outboundReady.add(data: 1) }
         } else {
             requestHandshakeInitiation(peer, io: io)
         }
@@ -86,7 +86,7 @@ extension WireGuardDevice {
             }
             guard let packet = peer.withState({ $0.staged.popFirst() }) else { continue }
             io.stagedCount -= 1
-            requestStagedDrain(peer)
+            requestStagedDrain(peer, wake: false)
             return StagedTransport(peer: peer, session: session, counter: counter, packet: packet, run: io.run)
         }
         return nil
@@ -128,7 +128,7 @@ extension WireGuardDevice {
         guard let nonce = try? ChaChaPoly.Nonce(data: header.nonce),
               let box = try? ChaChaPoly.seal(payload, using: work.session.sendKey, nonce: nonce) else { return }
         var datagram = header.bytes
-        datagram.reserveCapacity(Self.maxSegmentSize)
+        datagram.reserveCapacity(TransportHeader.minimumPacketSize + payload.count)
         datagram.append(box.ciphertext)
         datagram.append(box.tag)
 
@@ -137,6 +137,11 @@ extension WireGuardDevice {
             guard work.run == io.run, canRun(peer, io: io), !work.session.isSendingExpired,
                   case .keypair(let owner, let session)? = indices.lookup(work.session.localIndex),
                   owner === peer, session === work.session else { return }
+            guard protocolNow().elapsed(since: work.session.created) < WireGuardTiming.rejectAfterTime else {
+                io.stagedDrops += 1
+                requestHandshakeInitiation(peer, io: io)
+                return
+            }
             timerAuthenticatedTraversal(peer, io: io)
             timerAuthenticatedSent(peer, io: io)
             let sent = sendWire(datagram, to: peer, io: io)
@@ -208,6 +213,7 @@ extension WireGuardDevice {
         _ plaintext: Data, _ work: DeviceIO.EncryptedTransport, io: DeviceIO, checkFreshness: Bool
     ) {
         let peer = work.peer
+        guard protocolNow().elapsed(since: work.keypair.created) <= WireGuardTiming.rejectAfterTime else { return }
         let accepted = acceptAuthenticatedTransport(counter: work.header.counter, with: work.keypair, from: peer)
         guard accepted != .rejected else { return }
         roam(peer, from: work.wire.source)

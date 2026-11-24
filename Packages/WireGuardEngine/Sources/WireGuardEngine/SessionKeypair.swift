@@ -15,13 +15,13 @@ final class SessionKeypair {
     // The send and receive queues can use the same session concurrently.
     private let sendLock = NSLock()
     private let receiveLock = NSLock()
-    private var sendCounter: UInt64 = 0
+    private var sendCounter: UInt64
     private var sendingExpired = false
     private var replayFilter = ReplayFilter()
 
     init(
         sendKey: Data, receiveKey: Data, created: ProtocolInstant, isInitiator: Bool,
-        localIndex: UInt32, remoteIndex: UInt32
+        localIndex: UInt32, remoteIndex: UInt32, initialSendCounter: UInt64 = 0
     ) throws {
         guard sendKey.count == ChaCha20Poly1305.keyLength, receiveKey.count == ChaCha20Poly1305.keyLength else {
             throw WireGuardCryptoError.invalidKeyLength
@@ -32,6 +32,8 @@ final class SessionKeypair {
         self.isInitiator = isInitiator
         self.localIndex = localIndex
         self.remoteIndex = remoteIndex
+        precondition(initialSendCounter <= ReplayFilter.rejectAfterMessages)
+        sendCounter = initialSendCounter
     }
 
     var nextSendCounter: UInt64 { sendLock.withLock { sendCounter } }
