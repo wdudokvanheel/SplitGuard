@@ -68,58 +68,33 @@ struct SettingsView: View {
     }
 
     private var brandBannerCard: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: SGSpacing.medium) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 3) {
-                        Text("SPLIT")
-                            .foregroundStyle(SGColor.inkOnPop)
-                        Text("GUARD")
-                            .foregroundStyle(SGColor.pureWhite)
-                    }
-                    .font(SGTypography.displayHero)
-                    .tracking(0.8)
-
-                    Text("PRIVATE WIREGUARD + SPLIT DNS")
-                        .font(SGTypography.metricLabel)
-                        .tracking(1.0)
-                        .foregroundStyle(SGColor.inkOnPop.opacity(0.82))
+        HStack(spacing: SGSpacing.medium) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 3) {
+                    Text("SPLIT")
+                        .foregroundStyle(SGColor.inkOnPop)
+                    Text("GUARD")
+                        .foregroundStyle(SGColor.pureWhite)
                 }
-                Spacer(minLength: 0)
-            }
-            .padding(SGSpacing.medium)
-            .background {
-                ZStack {
-                    SGColor.popPurple
-                    BrutalistGrainOverlay(opacity: 0.18)
-                }
-            }
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.regular)
-            }
+                .font(SGTypography.displayHero)
+                .tracking(0.8)
 
-            VStack(spacing: 0) {
-                versionRow(label: "APP VERSION", value: AppMetadata.versionText)
+                Text("PRIVATE WIREGUARD + SPLIT DNS")
+                    .font(SGTypography.metricLabel)
+                    .tracking(1.0)
+                    .foregroundStyle(SGColor.inkOnPop.opacity(0.82))
             }
-            .padding(.horizontal, SGSpacing.medium)
-            .padding(.vertical, SGSpacing.xSmall)
-            .background(SGColor.surfaceCard)
+            Spacer(minLength: 0)
+        }
+        .padding(SGSpacing.medium)
+        .background {
+            ZStack {
+                SGColor.popPurple
+                BrutalistGrainOverlay(opacity: 0.18)
+            }
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
-        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.thick, shadowOffset: SGShadow.medium)
-    }
-
-    private func versionRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(SGTypography.metricLabel)
-                .foregroundStyle(SGColor.textSecondary)
-            Spacer()
-            Text(value)
-                .font(SGTypography.monoCompact.weight(.semibold))
-                .foregroundStyle(SGColor.textPrimary)
-        }
-        .padding(.vertical, SGSpacing.xSmall)
+        .brutalistCard(fill: SGColor.popPurple, borderWidth: SGBorder.thick, shadowOffset: SGShadow.medium)
     }
 
     private var actionsSection: some View {
