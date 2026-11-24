@@ -11,7 +11,8 @@ struct ProtocolInstant: Comparable {
 
     private static let timebase: mach_timebase_info_data_t = {
         var timebase = mach_timebase_info_data_t()
-        precondition(mach_timebase_info(&timebase) == KERN_SUCCESS && timebase.denom != 0)
+        let status = mach_timebase_info(&timebase)
+        precondition(status == KERN_SUCCESS && timebase.denom != 0)
         return timebase
     }()
 
