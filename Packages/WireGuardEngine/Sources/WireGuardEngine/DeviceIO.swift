@@ -5,8 +5,8 @@ import Dispatch
 import Foundation
 
 final class DeviceIO: @unchecked Sendable {
-    enum State: Sendable {
-        case down, up, closed
+    enum State: Equatable, Sendable {
+        case down, up, paused(PauseReason), closed
     }
 
     struct FromTunnel: Sendable {
@@ -46,8 +46,22 @@ final class DeviceIO: @unchecked Sendable {
     let jitterMilliseconds: () -> UInt64
     let limiter: HandshakeRateLimiter
 
+    private let pausedLock = NSLock()
+    private var pausedFlag = false
+    var isPaused: Bool { pausedLock.withLock { pausedFlag } }
+
     // The fields below are protected by the device lock.
-    var state = State.down
+    var state = State.down {
+        didSet {
+            let nowPaused: Bool
+            if case .paused = state {
+                nowPaused = true
+            } else {
+                nowPaused = false
+            }
+            pausedLock.withLock { pausedFlag = nowPaused }
+        }
+    }
     var run: UInt64 = 0
     var bindGeneration: UInt64 = 0
     var brokenRoaming = false
@@ -136,6 +150,10 @@ extension WireGuardDevice {
                 io.outbound.register(run)
                 try io.tunnel.start { [weak self, weak io] data in
                     guard let io else { return false }
+                    if io.isPaused {
+                        self?.recordDrop(.paused)
+                        return true
+                    }
                     guard (1...Self.maxContentSize).contains(data.count) else {
                         self?.recordDrop(.invalidPacket)
                         return false
@@ -164,12 +182,81 @@ extension WireGuardDevice {
         }
     }
 
+    /// Pause dispatching packets and retire UDP sockets and peer sessions while keeping
+    /// the tunnel read registration, static configuration, and byte/handshake statistics alive.
+    public func pause(reason: PauseReason = .offline) throws {
+        guard let io else { return }
+        try io.withHandshakeLane {
+            try lock.withLock {
+                switch io.state {
+                case .down, .closed:
+                    return
+                case .paused(let current):
+                    if current != reason {
+                        io.state = .paused(reason)
+                        emitEvent(.stateChanged(.paused(reason)))
+                    }
+                    return
+                case .up:
+                    break
+                }
+                io.state = .paused(reason)
+                io.inbound.register(nil, discard: true)
+                io.handshake.register(nil, discard: true)
+                io.outbound.discardPending()
+                defer {
+                    io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
+                    flushPendingDrops(force: true)
+                    for peer in peers.values { stopPeer(peer) }
+                    armNextDeadline(io)
+                    emitEvent(.stateChanged(.paused(reason)))
+                }
+                boundPort = 0
+                try io.transport.unbind()
+            }
+        }
+    }
+
+    /// Rebind UDP sockets and restart peer sessions after `pause(reason:)`, keeping the
+    /// existing tunnel read registration intact. Rolls back to paused if binding fails.
+    public func resume(attempt: Int = 1, final: Bool = false) throws {
+        guard let io else { return }
+        let resumed: Bool = try io.withHandshakeLane {
+            try lock.withLock {
+                guard case .paused(let previousReason) = io.state else { return false }
+                io.state = .up
+                do {
+                    try rebindLocked(io, attempt: attempt, final: final)
+                } catch {
+                    io.state = .paused(previousReason)
+                    throw error
+                }
+                emitEvent(.stateChanged(.up))
+                for peer in peers.values {
+                    startPeer(peer)
+                    if peer.withState({ $0.persistentKeepaliveInterval > 0 }) {
+                        sendKeepalive(peer)
+                    }
+                }
+                return true
+            }
+        }
+        if resumed {
+            io.tunnel.resumeReading()
+        }
+    }
+
     /// Stop dispatching packets and retire all sessions. Static configuration and
     /// statistics persist. An adapter may still call an old receive closure after down.
     public func down() throws {
         try lock.withLock {
-            guard let io, io.state == .up else { return }
-            try stopLocked(io, finalState: .down, emitStateChange: true)
+            guard let io else { return }
+            switch io.state {
+            case .up, .paused:
+                try stopLocked(io, finalState: .down, emitStateChange: true)
+            case .down, .closed:
+                return
+            }
         }
     }
 
@@ -178,9 +265,10 @@ extension WireGuardDevice {
         lock.withLock {
             if let io {
                 guard io.state != .closed else { return }
-                if io.state == .up {
+                switch io.state {
+                case .up, .paused:
                     _ = try? stopLocked(io, finalState: .closed, emitStateChange: true)
-                } else {
+                case .down, .closed:
                     io.state = .closed
                     flushPendingDrops(force: true)
                 }

@@ -115,6 +115,23 @@ final class PacketLane<Element>: @unchecked Sendable {
         if shouldSync { syncBackpressure() }
     }
 
+    /// Empties queued packets and clears backpressure while keeping the current token registered.
+    @discardableResult
+    func discardPending() -> Int {
+        let (dropped, shouldSync): (Int, Bool) = lock.withLock {
+            let count = packets.count
+            metrics.dropped += count
+            packets.removeAll()
+            if backpressureActive, packets.count <= lowWaterMark {
+                backpressureActive = false
+                return (count, true)
+            }
+            return (count, false)
+        }
+        if shouldSync { syncBackpressure() }
+        return dropped
+    }
+
     enum OfferResult: Sendable {
         case admitted
         case queueFull

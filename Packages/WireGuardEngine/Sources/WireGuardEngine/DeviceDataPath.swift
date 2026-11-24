@@ -18,8 +18,33 @@ extension WireGuardDevice {
             recordDrop(.invalidPacket)
             return
         }
+        if let (hook, filter) = currentHook(), filter.matches(incoming.data, inbound: false) {
+            let active: Bool = lock.withLock {
+                guard let io, incoming.run == io.run else { return false }
+                if case .paused = io.state {
+                    recordDrop(.paused)
+                    return false
+                }
+                return io.state == .up
+            }
+            guard active else { return }
+            switch hook.outbound(incoming.data) {
+            case .pass:
+                break
+            case .drop:
+                recordDrop(.hookDropped)
+                return
+            case .consume:
+                return
+            }
+        }
         lock.withLock {
-            guard let io, io.state == .up, incoming.run == io.run else { return }
+            guard let io, incoming.run == io.run else { return }
+            if case .paused = io.state {
+                recordDrop(.paused)
+                return
+            }
+            guard io.state == .up else { return }
             guard let peer = allowedIPs.lookup(route.address),
                   peers[peer.publicKey] === peer else {
                 recordDrop(.noRoute)
@@ -340,6 +365,11 @@ extension WireGuardDevice {
             }
         }
         if !outgoing.isEmpty {
+            if let (hook, filter) = currentHook() {
+                for packet in outgoing where filter.matches(packet, inbound: true) {
+                    hook.inbound(packet)
+                }
+            }
             try? io.tunnel.writeBatch(outgoing)
         }
     }
@@ -517,7 +547,7 @@ extension WireGuardDevice {
     }
 }
 
-private struct IPPacket {
+struct IPPacket {
     let address: IPAddress
     let length: Int
 

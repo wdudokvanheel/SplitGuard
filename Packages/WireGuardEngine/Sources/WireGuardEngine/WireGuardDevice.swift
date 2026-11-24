@@ -43,6 +43,7 @@ public final class WireGuardDevice: @unchecked Sendable {
     let lock = NSRecursiveLock()
     let io: DeviceIO?
     let events = DeviceEventDispatcher()
+    let hookStorage = PacketHookStorage()
     var identity = StaticIdentity()
     var cookieChecker = CookieChecker(for: .zero)
     let protocolNow: () -> ProtocolInstant

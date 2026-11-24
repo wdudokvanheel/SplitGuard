@@ -75,8 +75,16 @@ extension WireGuardDevice {
     /// Returns a typed, secret-free snapshot of the device and all configured peers.
     public func status() -> DeviceStatus {
         lock.withLock {
-            let deviceUp = io?.state == .up
-            let deviceState: DeviceState = deviceUp ? .up : .down
+            let deviceState: DeviceState
+            switch io?.state {
+            case .up:
+                deviceState = .up
+            case .paused(let reason):
+                deviceState = .paused(reason)
+            case .down, .closed, .none:
+                deviceState = .down
+            }
+            let deviceUp = deviceState == .up
             let activePort = io == nil ? configuredPort : boundPort
             let now = protocolNow()
             let orderedPeers = peers.values.sorted {
