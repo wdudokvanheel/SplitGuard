@@ -18,6 +18,15 @@ enum DebugVerificationNetworkChecks {
         (Bundle.main.bundleIdentifier ?? "com.bitechular.splitguard") + ".network-extension"
     }
 
+    static func runProfileRecovery(store: TunnelStore) async -> NetworkCheckOutcome {
+        #if targetEnvironment(simulator)
+        return NetworkCheckOutcome(result: AutomatedCheckResult(id: .transientProfileRead, status: .info,
+                                                                 summary: "Requires device VPN preferences and Keychain"))
+        #else
+        return await runDeviceProfileRecovery(store: store)
+        #endif
+    }
+
     static func runManagerCRUDAndSortCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now

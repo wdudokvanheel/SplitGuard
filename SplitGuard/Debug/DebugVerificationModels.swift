@@ -5,6 +5,7 @@ import UIKit
 enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
     case appGroupLogging
     case keychainProfileStore
+    case transientProfileRead
     case zeroKeyBoundary
     case mtuBoundary
     case liveVerdictFixtures
@@ -28,7 +29,7 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var category: String {
         switch self {
-        case .zeroKeyBoundary, .mtuBoundary, .liveVerdictFixtures, .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
+        case .transientProfileRead, .zeroKeyBoundary, .mtuBoundary, .liveVerdictFixtures, .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
              .onDemandAndDraftValidation, .importPasteCreateAndSort:
             return "Core, Import & Storage"
         case .neManagerCrudAndSort, .liveConnectMetricsDisconnect, .liveSwitchAndEditConnected,
@@ -42,6 +43,7 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var title: String {
         switch self {
+        case .transientProfileRead: return "Recoverable Keychain read"
         case .zeroKeyBoundary: return "Zero private key import and edit"
         case .mtuBoundary: return "Packet MTU import and edit"
         case .liveVerdictFixtures: return "Live verdict evidence fixtures"
@@ -67,6 +69,7 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var subtitle: String {
         switch self {
+        case .transientProfileRead: return "Reload a disposable manager after one inaccessible Keychain read"
         case .zeroKeyBoundary: return "Reject a zero private key at both input boundaries"
         case .mtuBoundary: return "Check the largest supported MTU and its successor"
         case .liveVerdictFixtures: return "Check DNS and reconnect verdicts with incomplete evidence"

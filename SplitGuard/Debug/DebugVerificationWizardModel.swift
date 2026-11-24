@@ -237,6 +237,8 @@ private extension DebugVerificationWizardModel {
 
     func runLiveCheck(_ checkID: AutomatedCheckID, store: TunnelStore) async -> NetworkCheckOutcome? {
         switch checkID {
+        case .transientProfileRead:
+            return await DebugVerificationNetworkChecks.runProfileRecovery(store: store)
         case .neManagerCrudAndSort:
             return await DebugVerificationNetworkChecks.runManagerCRUDAndSortCheck(store: store)
         case .liveConnectMetricsDisconnect:
