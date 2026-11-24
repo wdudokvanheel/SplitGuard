@@ -66,7 +66,7 @@ final class SessionKeypairs {
     var current: SessionKeypair? { lock.withLock { slots.current } }
 
     /// Phase 3 can rotate the three slots atomically and retire their index entries.
-    func withSlots<Result>(_ body: (inout Slots) -> Result) -> Result {
-        lock.withLock { body(&slots) }
+    func withSlots<Result>(_ body: (inout Slots) throws -> Result) rethrows -> Result {
+        try lock.withLock { try body(&slots) }
     }
 }

@@ -52,6 +52,12 @@ struct NoisePrivateKey {
         SecretBytes.equal(rawValue, other.rawValue)
     }
 
+    private init(clampedKey: Data) { rawValue = clampedKey }
+
+    static func generate() -> Self {
+        Self(clampedKey: X25519.generatePrivateKey())
+    }
+
     func publicKey() throws -> NoisePublicKey {
         NoisePublicKey(rawValue: try X25519.publicKey(for: rawValue))!
     }
