@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
-import Network
 import NetworkExtension
-import enum SplitGuardCore.AppGroup
-import enum SplitGuardCore.Log
+import SplitGuardCore
 import SplitGuardTunnel
 import WireGuardEngine
-import WireGuardKit
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
@@ -33,6 +30,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
         }
     }()
+
+    private let startErrorLock = NSLock()
+    private var lastStartErrorStorage: TunnelStartError?
+
+    private var lastStartError: TunnelStartError? {
+        get { startErrorLock.withLock { lastStartErrorStorage } }
+        set { startErrorLock.withLock { lastStartErrorStorage = newValue } }
+    }
 
     // Physical-device Debug telemetry for owned interop profiles.
     #if DEBUG && !targetEnvironment(simulator)
@@ -65,17 +70,16 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let value = message.dropFirst(InteropTelemetry.portUpdatePrefix.count)
         guard let portText = String(bytes: value, encoding: .utf8),
               let port = UInt16(portText), port != 0,
-              let configuration = profile.asTunnelConfiguration(),
-              configuration.interface.addresses.map(\.stringRepresentation) == ["10.99.0.2/32"],
-              configuration.peers.count == 1, var peer = configuration.peers.first,
-              peer.allowedIPs.map(\.stringRepresentation) == ["10.99.0.1/32"],
-              let endpoint = peer.endpoint, let endpointPort = NWEndpoint.Port(rawValue: port) else {
+              var loaded = try? ProfileStore().loadProfile(from: profile),
+              loaded.interface.addresses.map(\.description) == ["10.99.0.2/32"],
+              loaded.peers.count == 1,
+              loaded.peers[0].allowedIPs.map(\.description) == ["10.99.0.1/32"],
+              let endpoint = loaded.peers[0].endpoint else {
             completion(nil)
             return
         }
-        peer.endpoint = Endpoint(host: endpoint.host, port: endpointPort)
-        let updated = TunnelConfiguration(name: configuration.name, interface: configuration.interface, peers: [peer])
-        controller.update(tunnelConfiguration: updated, splitDNSConfiguration: profile.splitDNSConfiguration) { error in
+        loaded.peers[0].endpoint = Endpoint(host: endpoint.host, port: port)
+        controller.update(profile: loaded) { error in
             if error == nil { self.recordInteropEvent("Controller updated fixture endpoint port to \(port)") }
             completion(error == nil ? InteropTelemetry.updateOK : nil)
         }
@@ -142,72 +146,75 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     #endif
 
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
-        let activationAttemptId = options?["activationAttemptId"] as? String
-        let errorNotifier = ErrorNotifier(activationAttemptId: activationAttemptId)
+        lastStartError = nil
+
+        let startedByApp = (options?["startedByApp"] as? Bool) == true
         #if DEBUG && !targetEnvironment(simulator)
-        recordInteropEvent(activationAttemptId == nil ? "System activation" : "App activation")
+        recordInteropEvent(startedByApp ? "App activation" : "System activation")
         #endif
 
         Log.configure(source: "NET", fileURL: AppGroup.tunnelLogURL())
+        Log.info("Starting tunnel from the " + (startedByApp ? "app" : "OS directly, rather than the app"))
 
-        Log.info("Starting tunnel from the " + (activationAttemptId == nil ? "OS directly, rather than the app" : "app"))
-
-        guard let tunnelProviderProtocol = self.protocolConfiguration as? NETunnelProviderProtocol,
-              let tunnelConfiguration = tunnelProviderProtocol.asTunnelConfiguration() else {
-            errorNotifier.notify(PacketTunnelProviderError.savedProtocolConfigurationIsInvalid)
-            completionHandler(PacketTunnelProviderError.savedProtocolConfigurationIsInvalid)
+        guard let tunnelProviderProtocol = protocolConfiguration as? NETunnelProviderProtocol else {
+            let startError = TunnelStartError.invalidConfiguration
+            lastStartError = startError
+            Log.error("Starting tunnel failed: protocol configuration is not NETunnelProviderProtocol")
+            completionHandler(startError)
             return
         }
 
-        let splitDNSConfiguration = tunnelProviderProtocol.splitDNSConfiguration
-        if splitDNSConfiguration.mode == .onlyDomains {
-            let domains = splitDNSConfiguration.normalizedDomainNames.joined(separator: ", ")
+        let profile: TunnelProfile
+        do {
+            profile = try ProfileStore().loadProfile(
+                from: tunnelProviderProtocol,
+                name: tunnelProviderProtocol.serverAddress ?? ""
+            )
+        } catch {
+            let startError = TunnelStartError.invalidConfiguration
+            lastStartError = startError
+            Log.error("Starting tunnel failed: unable to load saved profile: \(error.localizedDescription)")
+            completionHandler(startError)
+            return
+        }
+
+        if profile.splitDNS.mode == .onlyDomains {
+            let domains = profile.splitDNS.normalizedDomainNames.joined(separator: ", ")
             Log.info("Split DNS enabled for domains: \(domains)")
         }
-        if splitDNSConfiguration.hasExclusions {
-            let exclusions = splitDNSConfiguration.exclusions.map {
+        if profile.splitDNS.hasExclusions {
+            let exclusions = profile.splitDNS.exclusions.map {
                 $0.includesSubdomains ? $0.name : "\($0.name) (exact)"
             }.joined(separator: ", ")
             Log.info("Split DNS exclusions enabled: \(exclusions)")
         }
 
-        let tunnelOptions = tunnelProviderProtocol.tunnelOptions
-        let endpointPolicy: EndpointResolutionPolicy = tunnelOptions.killSwitch.isEnabled ? .bestEffort : .required
-        if tunnelOptions.killSwitch.isEnabled {
-            Log.info("Kill switch enabled (allowLocalNetwork=\(tunnelOptions.killSwitch.allowLocalNetwork))")
+        if profile.options.killSwitch.isEnabled {
+            Log.info("Kill switch enabled (allowLocalNetwork=\(profile.options.killSwitch.allowLocalNetwork))")
         }
 
-        controller.start(
-            tunnelConfiguration: tunnelConfiguration,
-            splitDNSConfiguration: splitDNSConfiguration,
-            endpointResolution: endpointPolicy
-        ) { controllerError in
+        controller.start(profile: profile) { [weak self] controllerError in
             guard let controllerError else {
                 Log.info("Tunnel started with WireGuard engine \(TunnelController.engineVersion)")
                 completionHandler(nil)
                 return
             }
-            let providerError = Self.logAndMapStartError(controllerError)
-            errorNotifier.notify(providerError)
-            completionHandler(providerError)
+            let startError = Self.logAndMapStartError(controllerError)
+            self?.lastStartError = startError
+            completionHandler(startError)
         }
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         Log.info("Stopping tunnel")
+        lastStartError = nil
 
         controller.stop { error in
-            ErrorNotifier.removeLastErrorFile()
-
             if let error {
                 Log.error("Failed to stop tunnel controller: \(error)")
             }
             Log.flush()
             completionHandler()
-
-            #if os(macOS)
-            exit(0)
-            #endif
         }
     }
 
@@ -228,68 +235,63 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
         #endif
 
-        #if DEBUG
-        if let probeName = Self.parsePhysicalDNSProbeName(from: messageData) {
-            handleDebugPhysicalDNSProbe(name: probeName, completionHandler: completionHandler)
+        guard let message = try? ProviderMessage.decode(from: messageData) else {
+            completionHandler(nil)
             return
         }
-        #endif
 
-        if messageData.count == 1 && messageData[0] == 0 {
+        switch message {
+        case .status:
             controller.status { status in
-                let data = status.flatMap { try? JSONEncoder().encode($0) }
-                completionHandler(data)
+                guard let status else {
+                    completionHandler(nil)
+                    return
+                }
+                completionHandler(try? ProviderReply.status(status).encode())
             }
-        } else {
+        case .lastStartError:
+            completionHandler(try? ProviderReply.lastStartError(lastStartError).encode())
+        case .debugPhysicalDNSProbe(let name):
+            #if DEBUG
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                completionHandler(nil)
+                return
+            }
+            handleDebugPhysicalDNSProbe(name: trimmed, completionHandler: completionHandler)
+            #else
             completionHandler(nil)
+            #endif
         }
     }
 }
 
 private extension PacketTunnelProvider {
-    static func logAndMapStartError(_ controllerError: TunnelControllerError) -> PacketTunnelProviderError {
+    static func logAndMapStartError(_ controllerError: TunnelControllerError) -> TunnelStartError {
         switch controllerError {
         case .dnsResolution(let dnsErrors):
-            let hostnames = dnsErrors.map(\.address).joined(separator: ", ")
-            Log.error("DNS resolution failed for the following hostnames: \(hostnames)")
-            return .dnsResolutionFailure
+            let hostnames = dnsErrors.map(\.address)
+            Log.error("DNS resolution failed for the following hostnames: \(hostnames.joined(separator: ", "))")
+            return .dnsResolutionFailed(hostnames: hostnames)
         case .setNetworkSettings(let error):
             Log.error("Starting tunnel failed with setTunnelNetworkSettings returning \(error.localizedDescription)")
-            return .couldNotSetNetworkSettings
+            return .networkSettingsFailed(error.localizedDescription)
         case .configuration(let error):
             Log.error("Starting tunnel failed with configuration error: \(error)")
-            return .couldNotStartBackend
+            return .engineStartFailed(error.localizedDescription)
         case .startEngine(let error):
             Log.error("Starting tunnel failed with engine error: \(error)")
-            return .couldNotStartBackend
+            return .engineStartFailed(error.localizedDescription)
         case .invalidState:
             Log.error("Starting tunnel failed: controller is in an invalid state")
-            return .couldNotStartBackend
+            return .engineStartFailed("Controller is in an invalid state.")
         }
     }
 
     #if DEBUG
-    struct PhysicalDNSProbeReply: Codable {
-        let name: String
-        let interfaceIndex: UInt32?
-        let responseCode: UInt8?
-        let records: [String]
-        let error: String?
-    }
-
-    static let physicalDNSProbePrefix = Data("dns-probe:".utf8)
-
-    static func parsePhysicalDNSProbeName(from messageData: Data) -> String? {
-        guard messageData.starts(with: physicalDNSProbePrefix) else { return nil }
-        let suffix = messageData.dropFirst(physicalDNSProbePrefix.count)
-        guard let raw = String(bytes: suffix, encoding: .utf8) else { return nil }
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
     func handleDebugPhysicalDNSProbe(name: String, completionHandler: @escaping (Data?) -> Void) {
         controller.probePhysicalDNS(name: name, recordType: 1) { result, interfaceIndex in
-            let reply: PhysicalDNSProbeReply
+            let probeResult: PhysicalDNSProbeResult
             switch result {
             case .success(let response):
                 let formattedRecords = response.records.map { record -> String in
@@ -298,7 +300,7 @@ private extension PacketTunnelProvider {
                     }
                     return "type=\(record.type) bytes=\(record.rdata.count)"
                 }
-                reply = PhysicalDNSProbeReply(
+                probeResult = PhysicalDNSProbeResult(
                     name: name,
                     interfaceIndex: interfaceIndex,
                     responseCode: response.responseCode.rawValue,
@@ -306,7 +308,7 @@ private extension PacketTunnelProvider {
                     error: nil
                 )
             case .failure(let error):
-                reply = PhysicalDNSProbeReply(
+                probeResult = PhysicalDNSProbeResult(
                     name: name,
                     interfaceIndex: interfaceIndex,
                     responseCode: nil,
@@ -314,7 +316,7 @@ private extension PacketTunnelProvider {
                     error: String(describing: error)
                 )
             }
-            completionHandler(try? JSONEncoder().encode(reply))
+            completionHandler(try? ProviderReply.debugPhysicalDNSProbe(probeResult).encode())
         }
     }
     #endif

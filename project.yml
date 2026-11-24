@@ -34,10 +34,6 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: SplitGuardNetworkExtension/PacketTunnelProvider.swift
-      - path: Vendor/wireguard-apple/Sources/WireGuardNetworkExtension/ErrorNotifier.swift
-      - path: Vendor/wireguard-apple/Sources/Shared
-        excludes:
-          - NotificationToken.swift
       - path: Tools/wg-interop/Shared
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
@@ -45,7 +41,6 @@ targets:
       - package: SplitGuardCore
       - package: SplitGuardTunnel
       - package: WireGuardEngine
-      - package: WireGuardKit
       - sdk: NetworkExtension.framework
     settings:
       base:

@@ -10,14 +10,14 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../WireGuardEngine"),
-        .package(path: "../../Vendor/wireguard-apple")
+        .package(path: "../SplitGuardCore")
     ],
     targets: [
         .target(
             name: "SplitGuardTunnel",
             dependencies: [
                 .product(name: "WireGuardEngine", package: "WireGuardEngine"),
-                .product(name: "WireGuardKit", package: "wireguard-apple")
+                .product(name: "SplitGuardCore", package: "SplitGuardCore")
             ],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
         ),
@@ -26,7 +26,7 @@ let package = Package(
             dependencies: [
                 "SplitGuardTunnel",
                 .product(name: "WireGuardEngine", package: "WireGuardEngine"),
-                .product(name: "WireGuardKit", package: "wireguard-apple")
+                .product(name: "SplitGuardCore", package: "SplitGuardCore")
             ]
         )
     ]

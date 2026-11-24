@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
-import Network
-import WireGuardKit
+import WireGuardEngine
 
 public protocol EndpointCaching: Sendable {
-    func cachedEndpoint(for hostname: String, port: NWEndpoint.Port) -> Endpoint?
-    func store(resolvedEndpoint: Endpoint, for hostname: String)
+    func cachedEndpoint(for hostname: String, port: UInt16) -> IPEndpoint?
+    func store(resolvedEndpoint: IPEndpoint, for hostname: String)
 }
 
 /// Persists the last successfully resolved IP address per endpoint hostname in a small JSON
@@ -32,31 +31,17 @@ public final class FileEndpointCache: EndpointCaching, @unchecked Sendable {
         }
     }
 
-    public func cachedEndpoint(for hostname: String, port: NWEndpoint.Port) -> Endpoint? {
+    public func cachedEndpoint(for hostname: String, port: UInt16) -> IPEndpoint? {
         let key = hostname.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let rawIP = lock.withLock({ entries[key] }) else { return nil }
-        if let v4 = IPv4Address(rawIP) {
-            return Endpoint(host: .ipv4(v4), port: port)
+        guard let rawIP = lock.withLock({ entries[key] }),
+              let address = IPAddress(rawIP) else {
+            return nil
         }
-        if let v6 = IPv6Address(rawIP) {
-            return Endpoint(host: .ipv6(v6), port: port)
-        }
-        return nil
+        return IPEndpoint(address: address, port: port)
     }
 
-    public func store(resolvedEndpoint: Endpoint, for hostname: String) {
-        let ipString: String
-        switch resolvedEndpoint.host {
-        case .ipv4(let address):
-            ipString = "\(address)"
-        case .ipv6(let address):
-            ipString = "\(address)"
-        case .name:
-            return
-        @unknown default:
-            return
-        }
-
+    public func store(resolvedEndpoint: IPEndpoint, for hostname: String) {
+        let ipString = resolvedEndpoint.address.description
         let key = hostname.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let snapshot: [String: String]? = lock.withLock {
             guard entries[key] != ipString else { return nil }

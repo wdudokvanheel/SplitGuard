@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
-import WireGuardKit
+import SplitGuardCore
 
 public enum DNSResponseCode: UInt8, Equatable, Hashable, Sendable {
     case noError = 0

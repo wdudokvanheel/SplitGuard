@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
+import SplitGuardCore
 import WireGuardEngine
-import WireGuardKit
 
 /// Packet hook that intercepts outbound UDP/53 queries for excluded split-DNS names,
 /// resolves them via `PhysicalResolver` on the physical network interface, and injects
@@ -22,7 +22,7 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
     public static let defaultMaxPendingLookups = 64
 
     private let configuration: SplitDNSConfiguration
-    private let dnsServers: [DNSServer]
+    private let dnsServers: [IPAddress]
     private let resolver: any PhysicalResolver
     private let interfaceIndexProvider: @Sendable () -> UInt32?
     private let deliverToTunnel: @Sendable (Data) throws -> Void
@@ -34,7 +34,7 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
 
     public init(
         configuration: SplitDNSConfiguration,
-        dnsServers: [DNSServer],
+        dnsServers: [IPAddress],
         resolver: any PhysicalResolver,
         interfaceIndexProvider: @escaping @Sendable () -> UInt32?,
         deliverToTunnel: @escaping @Sendable (Data) throws -> Void,
