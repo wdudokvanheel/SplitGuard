@@ -187,6 +187,7 @@ public final class TunnelController: @unchecked Sendable {
     private weak var provider: (any TunnelProviderHost)?
     private let logHandler: @Sendable (TunnelLogLevel, String) -> Void
     private let makeTransport: () -> UDPTransport
+    private let beforePublishingActiveDevice: () -> Void
     private let retryDelayMilliseconds: (Int) -> Int
     private let makePathMonitor: () -> PathMonitoring
     private let pauseOnOffline: Bool
@@ -250,6 +251,7 @@ public final class TunnelController: @unchecked Sendable {
     init(
         provider: any TunnelProviderHost,
         makeTransport: @escaping () -> UDPTransport = { BSDUDPTransport() },
+        beforePublishingActiveDevice: @escaping () -> Void = {},
         retryDelayMilliseconds: @escaping (Int) -> Int = TunnelController.defaultRetryDelayMilliseconds,
         makePathMonitor: @escaping () -> PathMonitoring = { SystemPathMonitor() },
         pauseOnOffline: Bool = TunnelController.defaultPauseOnOffline,
@@ -266,6 +268,7 @@ public final class TunnelController: @unchecked Sendable {
     ) {
         self.provider = provider
         self.makeTransport = makeTransport
+        self.beforePublishingActiveDevice = beforePublishingActiveDevice
         self.retryDelayMilliseconds = retryDelayMilliseconds
         self.makePathMonitor = makePathMonitor
         self.pauseOnOffline = pauseOnOffline
@@ -640,6 +643,7 @@ public final class TunnelController: @unchecked Sendable {
         device.disableSomeRoamingForBrokenMobileSemantics()
         #endif
 
+        beforePublishingActiveDevice()
         activeDeviceLock.withLock { activeDevice = device }
         state = .running(applied)
         let monitor = makePathMonitor()
