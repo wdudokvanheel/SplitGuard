@@ -4,7 +4,7 @@
 import CryptoKit
 import Foundation
 
-final class SessionKeypair {
+final class SessionKeypair: @unchecked Sendable {
     let sendKey: SymmetricKey
     let receiveKey: SymmetricKey
     let created: ProtocolInstant
@@ -61,7 +61,7 @@ final class SessionKeypair {
     }
 }
 
-final class SessionKeypairs {
+final class SessionKeypairs: @unchecked Sendable {
     struct Slots {
         var previous: SessionKeypair?
         var current: SessionKeypair?
@@ -73,7 +73,7 @@ final class SessionKeypairs {
 
     var current: SessionKeypair? { lock.withLock { slots.current } }
 
-    /// Phase 3 can rotate the three slots atomically and retire their index entries.
+    /// Rotate the three keypair slots atomically while retiring index entries.
     func withSlots<Result>(_ body: (inout Slots) throws -> Result) rethrows -> Result {
         try lock.withLock { try body(&slots) }
     }

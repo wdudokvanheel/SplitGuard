@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 import Foundation
 
 /// Sequential BLAKE2s as specified in RFC 7693.

@@ -20,6 +20,23 @@ public protocol TunnelDevice: AnyObject {
     func close()
     /// Consume a single unpadded IP packet. Its first nibble identifies the address family.
     func write(_ packet: Data) throws
+    /// Consume a batch of unpadded IP packets in order.
+    func writeBatch(_ packets: [Data]) throws
+    /// Pause issuing new reads while the engine's outbound lane is saturated.
+    func pauseReading()
+    /// Resume issuing reads after the engine's outbound lane drains below its low-water mark.
+    func resumeReading()
+}
+
+public extension TunnelDevice {
+    func writeBatch(_ packets: [Data]) throws {
+        for packet in packets {
+            try write(packet)
+        }
+    }
+
+    func pauseReading() {}
+    func resumeReading() {}
 }
 
 /// A datagram adapter. Bind returns the actual local port, including for a request of zero.
@@ -28,8 +45,9 @@ public protocol TunnelDevice: AnyObject {
 /// after unbind. Deliver packets in receive order on each socket, as owned or immutable Data.
 /// Receive closures only attempt admission and may be called synchronously by an adapter.
 ///
-/// Control and send calls are serialized by the engine. Keep send bounded in time and report
-/// local send errors via throws. A successful send means the datagram was handed to the transport.
+/// Send calls may run concurrently with control operations (such as rebind or unbind). Keep
+/// send bounded in time, thread-safe with respect to bind/unbind, and report local send errors
+/// via throws. A successful send means the datagram was handed to the transport.
 public protocol UDPTransport: AnyObject {
     func bind(port: UInt16, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16
     func bind(port: UInt16, interfaceIndex: UInt32?, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16

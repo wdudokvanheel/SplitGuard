@@ -5,7 +5,7 @@ import Darwin
 import Foundation
 
 /// Network-order address bits. IPv4-mapped IPv6 addresses retain their IPv6 family.
-public struct IPAddress: Hashable, CustomStringConvertible {
+public struct IPAddress: Hashable, CustomStringConvertible, Sendable {
     public let isIPv6: Bool
     private let high: UInt64
     private let low: UInt64
@@ -169,7 +169,7 @@ public struct IPAddress: Hashable, CustomStringConvertible {
     }
 }
 
-struct IPPrefix: Hashable, CustomStringConvertible {
+struct IPPrefix: Hashable, CustomStringConvertible, Sendable {
     let address: IPAddress
     let length: Int
 
@@ -196,7 +196,7 @@ struct IPPrefix: Hashable, CustomStringConvertible {
     var description: String { "\(address)/\(length)" }
 }
 
-public struct IPEndpoint: Hashable, CustomStringConvertible {
+public struct IPEndpoint: Hashable, CustomStringConvertible, Sendable {
     public let address: IPAddress
     public let port: UInt16
 

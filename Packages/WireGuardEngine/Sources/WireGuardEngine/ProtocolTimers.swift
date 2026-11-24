@@ -5,15 +5,6 @@ import Darwin
 import Dispatch
 import Foundation
 
-extension ProtocolInstant {
-    static let second: UInt64 = 1_000_000_000
-
-    func advanced(by nanoseconds: UInt64) -> Self {
-        let (sum, overflow) = self.nanoseconds.addingReportingOverflow(nanoseconds)
-        return .init(nanoseconds: overflow ? UInt64.max : sum)
-    }
-}
-
 enum WireGuardTiming {
     static let rekeyAfterMessages: UInt64 = 1 << 60
     static let rekeyAfterTime = 120 * ProtocolInstant.second
@@ -25,14 +16,14 @@ enum WireGuardTiming {
     static let underLoadAfterTime = ProtocolInstant.second
 }
 
-enum PeerTimer: CaseIterable, Hashable {
+enum PeerTimer: CaseIterable, Hashable, Sendable {
     case retransmitHandshake, sendKeepalive, newHandshake, zeroKeyMaterial, persistentKeepalive
     // Immediate, coalesced work sent to the handshake queue by the outbound lane.
     case initiate
     case collectRateLimiter
 }
 
-struct PeerTimerKey: Hashable {
+struct PeerTimerKey: Hashable, Sendable {
     let peerID: ObjectIdentifier?
     let kind: PeerTimer
 
@@ -101,10 +92,85 @@ struct ProtocolDeadlines {
     }
 }
 
+/// Abstracts the device's deadline wake mechanism between the production kqueue
+/// continuous alarm and the deterministic manual scheduler used in unit tests.
+protocol DeadlineScheduler: AnyObject, Sendable {
+    func install(_ handler: @escaping @Sendable () -> Void)
+    func arm(after delay: UInt64?)
+    func consume()
+    func wakeNow()
+    func cancel()
+}
+
+/// Production deadline scheduler backed by a Mach continuous kqueue one-shot alarm.
+final class ContinuousAlarmScheduler: DeadlineScheduler, @unchecked Sendable {
+    let alarm: ContinuousAlarm
+
+    var armCount: Int { alarm.armCount }
+    var disarmCount: Int { alarm.disarmCount }
+
+    init(queue: DispatchQueue) throws {
+        alarm = try ContinuousAlarm(queue: queue)
+    }
+
+    func install(_ handler: @escaping @Sendable () -> Void) {
+        alarm.install(handler)
+    }
+
+    func arm(after delay: UInt64?) {
+        alarm.arm(after: delay)
+    }
+
+    func consume() {
+        alarm.consume()
+    }
+
+    func wakeNow() {
+        // Immediate deadlines already armed the continuous alarm for 0 ns.
+    }
+
+    func cancel() {
+        alarm.cancel()
+    }
+}
+
+/// Deterministic scheduler for tests that advance an injected clock manually.
+/// Only immediate handshakes wake the handshake queue via a user-data source.
+final class ManualDeadlineScheduler: DeadlineScheduler, @unchecked Sendable {
+    private let wake: DispatchSourceUserDataAdd
+
+    init(queue: DispatchQueue) {
+        wake = DispatchSource.makeUserDataAddSource(queue: queue)
+        wake.resume()
+    }
+
+    func install(_ handler: @escaping @Sendable () -> Void) {
+        wake.setEventHandler(handler: handler)
+    }
+
+    func arm(after delay: UInt64?) {}
+
+    func consume() {}
+
+    func trigger() {
+        wake.add(data: 1)
+    }
+
+    func wakeNow() {
+        trigger()
+    }
+
+    func cancel() {
+        wake.cancel()
+    }
+
+    deinit { cancel() }
+}
+
 /// One native one-shot alarm for all device deadlines. A Mach continuous kqueue timer
 /// accrues sleep time and becomes readable upon wake. The engine re-reads its clock
 /// on delivery, processing only deadlines that are actually due.
-final class ContinuousAlarm {
+final class ContinuousAlarm: @unchecked Sendable {
     private let fd: Int32
     private let readable: DispatchSourceRead
     private let fallback: DispatchSourceTimer
@@ -123,7 +189,7 @@ final class ContinuousAlarm {
         fallback.resume()
     }
 
-    func install(_ handler: @escaping () -> Void) {
+    func install(_ handler: @escaping @Sendable () -> Void) {
         readable.setEventHandler(handler: handler)
         fallback.setEventHandler(handler: handler)
     }

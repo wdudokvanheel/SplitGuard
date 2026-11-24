@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 import Darwin
 import Foundation
 
@@ -26,12 +28,4 @@ enum SecretBytes {
         guard !bytes.isEmpty else { return }
         _ = memset_s(bytes.baseAddress!, bytes.count, 0, bytes.count)
     }
-}
-
-enum WireGuardCryptoError: Error, Equatable {
-    case invalidKeyLength
-    case invalidNonceLength
-    case invalidDigestLength
-    case messageTooLarge
-    case invalidSharedSecret
 }

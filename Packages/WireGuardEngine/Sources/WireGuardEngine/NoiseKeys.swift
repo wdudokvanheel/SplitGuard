@@ -3,7 +3,7 @@
 
 import Foundation
 
-struct NoisePublicKey: Hashable {
+struct NoisePublicKey: Hashable, Sendable {
     private static let byteCount = 32
     static let zero = NoisePublicKey(rawValue: Data(count: byteCount))!
     let rawValue: Data

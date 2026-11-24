@@ -5,7 +5,7 @@ import Foundation
 
 /// A handshake entry refers to the peer's single handshake state. A keypair
 /// entry holds the same peer and the exact session object for inbound lookup.
-final class SessionIndexTable<Peer: AnyObject> {
+final class SessionIndexTable<Peer: AnyObject>: @unchecked Sendable {
     enum Entry {
         case handshake(Peer)
         case keypair(Peer, SessionKeypair)

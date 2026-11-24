@@ -7,7 +7,10 @@ let package = Package(
     platforms: [.iOS(.v15), .macOS(.v13)],
     products: [.library(name: "WireGuardEngine", targets: ["WireGuardEngine"])],
     targets: [
-        .target(name: "WireGuardEngine"),
+        .target(
+            name: "WireGuardEngine",
+            swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
+        ),
         .testTarget(
             name: "WireGuardEngineTests",
             dependencies: ["WireGuardEngine"],

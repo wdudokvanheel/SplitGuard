@@ -3,7 +3,7 @@
 
 import Foundation
 
-enum WireGuardMessageType: UInt32 {
+enum WireGuardMessageType: UInt32, Sendable {
     case initiation = 1
     case response = 2
     case cookieReply = 3
@@ -110,7 +110,7 @@ struct CookieReply {
     var encryptedCookie: Data { bytes.wireSlice(32..<64) }
 }
 
-struct TransportHeader {
+struct TransportHeader: Sendable {
     static let size = 16
     static let minimumPacketSize = size + ChaCha20Poly1305.tagLength
 
@@ -130,16 +130,29 @@ struct TransportHeader {
 
     var bytes: Data {
         var data = Data(capacity: Self.size)
+        append(to: &data)
+        return data
+    }
+
+    func append(to data: inout Data) {
         data.appendWireInteger(WireGuardMessageType.transport.rawValue)
         data.appendWireInteger(receiver)
         data.appendWireInteger(counter)
-        return data
     }
 
     var nonce: Data {
         var data = Data(count: 4)
         data.appendWireInteger(counter)
         return data
+    }
+
+    func withNonceBytes<Result>(_ body: (UnsafeRawBufferPointer) throws -> Result) rethrows -> Result {
+        let words: (UInt32, UInt32, UInt32) = (
+            0,
+            UInt32(truncatingIfNeeded: counter).littleEndian,
+            UInt32(truncatingIfNeeded: counter >> 32).littleEndian
+        )
+        return try Swift.withUnsafeBytes(of: words, body)
     }
 }
 

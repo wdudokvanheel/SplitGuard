@@ -4,28 +4,31 @@ import Darwin
 import Dispatch
 import Foundation
 
-final class DeviceIO {
-    enum State {
+final class DeviceIO: @unchecked Sendable {
+    enum State: Sendable {
         case down, up, closed
     }
 
-    struct FromTunnel {
+    struct FromTunnel: Sendable {
         let data: Data
         let run: UInt64
     }
 
-    struct FromWire {
+    struct FromWire: Sendable {
         let data: Data
         let source: IPEndpoint
         let run: UInt64
     }
 
-    struct EncryptedTransport {
+    struct EncryptedTransport: Sendable {
         let wire: FromWire
         let header: TransportHeader
         let peer: WireGuardPeer
         let keypair: SessionKeypair
     }
+
+    static let outboundHighWaterMark = 512
+    static let outboundLowWaterMark = 256
 
     let tunnel: TunnelDevice
     let transport: UDPTransport
@@ -33,8 +36,7 @@ final class DeviceIO {
     let inbound = PacketLane<EncryptedTransport>("inbound", capacity: 1024)
     let handshake = PacketLane<FromWire>("handshake", capacity: 1024)
     let outboundReady: DispatchSourceUserDataAdd
-    let alarm: ContinuousAlarm?
-    private let manualWake: DispatchSourceUserDataAdd?
+    let scheduler: DeadlineScheduler
     private let handshakeQueueKey = DispatchSpecificKey<UInt8>()
     var onHandshakeQueue: Bool { DispatchQueue.getSpecific(key: handshakeQueueKey) != nil }
 
@@ -72,29 +74,30 @@ final class DeviceIO {
         limiter = HandshakeRateLimiter(now: now, maximumEntries: 4096)
         handshake.queue.setSpecific(key: handshakeQueueKey, value: 1)
         if automaticTimers {
-            alarm = try ContinuousAlarm(queue: handshake.queue)
-            manualWake = nil
+            scheduler = try ContinuousAlarmScheduler(queue: handshake.queue)
         } else {
-            alarm = nil
-            let manualWake = DispatchSource.makeUserDataAddSource(queue: handshake.queue)
-            manualWake.resume()
-            self.manualWake = manualWake
+            scheduler = ManualDeadlineScheduler(queue: handshake.queue)
         }
         outboundReady = DispatchSource.makeUserDataAddSource(queue: outbound.queue)
         outboundReady.resume()
     }
 
     func install(on device: WireGuardDevice) {
+        outbound.configureBackpressure(
+            highWaterMark: Self.outboundHighWaterMark,
+            lowWaterMark: Self.outboundLowWaterMark,
+            onHighWater: { [weak self] in self?.tunnel.pauseReading() },
+            onLowWater: { [weak self] in self?.tunnel.resumeReading() }
+        )
         outbound.install { [weak device] in device?.stageTunnelPacket($0) }
         outboundReady.setEventHandler { [weak device] in device?.drainReadyPeers() }
-        inbound.install { [weak device] in device?.decryptTransport($0) }
+        inbound.installBatch { [weak device] in device?.decryptTransportBatch($0) }
         handshake.install { [weak device] in device?.handleHandshake($0) }
-        alarm?.install { [weak device] in device?.processDeadlines() }
-        manualWake?.setEventHandler { [weak device] in device?.processDeadlines() }
+        scheduler.install { [weak device] in device?.processDeadlines() }
     }
 
     func manualWakeHandshake() {
-        manualWake?.add(data: 1)
+        scheduler.wakeNow()
     }
 
     func withHandshakeLane<Result>(_ body: () throws -> Result) rethrows -> Result {
@@ -173,7 +176,7 @@ extension WireGuardDevice {
                 io.limiter.reset()
             }
             for key in Array(peers.keys) { removePeer(key) }
-            io?.alarm?.cancel()
+            io?.scheduler.cancel()
         }
     }
 

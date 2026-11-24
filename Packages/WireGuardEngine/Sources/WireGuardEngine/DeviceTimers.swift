@@ -16,19 +16,18 @@ extension WireGuardDevice {
     }
 
     func armNextDeadline(_ io: DeviceIO) {
-        guard let alarm = io.alarm else { return }
         guard let next = io.deadlines.first?.time else {
             guard io.armedDeadline != nil else { return }
             io.armedDeadline = nil
-            alarm.arm(after: nil)
+            io.scheduler.arm(after: nil)
             return
         }
         if let armed = io.armedDeadline, armed <= next { return }
         io.armedDeadline = next
-        alarm.arm(after: next.elapsed(since: protocolNow()))
+        io.scheduler.arm(after: next.elapsed(since: protocolNow()))
     }
 
-    private func timer(_ kind: PeerTimer, for peer: WireGuardPeer?, after delay: UInt64?, io: DeviceIO) {
+    func timer(_ kind: PeerTimer, for peer: WireGuardPeer?, after delay: UInt64?, io: DeviceIO) {
         io.deadlines.update(peer: peer, kind: kind, time: delay.map { protocolNow().advanced(by: $0) })
         armNextDeadline(io)
     }
@@ -37,7 +36,7 @@ extension WireGuardDevice {
         min(io.jitterMilliseconds(), 333) * 1_000_000
     }
 
-    private func timerPending(_ kind: PeerTimer, _ peer: WireGuardPeer?, io: DeviceIO) -> Bool {
+    func timerPending(_ kind: PeerTimer, _ peer: WireGuardPeer?, io: DeviceIO) -> Bool {
         io.deadlines.contains(PeerTimerKey(peer, kind))
     }
 
@@ -45,7 +44,7 @@ extension WireGuardDevice {
     func processDeadlines() {
         lock.withLock {
             guard let io, io.state != .closed else { return }
-            io.alarm?.consume()
+            io.scheduler.consume()
             io.armedDeadline = nil
             for _ in 0..<64 {
                 guard let next = io.deadlines.first, next.time <= protocolNow() else { break }
@@ -145,11 +144,15 @@ extension WireGuardDevice {
         timer(.zeroKeyMaterial, for: peer, after: WireGuardTiming.zeroAfterTime, io: io)
     }
 
-    func timerAuthenticatedTraversal(_ peer: WireGuardPeer, io: DeviceIO) {
-        let interval = peer.withState { $0.persistentKeepaliveInterval }
+    func timerAuthenticatedTraversal(_ peer: WireGuardPeer, interval: UInt16, io: DeviceIO) {
         if interval > 0 {
             timer(.persistentKeepalive, for: peer, after: UInt64(interval) * ProtocolInstant.second, io: io)
         }
+    }
+
+    func timerAuthenticatedTraversal(_ peer: WireGuardPeer, io: DeviceIO) {
+        let interval = peer.withState { $0.persistentKeepaliveInterval }
+        timerAuthenticatedTraversal(peer, interval: interval, io: io)
     }
 
     func requestHandshakeInitiation(_ peer: WireGuardPeer, io: DeviceIO) {
@@ -172,8 +175,16 @@ extension WireGuardDevice {
     }
 
     func sendHandshakeInitiation(_ peer: WireGuardPeer, retry: Bool, io: DeviceIO) {
-        guard mayInitiate(peer, retry: retry) else { return }
-        peer.withState { $0.lastSentHandshake = protocolNow() }
+        let now = protocolNow()
+        let allowed = peer.withState { state -> Bool in
+            if !retry { state.handshakeAttempts = 0 }
+            guard state.lastSentHandshake.map({ now.elapsed(since: $0) >= WireGuardTiming.rekeyTimeout }) ?? true else {
+                return false
+            }
+            state.lastSentHandshake = now
+            return true
+        }
+        guard allowed else { return }
         guard let packet = try? createHandshakeInitiation(for: peer) else { return }
         timerAuthenticatedTraversal(peer, io: io)
         timerAuthenticatedSent(peer, io: io)

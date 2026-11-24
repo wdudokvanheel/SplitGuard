@@ -43,7 +43,7 @@ struct PacketQueue<Element> {
     }
 }
 
-struct QueueMetrics {
+struct QueueMetrics: Sendable {
     var admitted = 0
     var dropped = 0
     var peak = 0
@@ -51,47 +51,87 @@ struct QueueMetrics {
 
 /// Admission takes a short lock independently of the engine lock. One dispatch source
 /// coalesces readiness, so there is no dispatch block retained per packet.
-final class PacketLane<Element> {
+final class PacketLane<Element>: @unchecked Sendable {
     let queue: DispatchQueue
     private let ready: DispatchSourceUserDataAdd
     private let lock = NSLock()
+    private let backpressureLock = NSLock()
     private var packets: PacketQueue<Element>
     private var metrics = QueueMetrics()
     private var token: UInt64?
 
+    // Optional high-water / low-water hysteresis for upstream backpressure.
+    private var highWaterMark: Int?
+    private var lowWaterMark = 0
+    private var backpressureActive = false
+    private var appliedBackpressure = false
+    private var onHighWater: (@Sendable () -> Void)?
+    private var onLowWater: (@Sendable () -> Void)?
+
     init(_ name: String, capacity: Int) {
-        queue = DispatchQueue(label: "WireGuardEngine." + name)
+        queue = DispatchQueue(label: "WireGuardEngine." + name, qos: .userInitiated)
         ready = DispatchSource.makeUserDataAddSource(queue: queue)
         packets = PacketQueue(capacity: capacity)
         ready.resume()
     }
 
+    func configureBackpressure(
+        highWaterMark: Int,
+        lowWaterMark: Int,
+        onHighWater: @escaping @Sendable () -> Void,
+        onLowWater: @escaping @Sendable () -> Void
+    ) {
+        precondition(lowWaterMark <= highWaterMark)
+        lock.withLock {
+            self.highWaterMark = highWaterMark
+            self.lowWaterMark = lowWaterMark
+            self.onHighWater = onHighWater
+            self.onLowWater = onLowWater
+        }
+    }
+
     // Inbound has its own lane; the handshake lane uses its queue for the timer source too.
-    func install(_ process: @escaping (Element) -> Void) {
+    func install(_ process: @escaping @Sendable (Element) -> Void) {
         ready.setEventHandler { [weak self] in self?.drain(process) }
     }
 
+    func installBatch(_ process: @escaping @Sendable ([Element]) -> Void) {
+        ready.setEventHandler { [weak self] in self?.drainBatch(process) }
+    }
+
     func register(_ token: UInt64?, discard: Bool = false) {
-        lock.withLock {
+        let shouldSync: Bool = lock.withLock {
             self.token = token
             if discard {
                 metrics.dropped += packets.count
                 packets.removeAll()
+                if backpressureActive, packets.count <= lowWaterMark {
+                    backpressureActive = false
+                    return true
+                }
             }
+            return false
         }
+        if shouldSync { syncBackpressure() }
     }
 
     func offer(_ item: Element, token: UInt64) -> Bool {
-        lock.withLock {
+        let (admitted, shouldSync): (Bool, Bool) = lock.withLock {
             guard token == self.token, packets.append(item) else {
                 metrics.dropped += 1
-                return false
+                return (false, false)
             }
             metrics.admitted += 1
             metrics.peak = max(metrics.peak, packets.count)
             if packets.count == 1 { ready.add(data: 1) }
-            return true
+            if let highWaterMark, !backpressureActive, packets.count >= highWaterMark {
+                backpressureActive = true
+                return (true, true)
+            }
+            return (true, false)
         }
+        if shouldSync { syncBackpressure() }
+        return admitted
     }
 
     var depth: Int { lock.withLock { packets.count } }
@@ -100,10 +140,57 @@ final class PacketLane<Element> {
     private func drain(_ process: (Element) -> Void) {
         // Yield the queue between batches so control and timer events can also run.
         for _ in 0..<32 {
-            guard let item = lock.withLock({ packets.popFirst() }) else { return }
+            let (item, shouldSync): (Element?, Bool) = lock.withLock {
+                guard let popped = packets.popFirst() else { return (nil, false) }
+                if backpressureActive, packets.count <= lowWaterMark {
+                    backpressureActive = false
+                    return (popped, true)
+                }
+                return (popped, false)
+            }
+            if shouldSync { syncBackpressure() }
+            guard let item else { return }
             autoreleasepool { process(item) }
         }
         if depth > 0 { ready.add(data: 1) }
+    }
+
+    private func drainBatch(_ process: ([Element]) -> Void) {
+        var batch: [Element] = []
+        batch.reserveCapacity(32)
+        let (hasMore, shouldSync): (Bool, Bool) = lock.withLock {
+            for _ in 0..<32 {
+                guard let popped = packets.popFirst() else { break }
+                batch.append(popped)
+            }
+            var sync = false
+            if backpressureActive, packets.count <= lowWaterMark {
+                backpressureActive = false
+                sync = true
+            }
+            return (packets.count > 0, sync)
+        }
+        if shouldSync { syncBackpressure() }
+        if !batch.isEmpty {
+            autoreleasepool { process(batch) }
+        }
+        if hasMore { ready.add(data: 1) }
+    }
+
+    /// Serializes high/low-water edge notifications outside `lock` so out-of-order
+    /// preemption between `offer` and `drain` can never leave reading stuck paused.
+    private func syncBackpressure() {
+        backpressureLock.withLock {
+            while true {
+                let callback: (@Sendable () -> Void)? = lock.withLock {
+                    guard appliedBackpressure != backpressureActive else { return nil }
+                    appliedBackpressure = backpressureActive
+                    return appliedBackpressure ? onHighWater : onLowWater
+                }
+                guard let callback else { return }
+                callback()
+            }
+        }
     }
 }
 

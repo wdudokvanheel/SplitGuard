@@ -16,32 +16,59 @@ extension WireGuardDevice {
     func stageTunnelPacket(_ incoming: DeviceIO.FromTunnel) {
         guard let route = IPPacket(incoming.data, inbound: false) else { return }
         lock.withLock {
-            guard let io, incoming.run == io.run, let peer = allowedIPs.lookup(route.address),
-                  canRun(peer, io: io) else { return }
-            stage(incoming.data, for: peer, io: io)
-            requestStagedDrain(peer)
+            guard let io, io.state == .up, incoming.run == io.run,
+                  let peer = allowedIPs.lookup(route.address),
+                  peers[peer.publicKey] === peer else { return }
+            if stage(incoming.data, for: peer, io: io, requireRunning: true) {
+                scheduleStagedDrain(peer, io: io, wake: true)
+            }
         }
     }
 
-    private func stage(_ packet: Data, for peer: WireGuardPeer, io: DeviceIO) {
-        peer.withState {
-            if $0.staged.count == Self.stagedCapacity {
-                _ = $0.staged.popFirst()
+    /// Stages a packet for `peer`. Returns true if the peer has at least one staged packet ready to drain.
+    @discardableResult
+    private func stage(_ packet: Data, for peer: WireGuardPeer, io: DeviceIO, requireRunning: Bool = false) -> Bool {
+        enum StageOutcome {
+            case skipped
+            case staged
+            case needsGlobalEviction
+        }
+        let outcome: StageOutcome = peer.withState { state in
+            if requireRunning, !state.running { return .skipped }
+            if state.staged.count == Self.stagedCapacity {
+                _ = state.staged.popFirst()
                 io.stagedCount -= 1
                 io.stagedDrops += 1
             }
-        }
-        if io.stagedCount >= Self.stagedBufferLimit {
-            evictLongestStagedPeer(excluding: peer, io: io)
-        }
-        peer.withState {
-            guard io.stagedCount < Self.stagedBufferLimit, $0.staged.append(packet) else {
-                io.stagedDrops += 1
-                return
+            if io.stagedCount >= Self.stagedBufferLimit {
+                return .needsGlobalEviction
             }
-            io.stagedCount += 1
-            io.stagedPeak = max(io.stagedPeak, io.stagedCount)
-            io.peerStagedPeak = max(io.peerStagedPeak, $0.staged.count)
+            if state.staged.append(packet) {
+                io.stagedCount += 1
+                io.stagedPeak = max(io.stagedPeak, io.stagedCount)
+                io.peerStagedPeak = max(io.peerStagedPeak, state.staged.count)
+                return .staged
+            }
+            io.stagedDrops += 1
+            return state.staged.count > 0 ? .staged : .skipped
+        }
+        switch outcome {
+        case .skipped:
+            return false
+        case .staged:
+            return true
+        case .needsGlobalEviction:
+            evictLongestStagedPeer(excluding: peer, io: io)
+            return peer.withState { state in
+                guard io.stagedCount < Self.stagedBufferLimit, state.staged.append(packet) else {
+                    io.stagedDrops += 1
+                    return state.staged.count > 0
+                }
+                io.stagedCount += 1
+                io.stagedPeak = max(io.stagedPeak, io.stagedCount)
+                io.peerStagedPeak = max(io.peerStagedPeak, state.staged.count)
+                return true
+            }
         }
     }
 
@@ -78,11 +105,22 @@ extension WireGuardDevice {
     }
 
     func sendKeepalive(_ peer: WireGuardPeer) {
-        guard let io, canRun(peer, io: io) else { return }
-        if peer.withState({ $0.staged.count == 0 }) {
-            stage(Data(), for: peer, io: io)
+        guard let io, io.state == .up, peers[peer.publicKey] === peer else { return }
+        enum KeepaliveOutcome { case skipped, ready, needsStage }
+        let outcome: KeepaliveOutcome = peer.withState { state in
+            guard state.running else { return .skipped }
+            return state.staged.count == 0 ? .needsStage : .ready
         }
-        requestStagedDrain(peer)
+        switch outcome {
+        case .skipped:
+            return
+        case .needsStage:
+            if stage(Data(), for: peer, io: io) {
+                scheduleStagedDrain(peer, io: io, wake: true)
+            }
+        case .ready:
+            scheduleStagedDrain(peer, io: io, wake: true)
+        }
     }
 
     private func usableSendingSession(_ peer: WireGuardPeer) -> SessionKeypair? {
@@ -93,7 +131,12 @@ extension WireGuardDevice {
     }
 
     func requestStagedDrain(_ peer: WireGuardPeer, wake: Bool = true) {
-        guard let io, canRun(peer, io: io), peer.withState({ $0.staged.count > 0 }) else { return }
+        guard let io, io.state == .up, peers[peer.publicKey] === peer,
+              peer.withState({ $0.running && $0.staged.count > 0 }) else { return }
+        scheduleStagedDrain(peer, io: io, wake: wake)
+    }
+
+    private func scheduleStagedDrain(_ peer: WireGuardPeer, io: DeviceIO, wake: Bool) {
         if usableSendingSession(peer) != nil {
             let wasIdle = io.readyPeers.isEmpty
             io.readyPeers.append(peer)
@@ -104,16 +147,34 @@ extension WireGuardDevice {
     }
 
     private func takeStaged(_ io: DeviceIO) -> StagedTransport? {
+        guard io.state == .up else { return nil }
         while let peer = io.readyPeers.popFirst() {
-            guard canRun(peer, io: io), peer.withState({ $0.staged.count > 0 }) else { continue }
-            guard let session = usableSendingSession(peer), let counter = session.reserveSendCounter() else {
-                requestHandshakeInitiation(peer, io: io)
-                continue
+            guard peers[peer.publicKey] === peer else { continue }
+            enum TakeAction {
+                case skip
+                case initiate
+                case send(SessionKeypair, UInt64, Data, Bool)
             }
-            guard let packet = peer.withState({ $0.staged.popFirst() }) else { continue }
-            io.stagedCount -= 1
-            requestStagedDrain(peer, wake: false)
-            return StagedTransport(peer: peer, session: session, counter: counter, packet: packet, run: io.run)
+            let action: TakeAction = peer.withState { state in
+                guard state.running, state.staged.count > 0 else { return .skip }
+                guard let session = usableSendingSession(peer), let counter = session.reserveSendCounter() else {
+                    return .initiate
+                }
+                guard let packet = state.staged.popFirst() else { return .skip }
+                io.stagedCount -= 1
+                return .send(session, counter, packet, state.staged.count > 0)
+            }
+            switch action {
+            case .skip:
+                continue
+            case .initiate:
+                requestHandshakeInitiation(peer, io: io)
+            case .send(let session, let counter, let packet, let hasMore):
+                if hasMore {
+                    scheduleStagedDrain(peer, io: io, wake: false)
+                }
+                return StagedTransport(peer: peer, session: session, counter: counter, packet: packet, run: io.run)
+            }
         }
         return nil
     }
@@ -151,28 +212,50 @@ extension WireGuardDevice {
             io.paddingScratch.append(Self.paddingZeros.prefix(padding))
             payload = io.paddingScratch
         }
-        guard let nonce = try? ChaChaPoly.Nonce(data: header.nonce),
+        guard let nonce = header.withNonceBytes({ try? ChaChaPoly.Nonce(data: $0) }),
               let box = try? ChaChaPoly.seal(payload, using: work.session.sendKey, nonce: nonce) else { return }
-        var datagram = header.bytes
-        datagram.reserveCapacity(TransportHeader.minimumPacketSize + payload.count)
+        var datagram = Data(capacity: TransportHeader.minimumPacketSize + payload.count)
+        header.append(to: &datagram)
         datagram.append(box.ciphertext)
         datagram.append(box.tag)
 
-        lock.withLock {
-            let peer = work.peer
-            guard work.run == io.run, canRun(peer, io: io), !work.session.isSendingExpired,
+        let peer = work.peer
+        let endpoint: IPEndpoint? = lock.withLock {
+            guard work.run == io.run, io.state == .up, peers[peer.publicKey] === peer,
+                  !work.session.isSendingExpired,
                   case .keypair(let owner, let session)? = indices.lookup(work.session.localIndex),
-                  owner === peer, session === work.session else { return }
+                  owner === peer, session === work.session else { return nil }
+            let peerSnapshot: (running: Bool, endpoint: IPEndpoint?, keepaliveInterval: UInt16) = peer.withState {
+                ($0.running, $0.endpoint, $0.persistentKeepaliveInterval)
+            }
+            guard peerSnapshot.running else { return nil }
             guard protocolNow().elapsed(since: work.session.created) < WireGuardTiming.rejectAfterTime else {
                 io.stagedDrops += 1
                 requestHandshakeInitiation(peer, io: io)
-                return
+                return nil
             }
-            timerAuthenticatedTraversal(peer, io: io)
+            timerAuthenticatedTraversal(peer, interval: peerSnapshot.keepaliveInterval, io: io)
             timerAuthenticatedSent(peer, io: io)
-            let sent = sendWire(datagram, to: peer, io: io)
             if !work.packet.isEmpty { timerDataSent(peer, io: io) }
-            if sent, let current = peer.keypairs.current,
+            return peerSnapshot.endpoint
+        }
+        guard let endpoint else { return }
+
+        do {
+            try io.transport.send(datagram, to: endpoint)
+        } catch {
+            return
+        }
+
+        lock.withLock {
+            guard work.run == io.run, io.state == .up, peers[peer.publicKey] === peer else { return }
+            let running = peer.withState { state -> Bool in
+                guard state.running else { return false }
+                state.txBytes &+= UInt64(datagram.count)
+                return true
+            }
+            guard running else { return }
+            if let current = peer.keypairs.current,
                current.nextSendCounter > WireGuardTiming.rekeyAfterMessages ||
                (current.isInitiator && protocolNow().elapsed(since: current.created) > WireGuardTiming.rekeyAfterTime) {
                 requestHandshakeInitiation(peer, io: io)
@@ -201,68 +284,92 @@ extension WireGuardDevice {
         }
     }
 
-    func decryptTransport(_ work: DeviceIO.EncryptedTransport) {
+    func decryptTransportBatch(_ batch: [DeviceIO.EncryptedTransport]) {
         guard let io else { return }
+        var outgoing: [Data] = []
+        outgoing.reserveCapacity(batch.count)
+        for work in batch {
+            if let packet = decryptTransport(work, io: io) {
+                outgoing.append(packet)
+            }
+        }
+        if !outgoing.isEmpty {
+            try? io.tunnel.writeBatch(outgoing)
+        }
+    }
+
+    private func decryptTransport(_ work: DeviceIO.EncryptedTransport, io: DeviceIO) -> Data? {
         let sealed = work.wire.data.dropFirst(TransportHeader.size)
-        guard let nonce = try? ChaChaPoly.Nonce(data: work.header.nonce),
+        guard let nonce = work.header.withNonceBytes({ try? ChaChaPoly.Nonce(data: $0) }),
               let box = try? ChaChaPoly.SealedBox(
                   nonce: nonce, ciphertext: sealed.dropLast(ChaCha20Poly1305.tagLength),
                   tag: sealed.suffix(ChaCha20Poly1305.tagLength)
               ),
-              let plaintext = try? ChaChaPoly.open(box, using: work.keypair.receiveKey) else { return }
-        let needsHandshakeLane = lock.withLock {
-            guard work.wire.run == io.run, canRun(work.peer, io: io) else { return false }
-            if needsFinalRekey(work.peer) { return true }
-            receiveAuthenticated(plaintext, work, io: io, checkFreshness: false)
-            return false
+              let plaintext = try? ChaChaPoly.open(box, using: work.keypair.receiveKey) else { return nil }
+        return lock.withLock {
+            guard work.wire.run == io.run, canRun(work.peer, io: io) else { return nil }
+            return receiveAuthenticated(plaintext, work, io: io)
         }
-        // Only the last-minute rekey can send a handshake in the middle of the
-        // receive hooks. Hand off that commit without holding the device lock.
-        if needsHandshakeLane {
-            io.handshake.queue.sync {
-                lock.withLock {
-                    guard work.wire.run == io.run, canRun(work.peer, io: io) else { return }
-                    receiveAuthenticated(plaintext, work, io: io, checkFreshness: true)
-                }
-            }
-        }
-    }
-
-    private func needsFinalRekey(_ peer: WireGuardPeer) -> Bool {
-        guard !peer.withState({ $0.sentLastMinuteHandshake }), let current = peer.keypairs.current,
-              current.isInitiator else { return false }
-        let threshold = WireGuardTiming.rejectAfterTime - WireGuardTiming.keepaliveTimeout - WireGuardTiming.rekeyTimeout
-        return protocolNow().elapsed(since: current.created) > threshold
     }
 
     private func receiveAuthenticated(
-        _ plaintext: Data, _ work: DeviceIO.EncryptedTransport, io: DeviceIO, checkFreshness: Bool
-    ) {
+        _ plaintext: Data, _ work: DeviceIO.EncryptedTransport, io: DeviceIO
+    ) -> Data? {
         let peer = work.peer
-        guard protocolNow().elapsed(since: work.keypair.created) <= WireGuardTiming.rejectAfterTime else { return }
+        let now = protocolNow()
+        guard now.elapsed(since: work.keypair.created) <= WireGuardTiming.rejectAfterTime else { return nil }
         let accepted = acceptAuthenticatedTransport(counter: work.header.counter, with: work.keypair, from: peer)
-        guard accepted != .rejected else { return }
-        roam(peer, from: work.wire.source)
+        guard accepted != .rejected else { return nil }
+
         if accepted == .confirmed {
-            timerHandshakeComplete(peer, io: io)
-            requestStagedDrain(peer)
+            timer(.retransmitHandshake, for: peer, after: nil, io: io)
+            timer(.initiate, for: peer, after: nil, io: io)
         }
 
-        if checkFreshness, needsFinalRekey(peer) {
-            peer.withState { $0.sentLastMinuteHandshake = true }
-            sendHandshakeInitiation(peer, retry: false, io: io)
+        let currentKeypair = peer.keypairs.current
+        let keepalivePending = !plaintext.isEmpty && timerPending(.sendKeepalive, peer, io: io)
+        let (triggerFinalRekey, persistentKeepaliveInterval) = peer.withState { state -> (Bool, UInt16) in
+            if !state.roamingDisabled {
+                state.endpoint = work.wire.source
+            }
+            if accepted == .confirmed {
+                state.handshakeAttempts = 0
+                state.sentLastMinuteHandshake = false
+                state.lastHandshakeUnixNanoseconds = io.wallNow()
+            }
+            var finalRekey = false
+            if !state.sentLastMinuteHandshake, let current = currentKeypair, current.isInitiator {
+                let threshold = WireGuardTiming.rejectAfterTime - WireGuardTiming.keepaliveTimeout - WireGuardTiming.rekeyTimeout
+                if now.elapsed(since: current.created) > threshold {
+                    state.sentLastMinuteHandshake = true
+                    finalRekey = true
+                }
+            }
+            state.rxBytes &+= UInt64(work.wire.data.count)
+            if keepalivePending {
+                state.needAnotherKeepalive = true
+            }
+            return (finalRekey, state.persistentKeepaliveInterval)
         }
-        timerAuthenticatedTraversal(peer, io: io)
+
+        if accepted == .confirmed {
+            requestStagedDrain(peer)
+        }
+        if triggerFinalRekey {
+            requestHandshakeInitiation(peer, io: io)
+        }
+        timerAuthenticatedTraversal(peer, interval: persistentKeepaliveInterval, io: io)
         timerAuthenticatedReceived(peer, io: io)
-        accountReceived(peer, bytes: work.wire.data.count)
-        guard !plaintext.isEmpty else { return }
+        guard !plaintext.isEmpty else { return nil }
 
         // WireGuard treats authenticated nonempty plaintext as data for timers,
         // counters and key confirmation before issuing any plaintext routing verdict.
-        timerDataReceived(peer, io: io)
+        if !keepalivePending {
+            timer(.sendKeepalive, for: peer, after: WireGuardTiming.keepaliveTimeout, io: io)
+        }
         guard let packet = IPPacket(plaintext, inbound: true),
-              allowedIPs.lookup(packet.address) === peer else { return }
-        try? io.tunnel.write(plaintext.prefix(packet.length))
+              allowedIPs.lookup(packet.address) === peer else { return nil }
+        return packet.length == plaintext.count ? plaintext : plaintext.prefix(packet.length)
     }
 
     func handleHandshake(_ incoming: DeviceIO.FromWire) {
@@ -290,22 +397,35 @@ extension WireGuardDevice {
             switch packet.kind {
             case .initiation:
                 guard let peer = try? consumeHandshakeInitiation(packet, mac1Verified: true) else { return }
-                if canRun(peer, io: io) {
-                    timerAuthenticatedTraversal(peer, io: io)
+                let (running, keepaliveInterval) = peer.withState { state -> (Bool, UInt16) in
+                    if !state.roamingDisabled { state.endpoint = incoming.source }
+                    state.rxBytes &+= UInt64(incoming.data.count)
+                    return (state.running, state.persistentKeepaliveInterval)
+                }
+                if peers[peer.publicKey] === peer, running {
+                    timerAuthenticatedTraversal(peer, interval: keepaliveInterval, io: io)
                     timerAuthenticatedReceived(peer, io: io)
                 }
-                roam(peer, from: incoming.source)
-                accountReceived(peer, bytes: incoming.data.count)
                 sendHandshakeResponse(peer, io: io)
 
             case .response:
-                guard let (peer, _) = try? consumeHandshakeResponse(packet, mac1Verified: true), canRun(peer, io: io) else { return }
-                roam(peer, from: incoming.source)
-                accountReceived(peer, bytes: incoming.data.count)
-                timerAuthenticatedTraversal(peer, io: io)
+                guard let (peer, _) = try? consumeHandshakeResponse(packet, mac1Verified: true),
+                      peers[peer.publicKey] === peer else { return }
+                let keepaliveInterval: UInt16? = peer.withState { state in
+                    guard state.running else { return nil }
+                    if !state.roamingDisabled { state.endpoint = incoming.source }
+                    state.rxBytes &+= UInt64(incoming.data.count)
+                    state.handshakeAttempts = 0
+                    state.sentLastMinuteHandshake = false
+                    state.lastHandshakeUnixNanoseconds = io.wallNow()
+                    return state.persistentKeepaliveInterval
+                }
+                guard let keepaliveInterval else { return }
+                timerAuthenticatedTraversal(peer, interval: keepaliveInterval, io: io)
                 timerAuthenticatedReceived(peer, io: io)
                 timerSessionDerived(peer, io: io)
-                timerHandshakeComplete(peer, io: io)
+                timer(.retransmitHandshake, for: peer, after: nil, io: io)
+                timer(.initiate, for: peer, after: nil, io: io)
                 sendKeepalive(peer)
             }
         }

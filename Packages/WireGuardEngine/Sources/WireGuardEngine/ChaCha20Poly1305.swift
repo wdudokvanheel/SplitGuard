@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 import CryptoKit
 import Foundation
 

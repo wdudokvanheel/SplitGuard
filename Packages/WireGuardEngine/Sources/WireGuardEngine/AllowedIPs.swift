@@ -5,7 +5,7 @@ import Foundation
 
 /// A compressed prefix trie for each address family. The per-owner index preserves
 /// the reference's insertion order, including moving a reinserted prefix to the end.
-final class AllowedIPs<Owner: AnyObject> {
+final class AllowedIPs<Owner: AnyObject>: @unchecked Sendable {
     private final class Node {
         let prefix: IPPrefix
         var owner: Owner?
