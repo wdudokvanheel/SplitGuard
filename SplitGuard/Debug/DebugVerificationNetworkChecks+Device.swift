@@ -287,7 +287,12 @@ private extension DebugVerificationNetworkChecks {
             ? .notReproduced
             : .reproduced
         let transitionText = probeData.transitions.isEmpty ? "none" : probeData.transitions.joined(separator: " -> ")
-        let didDeliver = (probeData.decodedDisconnect != nil || probeData.ipcDecoded != nil)
+        let isExpectedDNSFailure: (TunnelStartError?) -> Bool = { error in
+            if case .dnsResolutionFailed = error { return true }
+            return false
+        }
+        let didDeliver = isExpectedDNSFailure(probeData.decodedDisconnect)
+            || isExpectedDNSFailure(probeData.ipcDecoded)
         let detail = [
             verdictLine,
             "fetchLastDisconnectError raw: \(probeData.rawDisconnectDesc)",

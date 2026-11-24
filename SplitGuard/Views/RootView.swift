@@ -154,6 +154,16 @@ struct RootView: View {
         .onAppear {
             navigateToRequestedTunnelIfNeeded()
             scheduleSplitDNSPromptPresentationIfReady()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains(DebugVerificationWizardModel.autoRunLaunchFlag) {
+                if navigationPath.last != .debugVerificationWizard {
+                    navigationPath = [.debugVerificationWizard]
+                }
+                Task {
+                    await DebugVerificationWizardModel.shared.runAutomatedSuiteForCLI(store: store)
+                }
+            }
+            #endif
         }
     }
 

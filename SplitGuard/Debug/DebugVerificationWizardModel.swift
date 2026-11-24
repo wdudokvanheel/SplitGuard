@@ -1,11 +1,17 @@
 #if DEBUG
 import Foundation
 import Observation
+import SplitGuardCore
+import UIKit
 
 @MainActor
 @Observable
 final class DebugVerificationWizardModel {
     static let shared = DebugVerificationWizardModel()
+    static let autoRunLaunchFlag = "--run-debug-wizard"
+    static let cliReportFileName = "splitguard-debug-wizard-report.md"
+    static let cliStatusFileName = "splitguard-debug-wizard-status.txt"
+    static let cliLogsFileName = "splitguard-debug-wizard-logs.txt"
 
     let steps: [WizardStep] = WizardStep.allSteps
     var currentStepIndex: Int = 0
@@ -15,6 +21,7 @@ final class DebugVerificationWizardModel {
     var manualRecords: [ManualStepID: ManualStepRecord]
     var isRunningAutomatedSuite = false
     var lastCleanupMessage: String?
+    private var didStartAutoRun = false
 
     init() {
         self.automatedResults = AutomatedCheckID.allCases.map { AutomatedCheckResult(id: $0) }
@@ -99,6 +106,60 @@ final class DebugVerificationWizardModel {
         for checkID in AutomatedCheckID.allCases {
             await runAutomatedCheck(checkID, store: store)
         }
+    }
+
+    func runAutomatedSuiteForCLI(store: TunnelStore) async {
+        guard !didStartAutoRun else { return }
+        didStartAutoRun = true
+
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { UIApplication.shared.isIdleTimerDisabled = false }
+
+        resetAll()
+        writeCLIStatus("STARTING")
+
+        let deadline = ContinuousClock.now + .seconds(15)
+        while !store.hasLoaded && ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        isRunningAutomatedSuite = true
+        defer { isRunningAutomatedSuite = false }
+
+        for (index, checkID) in AutomatedCheckID.allCases.enumerated() {
+            let total = AutomatedCheckID.allCases.count
+            writeCLIStatus("RUNNING \(index + 1)/\(total): \(checkID.rawValue)")
+            await runAutomatedCheck(checkID, store: store)
+            let checkResult = result(for: checkID)
+            let durationText = checkResult.durationMilliseconds.map { "\($0)ms" } ?? "-"
+            let badge = checkResult.status.badgeTitle.uppercased()
+            print("[DEBUG-WIZARD] [\(index + 1)/\(total)] \(checkID.rawValue): \(badge) (\(durationText)) - \(checkResult.summary)")
+            writeCLIReport()
+        }
+
+        writeCLIReport()
+        writeCLIMergedLogs()
+        Log.flush()
+        writeCLIStatus("DONE pass=\(automatedPassCount) fail=\(automatedFailCount) info=\(automatedInfoCount)")
+        print("[DEBUG-WIZARD] COMPLETE pass=\(automatedPassCount) fail=\(automatedFailCount) info=\(automatedInfoCount)")
+    }
+
+    private func writeCLIStatus(_ text: String) {
+        let url = URL.cachesDirectory.appendingPathComponent(Self.cliStatusFileName)
+        try? Data((text + "\n").utf8).write(to: url, options: .atomic)
+    }
+
+    private func writeCLIReport() {
+        let url = URL.cachesDirectory.appendingPathComponent(Self.cliReportFileName)
+        let markdown = buildMarkdownReport()
+        try? Data(markdown.utf8).write(to: url, options: .atomic)
+    }
+
+    private func writeCLIMergedLogs() {
+        guard let dir = AppGroup.containerURL() else { return }
+        let url = URL.cachesDirectory.appendingPathComponent(Self.cliLogsFileName)
+        let reader = MergedLogReader(directoryURL: dir)
+        try? reader.writeExport(to: url)
     }
 
     func runAutomatedCheck(_ checkID: AutomatedCheckID, store: TunnelStore) async {
