@@ -11,8 +11,6 @@ enum AppMetadata {
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    let store: TunnelStore
 
     var body: some View {
         VStack(spacing: 0) {
@@ -70,42 +68,24 @@ struct AboutView: View {
                 .font(SGTypography.displayHero)
                 .tracking(1.0)
 
-                versionBadges
+                versionBadge
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, SGSpacing.xxSmall)
     }
 
-    @ViewBuilder
-    private var versionBadges: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: SGSpacing.xSmall))
-            : AnyLayout(HStackLayout(spacing: SGSpacing.xSmall))
-
-        layout {
-            Text("VERSION \(AppMetadata.versionText)")
-                .font(SGTypography.monoCompact.weight(.bold))
-                .foregroundStyle(SGColor.inkOnPop)
-                .padding(.horizontal, SGSpacing.small)
-                .padding(.vertical, 5)
-                .background(SGColor.popYellow)
-                .overlay(
-                    Rectangle()
-                        .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin)
-                )
-
-            Text("WIREGUARD ENGINE \(store.backendVersion)")
-                .font(SGTypography.monoCompact.weight(.medium))
-                .foregroundStyle(SGColor.textSecondary)
-                .padding(.horizontal, SGSpacing.small)
-                .padding(.vertical, 5)
-                .background(SGColor.surfaceElevated)
-                .overlay(
-                    Rectangle()
-                        .strokeBorder(SGColor.borderSubtle, lineWidth: SGBorder.thin)
-                )
-        }
+    private var versionBadge: some View {
+        Text("VERSION \(AppMetadata.versionText)")
+            .font(SGTypography.monoCompact.weight(.bold))
+            .foregroundStyle(SGColor.inkOnPop)
+            .padding(.horizontal, SGSpacing.small)
+            .padding(.vertical, 5)
+            .background(SGColor.popYellow)
+            .overlay(
+                Rectangle()
+                    .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin)
+            )
     }
 
     private var sourceCodeSection: some View {

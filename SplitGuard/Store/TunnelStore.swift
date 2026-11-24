@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import WireGuardEngine
 import WireGuardKit
 
 struct AlertItem: Identifiable, Equatable, Error {
@@ -82,10 +81,6 @@ final class TunnelStore {
         guard appearanceMode != mode else { return }
         appearanceMode = mode
         mode.save(to: userDefaults)
-    }
-
-    var backendVersion: String {
-        WireGuardEngineVersion.current
     }
 
     var activeTunnel: TunnelContainer? {

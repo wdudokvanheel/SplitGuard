@@ -177,7 +177,7 @@ struct RootView: View {
         case .settings:
             SettingsView(store: store)
         case .about:
-            AboutView(store: store)
+            AboutView()
         case .logViewer:
             LogViewerView()
         default:

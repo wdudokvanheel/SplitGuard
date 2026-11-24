@@ -100,8 +100,6 @@ struct SettingsView: View {
 
             VStack(spacing: 0) {
                 versionRow(label: "APP VERSION", value: AppMetadata.versionText)
-                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
-                versionRow(label: "WIREGUARD ENGINE", value: store.backendVersion)
             }
             .padding(.horizontal, SGSpacing.medium)
             .padding(.vertical, SGSpacing.xSmall)
