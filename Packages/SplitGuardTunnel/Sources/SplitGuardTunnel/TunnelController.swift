@@ -527,27 +527,25 @@ public final class TunnelController: @unchecked Sendable {
         for profile: TunnelProfile,
         policy: EndpointResolutionPolicy
     ) throws -> PreparedConfiguration {
-        let networkSettings: NEPacketTunnelNetworkSettings
-        do {
-            networkSettings = try NetworkSettingsBuilder.build(for: profile)
-        } catch {
-            throw TunnelControllerError.configuration(error)
-        }
-        let (resolvedTunnel, pendingIndices) = try resolveTunnel(for: profile, policy: policy)
-        let endpoints = resolveEffectiveEndpoints(for: resolvedTunnel, policy: policy)
-        let deviceConfiguration: DeviceConfiguration
-        do {
-            deviceConfiguration = try ResolvedTunnel(profile: profile, endpoints: endpoints).makeDeviceConfiguration()
-        } catch {
-            throw TunnelControllerError.configuration(error)
-        }
-        return PreparedConfiguration(
-            networkSettings: networkSettings,
-            deviceConfiguration: deviceConfiguration,
-            profile: profile,
-            pendingHostnameIndices: pendingIndices,
-            pathRevision: pathRevision
+        let (resolvedTunnel, unresolvedHostnames) = try resolveTunnel(for: profile, policy: policy)
+        var pendingIndices = unresolvedHostnames
+        let endpoints = resolveEffectiveEndpoints(
+            for: resolvedTunnel,
+            policy: policy,
+            pendingHostnameIndices: &pendingIndices
         )
+        do {
+            let deviceConfiguration = try ResolvedTunnel(profile: profile, endpoints: endpoints).makeDeviceConfiguration()
+            return PreparedConfiguration(
+                networkSettings: try NetworkSettingsBuilder.build(for: profile),
+                deviceConfiguration: deviceConfiguration,
+                profile: profile,
+                pendingHostnameIndices: pendingIndices,
+                pathRevision: pathRevision
+            )
+        } catch {
+            throw TunnelControllerError.configuration(error)
+        }
     }
 
     private func beginSettingsRequest(
@@ -1017,23 +1015,24 @@ public final class TunnelController: @unchecked Sendable {
 
     private func resolveEffectiveEndpoints(
         for resolvedTunnel: ResolvedTunnel,
-        policy: EndpointResolutionPolicy
+        policy: EndpointResolutionPolicy,
+        pendingHostnameIndices: inout Set<Int>
     ) -> [IPEndpoint?] {
         let reresolved = resolvedTunnel.reresolveEndpoints(using: reresolveEndpoint)
         logEndpointReresolutionResults(
             initialEndpoints: resolvedTunnel.endpoints,
             results: reresolved.map(\.1)
         )
-        return zip(resolvedTunnel.endpoints, reresolved).map { initialEndpoint, pair in
+        return reresolved.enumerated().map { index, pair in
             switch pair.1 {
             case .some(.success(let endpoint)):
                 return endpoint
             case .some(.failure):
-                // Under .bestEffort, keep the initial/cached IP if DNS64 re-resolution fails while offline.
-                if policy == .bestEffort, let initialEndpoint {
-                    return initialEndpoint
+                if resolvedTunnel.profile.peers[index].endpoint?.hostname != nil {
+                    pendingHostnameIndices.insert(index)
                 }
-                return nil
+                // Under .bestEffort, keep the initial/cached IP if DNS64 re-resolution fails while offline.
+                return policy == .bestEffort ? resolvedTunnel.endpoints[index] : nil
             case .none:
                 return nil
             }
