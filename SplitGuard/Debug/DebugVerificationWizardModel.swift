@@ -218,6 +218,8 @@ final class DebugVerificationWizardModel {
 private extension DebugVerificationWizardModel {
     func runCoreCheck(_ checkID: AutomatedCheckID) async -> AutomatedCheckResult? {
         switch checkID {
+        case .zeroKeyBoundary, .mtuBoundary, .liveVerdictFixtures:
+            return DebugVerificationCoreChecks.reviewRegression(checkID)
         case .appGroupLogging:
             return DebugVerificationCoreChecks.runAppGroupAndLoggingCheck()
         case .keychainProfileStore:

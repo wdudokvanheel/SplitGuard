@@ -22,9 +22,7 @@ struct LiveMetricsSnapshot {
 }
 
 struct SplitDNSLiveProbeReport {
-    let publicOK: Bool
-    let excludedOK: Bool
-    let internalOK: Bool
+    let passed: Bool
     let detail: String
 }
 
@@ -102,10 +100,13 @@ extension DebugVerificationLiveChecks {
             "Physical DNS IPC probe: \(describePhysicalProbe(physReply))"
         ].joined(separator: "\n")
 
+        let probe: PhysicalDNSProbeResult?
+        if case .debugPhysicalDNSProbe(let result) = physReply { probe = result } else { probe = nil }
         return SplitDNSLiveProbeReport(
-            publicOK: publicLookup.succeeded,
-            excludedOK: excludedLookup.succeeded,
-            internalOK: internalLookup.succeeded,
+            passed: splitDNSPassed(publicOK: publicLookup.succeeded,
+                                   apex: excludedLookup.succeeded ? excludedLookup.addresses : [],
+                                   internalAnswers: internalLookup.succeeded ? internalLookup.addresses : [],
+                                   probe: probe),
             detail: detail
         )
     }
@@ -138,7 +139,7 @@ extension DebugVerificationLiveChecks {
 
         let allPassed = strictFlags.includeAll && !strictFlags.excludeLAN
             && lanFlags.includeAll && lanFlags.excludeLAN
-            && cachedMetrics?.hasHandshake == true
+            && cacheReconnectPassed(handshake: cachedMetrics?.hasHandshake == true, forcedLookupFailure: false)
             && lanReconnected
         return KillSwitchCycleReport(allPassed: allPassed, detail: detail)
     }

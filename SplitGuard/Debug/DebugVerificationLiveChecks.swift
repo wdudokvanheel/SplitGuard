@@ -4,6 +4,45 @@ import SplitGuardCore
 import WireGuardEngine
 
 enum DebugVerificationLiveChecks {
+    static func splitDNSPassed(publicOK: Bool, apex: [String], internalAnswers: [String], probe: PhysicalDNSProbeResult?) -> Bool {
+        publicOK && !apex.isEmpty
+    }
+
+    static func cacheReconnectPassed(handshake: Bool, forcedLookupFailure: Bool) -> Bool {
+        handshake
+    }
+
+    static func verdictMismatches() -> [String] {
+        let apex = ["217.62.60.90"]
+        let internalIP = ["10.0.0.10"]
+        let scoped = PhysicalDNSProbeResult(name: "hw45.nl", interfaceIndex: 12, responseCode: 0, records: apex)
+        var failed = [String]()
+        func check(_ name: String, _ publicOK: Bool, _ answers: [String], _ internalAnswers: [String],
+                   _ probe: PhysicalDNSProbeResult?, expected: Bool = false) {
+            if splitDNSPassed(publicOK: publicOK, apex: answers, internalAnswers: internalAnswers, probe: probe) != expected {
+                failed.append(name)
+            }
+        }
+        check("complete DNS evidence", true, apex, internalIP, scoped, expected: true)
+        check("public lookup failed", false, apex, internalIP, scoped)
+        check("wrong apex", true, internalIP, internalIP, scoped)
+        check("missing internal answer", true, apex, [], scoped)
+        check("wrong internal answer", true, apex, apex, scoped)
+        check("missing physical reply", true, apex, internalIP, nil)
+        var bad = scoped
+        bad.interfaceIndex = nil
+        check("missing interface", true, apex, internalIP, bad)
+        bad = scoped
+        bad.responseCode = 2
+        check("failed physical lookup", true, apex, internalIP, bad)
+        bad = scoped
+        bad.records = internalIP
+        check("wrong physical answer", true, apex, internalIP, bad)
+        if cacheReconnectPassed(handshake: true, forcedLookupFailure: false) { failed.append("fresh DNS reconnect") }
+        if !cacheReconnectPassed(handshake: true, forcedLookupFailure: true) { failed.append("cache fallback reconnect") }
+        return failed
+    }
+
     static func runLiveConnectMetricsDisconnect(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now

@@ -5,6 +5,9 @@ import UIKit
 enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
     case appGroupLogging
     case keychainProfileStore
+    case zeroKeyBoundary
+    case mtuBoundary
+    case liveVerdictFixtures
     case codecAndZipExport
     case onDemandAndDraftValidation
     case importPasteCreateAndSort
@@ -25,7 +28,7 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var category: String {
         switch self {
-        case .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
+        case .zeroKeyBoundary, .mtuBoundary, .liveVerdictFixtures, .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
              .onDemandAndDraftValidation, .importPasteCreateAndSort:
             return "Core, Import & Storage"
         case .neManagerCrudAndSort, .liveConnectMetricsDisconnect, .liveSwitchAndEditConnected,
@@ -39,6 +42,9 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var title: String {
         switch self {
+        case .zeroKeyBoundary: return "Zero private key import and edit"
+        case .mtuBoundary: return "Packet MTU import and edit"
+        case .liveVerdictFixtures: return "Live verdict evidence fixtures"
         case .appGroupLogging: return "App Group & Logging"
         case .keychainProfileStore: return "Keychain & ProfileStore"
         case .codecAndZipExport: return "Codec, Fixtures & Zip Export"
@@ -61,6 +67,9 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var subtitle: String {
         switch self {
+        case .zeroKeyBoundary: return "Reject a zero private key at both input boundaries"
+        case .mtuBoundary: return "Check the largest supported MTU and its successor"
+        case .liveVerdictFixtures: return "Check DNS and reconnect verdicts with incomplete evidence"
         case .appGroupLogging:
             return "SplitGuardAppGroupID, shared container RW, LogFile rotation & MergedLogReader"
         case .keychainProfileStore:

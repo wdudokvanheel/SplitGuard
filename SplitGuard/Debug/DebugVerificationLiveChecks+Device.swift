@@ -142,16 +142,16 @@ extension DebugVerificationLiveChecks {
             try await stopAndWaitInactive(tunnel: tunnel, store: store)
             await cleanupTempTunnels([tunnel], in: store)
 
-            guard probeReport.publicOK && probeReport.excludedOK else {
+            guard probeReport.passed else {
                 return failLive(
                     id: .liveSplitDNSAndProbe,
-                    summary: "Split DNS public or excluded-apex lookup failed",
+                    summary: "Split DNS answers or scoped physical probe did not match the fixture",
                     detail: probeReport.detail,
                     start: start,
                     clock: clock
                 )
             }
-            let summary = "Split DNS active; public, apex & internal (\(probeReport.internalOK ? "OK" : "N/A")) checked"
+            let summary = "Public lookup, fixture addresses and scoped physical probe verified"
             return passLive(id: .liveSplitDNSAndProbe, summary: summary, detail: probeReport.detail, start: start, clock: clock)
         } catch {
             await cleanupTempTunnels([tempTunnel].compactMap { $0 }, in: store)
