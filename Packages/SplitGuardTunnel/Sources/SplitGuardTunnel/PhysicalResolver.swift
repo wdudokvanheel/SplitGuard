@@ -34,8 +34,11 @@ public enum DNSSDResolverError: Error, Equatable, Sendable {
 /// so excluded lookups use the underlying Wi-Fi/cellular resolver instead of the tunnel DNS.
 public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
     struct QueryResults {
-        let recordType: UInt16
-        let recordClass: UInt16
+        private static let cnameType = UInt16(kDNSServiceType_CNAME)
+        private static let anyRecordClass: UInt16 = 255
+
+        private let recordType: UInt16
+        private let recordClass: UInt16
         private var records: [DNSResourceRecord] = []
 
         init(recordType: UInt16, recordClass: UInt16) {
@@ -50,22 +53,38 @@ public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
         ) -> Result<DNSLookupResponse, Error>? {
             switch Int(errorCode) {
             case kDNSServiceErr_NoSuchName:
-                return .success(DNSLookupResponse(responseCode: .nameError, records: []))
+                let aliases = records.filter { $0.type == Self.cnameType }
+                return .success(DNSLookupResponse(responseCode: .nameError, records: aliases))
             case kDNSServiceErr_NoSuchRecord:
-                return .success(DNSLookupResponse(responseCode: .noError, records: records))
+                let aliases = records.filter { $0.type == Self.cnameType }
+                return .success(DNSLookupResponse(responseCode: .noError, records: aliases))
             case kDNSServiceErr_NoError:
                 break
             default:
                 return .failure(DNSSDResolverError.serviceError(errorCode))
             }
 
-            let isAdd = (flags & DNSServiceFlags(kDNSServiceFlagsAdd)) != 0
-            if isAdd, let record {
-                records.append(record)
+            if let record,
+               record.recordClass == recordClass || recordClass == Self.anyRecordClass,
+               matchesRequestedType(record) || record.type == Self.cnameType {
+                if (flags & DNSServiceFlags(kDNSServiceFlagsAdd)) != 0 {
+                    records.append(record)
+                } else {
+                    records.removeAll {
+                        $0.name == record.name && $0.type == record.type
+                            && $0.recordClass == record.recordClass && $0.rdata == record.rdata
+                    }
+                }
             }
+
+            // MoreComing tracks queued callbacks. An alias may arrive in a batch of its own.
             let moreComing = (flags & DNSServiceFlags(kDNSServiceFlagsMoreComing)) != 0
-            guard !moreComing else { return nil }
+            guard !moreComing, records.contains(where: matchesRequestedType) else { return nil }
             return .success(DNSLookupResponse(responseCode: .noError, records: records))
+        }
+
+        private func matchesRequestedType(_ record: DNSResourceRecord) -> Bool {
+            record.type == recordType || recordType == UInt16(kDNSServiceType_ANY)
         }
     }
 
@@ -190,8 +209,7 @@ public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
         guard let state = registry.lookup(for: token), !state.finished else { return }
 
         var record: DNSResourceRecord?
-        let isAdd = (flags & DNSServiceFlags(kDNSServiceFlagsAdd)) != 0
-        if errorCode == kDNSServiceErr_NoError, isAdd, rdlen > 0, let rdata, let fullname {
+        if errorCode == kDNSServiceErr_NoError, rdlen > 0, let rdata, let fullname {
             let recordName = String(cString: fullname)
             let recordData = Data(bytes: rdata, count: Int(rdlen))
             record = DNSResourceRecord(
