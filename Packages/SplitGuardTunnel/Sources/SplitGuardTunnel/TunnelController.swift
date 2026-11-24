@@ -33,6 +33,7 @@ public protocol TunnelProviderHost: AnyObject {
         _ tunnelNetworkSettings: NETunnelNetworkSettings?,
         completionHandler: (@Sendable (Error?) -> Void)?
     )
+    func cancelTunnelWithError(_ error: Error?)
 }
 
 extension NEPacketTunnelProvider: TunnelProviderHost {}
@@ -65,10 +66,10 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
                     callback(TunnelNetworkPath(
                         isSatisfiable: path.status.isSatisfiable,
                         summary: "\(path.status) route and interface order \(path.availableInterfaces)",
-                        physicalInterfaceIndex: Self.physicalInterfaceIndex(
+                        physicalInterfaceIndex: path.status == .satisfied ? Self.physicalInterfaceIndex(
                             from: path.availableInterfaces.map { ($0.type, $0.index, $0.name) },
                             usesInterfaceType: path.usesInterfaceType
-                        )
+                        ) : nil
                     ))
                 }
             } else {
@@ -87,24 +88,17 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
 
     static func physicalInterfaceIndex(
         from interfaces: [(type: NWInterface.InterfaceType, index: Int, name: String)],
-        usesInterfaceType _: (NWInterface.InterfaceType) -> Bool
+        usesInterfaceType: (NWInterface.InterfaceType) -> Bool
     ) -> UInt32? {
-        if let primary = interfaces.first(where: {
-            ($0.type == .wifi || $0.type == .cellular || $0.type == .wiredEthernet) && $0.index > 0
-        }) {
-            return UInt32(primary.index)
-        }
-        if let fallback = interfaces.first(where: { interface in
-            guard interface.type != .loopback, interface.index > 0 else { return false }
-            let name = interface.name
-            return !name.hasPrefix("utun")
-                && !name.hasPrefix("ipsec")
-                && !name.hasPrefix("ppp")
-                && !name.hasPrefix("lo")
-        }) {
-            return UInt32(fallback.index)
-        }
-        return nil
+        // Network.framework can report multiple eligible interfaces or interface types.
+        let physicalTypes: [NWInterface.InterfaceType] = [.wifi, .cellular, .wiredEthernet]
+        let usedTypes = physicalTypes.filter(usesInterfaceType)
+        guard usedTypes.count == 1, let type = usedTypes.first else { return nil }
+        let indices = Set(interfaces.compactMap { interface -> UInt32? in
+            guard interface.type == type, interface.index > 0 else { return nil }
+            return UInt32(exactly: interface.index)
+        })
+        return indices.count == 1 ? indices.first : nil
     }
 }
 
@@ -113,16 +107,62 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
 /// pause/resume across network transitions, split DNS exclusion interception, and best-effort
 /// endpoint resolution with caching for kill-switch tunnels.
 public final class TunnelController: @unchecked Sendable {
+    private typealias Completion = @Sendable (TunnelControllerError?) -> Void
+
+    private struct AppliedTunnel {
+        let device: WireGuardDevice
+        let tunnel: PacketFlowTunnelDevice
+        let networkSettings: NEPacketTunnelNetworkSettings
+        let profile: TunnelProfile
+        var paused = false
+        var pendingHostnameIndices: Set<Int>
+    }
+
+    private struct PreparedConfiguration {
+        let networkSettings: NEPacketTunnelNetworkSettings
+        let deviceConfiguration: DeviceConfiguration
+        let profile: TunnelProfile
+        let pendingHostnameIndices: Set<Int>
+        let pathRevision: UInt64
+    }
+
     private enum State {
         case stopped
-        case running(
-            device: WireGuardDevice,
-            tunnel: PacketFlowTunnelDevice,
-            resolvedTunnel: ResolvedTunnel,
-            paused: Bool,
-            endpointResolutionPolicy: EndpointResolutionPolicy,
-            pendingHostnameIndices: Set<Int>
-        )
+        case running(AppliedTunnel)
+        case awaitingProviderStop
+    }
+
+    private enum SettingsOperation {
+        case start(AppliedTunnel, Completion)
+        case update(PreparedConfiguration, Completion)
+        case rollback(originalError: TunnelControllerError, Completion)
+
+        var completion: Completion {
+            switch self {
+            case .start(_, let completion), .update(_, let completion), .rollback(_, let completion):
+                return completion
+            }
+        }
+    }
+
+    private enum SettingsError: Error {
+        case rejected(Error)
+        case timeout
+        case cancelled
+
+        var controllerError: TunnelControllerError {
+            switch self {
+            case .rejected(let error): return .setNetworkSettings(error)
+            case .timeout: return .setNetworkSettings(URLError(.timedOut))
+            case .cancelled: return .invalidState
+            }
+        }
+    }
+
+    private struct SettingsRequest {
+        let id: UUID
+        // A timed-out request still owns the settings slot until its callback or provider stop.
+        var operation: SettingsOperation?
     }
 
     private enum RetryOperation {
@@ -163,8 +203,12 @@ public final class TunnelController: @unchecked Sendable {
     private var retryAttempts = 0
 
     private var state: State = .stopped
+    private var settingsRequest: SettingsRequest?
     private var packetFlowReader: PacketFlowReader?
     private var pathMonitor: PathMonitoring?
+    private var pathMonitorID: UUID?
+    private var latestPath: TunnelNetworkPath?
+    private var pathRevision: UInt64 = 0
 
     private let eventHandlerLock = NSLock()
     private var eventHandler: (@Sendable (DeviceEvent) -> Void)?
@@ -242,9 +286,20 @@ public final class TunnelController: @unchecked Sendable {
     deinit {
         retryTimer.cancel()
         pathMonitor?.cancel()
-        if case .running(let device, _, _, _, _, _) = state {
+        if case .running(let applied) = state {
             activeDeviceLock.withLock { activeDevice = nil }
+            let device = applied.device
             workQueue.async { device.close() }
+        }
+        if let operation = settingsRequest?.operation {
+            if case .start(let prepared, _) = operation {
+                let device = prepared.device
+                workQueue.async { device.close() }
+            } else {
+                provider?.reasserting = false
+            }
+            let completion = operation.completion
+            workQueue.async { completion(.invalidState) }
         }
     }
 
@@ -257,53 +312,18 @@ public final class TunnelController: @unchecked Sendable {
     ) {
         let effectivePolicy = endpointResolution ?? (profile.options.killSwitch.isEnabled ? .bestEffort : .required)
         workQueue.async { [weak self] in
-            guard let self else {
+            guard let self, case .stopped = self.state,
+                  self.settingsRequest == nil, let provider = self.provider else {
                 completionHandler(.invalidState)
                 return
             }
-            guard case .stopped = self.state else {
-                completionHandler(.invalidState)
-                return
-            }
-            guard let provider = self.provider else {
-                completionHandler(.invalidState)
-                return
-            }
-
-            let monitor = self.makePathMonitor()
-            monitor.onPathUpdate = { [weak self, weak monitor] path in
-                guard let self, let monitor else { return }
-                self.workQueue.async {
-                    guard self.pathMonitor === monitor else { return }
-                    self.didReceivePathUpdate(path)
-                }
-            }
+            self.physicalInterfaceLock.withLock { self.physicalInterfaceIndexStorage = nil }
 
             do {
-                let (resolvedTunnel, pendingHostnameIndices) = try self.resolveTunnel(
-                    for: profile,
-                    policy: effectivePolicy
-                )
-                let networkSettings = NetworkSettingsBuilder.build(for: profile)
-                try self.setNetworkSettings(networkSettings, on: provider)
-
-                let effectiveEndpoints = self.resolveEffectiveEndpoints(
-                    for: resolvedTunnel,
-                    policy: effectivePolicy
-                )
-                let effectiveTunnel = ResolvedTunnel(profile: profile, endpoints: effectiveEndpoints)
-
-                let deviceConfig: DeviceConfiguration
-                do {
-                    deviceConfig = try effectiveTunnel.makeDeviceConfiguration()
-                } catch {
-                    throw TunnelControllerError.configuration(error)
-                }
-
+                let prepared = try self.prepareConfiguration(for: profile, policy: effectivePolicy)
                 let reader = self.packetFlowReader ?? PacketFlowReader(flow: provider.packetFlow)
                 self.packetFlowReader = reader
-                let tunnel = PacketFlowTunnelDevice(reader: reader, mtu: networkSettings.mtu?.intValue ?? 0)
-
+                let tunnel = PacketFlowTunnelDevice(reader: reader, mtu: prepared.networkSettings.mtu?.intValue ?? 0)
                 let device: WireGuardDevice
                 do {
                     device = try WireGuardDevice(tunnel: tunnel, transport: self.makeTransport())
@@ -311,61 +331,28 @@ public final class TunnelController: @unchecked Sendable {
                     throw TunnelControllerError.startEngine(error)
                 }
 
-                device.onEvent = { [weak self] event in
-                    guard let self else { return }
-                    Self.logEvent(event, to: self.logHandler)
-                    self.onEvent?(event)
-                }
-
-                self.configureSplitDNSInterceptor(for: profile)
-
-                if let hookEntry = self.activeDeviceLock.withLock({ self.installedHook }) {
-                    device.setHook(hookEntry.hook, matching: hookEntry.filter)
-                }
-
                 do {
-                    try device.apply(deviceConfig)
+                    try device.apply(prepared.deviceConfiguration)
                 } catch {
                     device.close()
                     throw TunnelControllerError.configuration(error)
                 }
 
-                do {
-                    try device.up()
-                } catch {
-                    device.close()
-                    throw TunnelControllerError.startEngine(error)
-                }
-
-                #if os(iOS)
-                device.disableSomeRoamingForBrokenMobileSemantics()
-                #endif
-
-                self.activeDeviceLock.withLock { self.activeDevice = device }
-                self.state = .running(
+                let applying = AppliedTunnel(
                     device: device,
                     tunnel: tunnel,
-                    resolvedTunnel: resolvedTunnel,
-                    paused: false,
-                    endpointResolutionPolicy: effectivePolicy,
-                    pendingHostnameIndices: pendingHostnameIndices
+                    networkSettings: prepared.networkSettings,
+                    profile: prepared.profile,
+                    pendingHostnameIndices: prepared.pendingHostnameIndices
                 )
-                self.pathMonitor = monitor
-                monitor.start(queue: self.workQueue)
-                if !pendingHostnameIndices.isEmpty {
-                    self.retryAttempts = 1
-                    self.scheduleRetryTimer()
-                }
-                self.logHandler(.verbose, "WireGuard engine started (\(Self.engineVersion))")
-                completionHandler(nil)
+                self.beginSettingsRequest(
+                    prepared.networkSettings,
+                    on: provider,
+                    operation: .start(applying, completionHandler)
+                )
             } catch let error as TunnelControllerError {
-                monitor.cancel()
-                self.clearActiveInterceptorIfNeeded()
                 completionHandler(error)
             } catch {
-                monitor.cancel()
-                self.clearActiveInterceptorIfNeeded()
-                self.logHandler(.error, "Starting tunnel failed with unexpected error: \(error.localizedDescription)")
                 completionHandler(.startEngine(error))
             }
         }
@@ -373,21 +360,19 @@ public final class TunnelController: @unchecked Sendable {
 
     public func stop(completionHandler: @escaping @Sendable (TunnelControllerError?) -> Void) {
         workQueue.async {
-            guard case .running(let device, _, _, _, _, _) = self.state else {
+            if case .stopped = self.state, self.settingsRequest == nil {
                 completionHandler(.invalidState)
                 return
             }
 
-            self.cancelRetry()
-            self.pendingSocketOperation = nil
-            self.retryAttempts = 0
-            self.pathMonitor?.cancel()
-            self.pathMonitor = nil
-            self.physicalInterfaceLock.withLock { self.physicalInterfaceIndexStorage = nil }
-            self.clearActiveInterceptorIfNeeded()
-            self.activeDeviceLock.withLock { self.activeDevice = nil }
+            self.closeAppliedTunnel()
             self.state = .stopped
-            device.close()
+            let retired = self.settingsRequest?.operation
+            // Provider stop retires the OS request even if its callback never arrived.
+            self.settingsRequest = nil
+            if let retired {
+                self.finishSettingsOperation(retired, result: .failure(.cancelled))
+            }
             completionHandler(nil)
         }
     }
@@ -398,77 +383,24 @@ public final class TunnelController: @unchecked Sendable {
         completionHandler: @escaping @Sendable (TunnelControllerError?) -> Void
     ) {
         workQueue.async {
-            guard case .running(
-                let device,
-                let tunnel,
-                _,
-                let paused,
-                _,
-                _
-            ) = self.state,
-                  let provider = self.provider else {
+            guard case .running = self.state,
+                  self.settingsRequest == nil, let provider = self.provider else {
                 completionHandler(.invalidState)
                 return
             }
 
             let effectivePolicy = endpointResolution ?? (profile.options.killSwitch.isEnabled ? .bestEffort : .required)
-
-            provider.reasserting = true
-            defer {
-                provider.reasserting = false
-            }
-
             do {
-                let (resolvedTunnel, pendingHostnameIndices) = try self.resolveTunnel(
-                    for: profile,
-                    policy: effectivePolicy
+                let prepared = try self.prepareConfiguration(for: profile, policy: effectivePolicy)
+                provider.reasserting = true
+                self.beginSettingsRequest(
+                    prepared.networkSettings,
+                    on: provider,
+                    operation: .update(prepared, completionHandler)
                 )
-                let networkSettings = NetworkSettingsBuilder.build(for: profile)
-                try self.setNetworkSettings(networkSettings, on: provider)
-
-                let effectiveEndpoints = self.resolveEffectiveEndpoints(
-                    for: resolvedTunnel,
-                    policy: effectivePolicy
-                )
-                let effectiveTunnel = ResolvedTunnel(profile: profile, endpoints: effectiveEndpoints)
-
-                let deviceConfig: DeviceConfiguration
-                do {
-                    deviceConfig = try effectiveTunnel.makeDeviceConfiguration()
-                } catch {
-                    throw TunnelControllerError.configuration(error)
-                }
-
-                tunnel.setMTU(networkSettings.mtu?.intValue ?? 0)
-                do {
-                    try device.apply(deviceConfig)
-                } catch {
-                    throw TunnelControllerError.configuration(error)
-                }
-
-                #if os(iOS)
-                device.disableSomeRoamingForBrokenMobileSemantics()
-                #endif
-
-                self.configureSplitDNSInterceptor(for: profile)
-
-                self.state = .running(
-                    device: device,
-                    tunnel: tunnel,
-                    resolvedTunnel: resolvedTunnel,
-                    paused: paused,
-                    endpointResolutionPolicy: effectivePolicy,
-                    pendingHostnameIndices: pendingHostnameIndices
-                )
-                if !pendingHostnameIndices.isEmpty && !paused && self.nextRetry == nil {
-                    self.retryAttempts = max(1, self.retryAttempts)
-                    self.scheduleRetryTimer()
-                }
-                completionHandler(nil)
             } catch let error as TunnelControllerError {
                 completionHandler(error)
             } catch {
-                self.logHandler(.error, "Updating tunnel failed with unexpected error: \(error.localizedDescription)")
                 completionHandler(.configuration(error))
             }
         }
@@ -476,19 +408,19 @@ public final class TunnelController: @unchecked Sendable {
 
     public func wake() {
         workQueue.async {
-            if case .running(let device, _, _, _, _, _) = self.state {
-                device.reevaluateDeadlines()
+            if case .running(let applied) = self.state {
+                applied.device.reevaluateDeadlines()
             }
         }
     }
 
     public func status(completionHandler: @escaping @Sendable (DeviceStatus?) -> Void) {
         workQueue.async {
-            guard case .running(let device, _, _, _, _, _) = self.state else {
+            guard case .running(let applied) = self.state else {
                 completionHandler(nil)
                 return
             }
-            completionHandler(device.status())
+            completionHandler(applied.device.status())
         }
     }
 
@@ -586,118 +518,268 @@ public final class TunnelController: @unchecked Sendable {
         }
     }
 
-    // MARK: - Path Monitoring & Retry Handling
+    // MARK: - Network Settings Operations
 
-    private func didReceivePathUpdate(_ path: TunnelNetworkPath) {
-        physicalInterfaceLock.withLock {
-            physicalInterfaceIndexStorage = path.physicalInterfaceIndex
+    private func prepareConfiguration(
+        for profile: TunnelProfile,
+        policy: EndpointResolutionPolicy
+    ) throws -> PreparedConfiguration {
+        do {
+            try profile.interface.validateMTU()
+        } catch {
+            throw TunnelControllerError.configuration(error)
         }
-        logHandler(.verbose, "Network change detected with \(path.summary)")
-
-        guard case .running(
-            let device,
-            let tunnel,
-            var resolvedTunnel,
-            let paused,
-            let endpointPolicy,
-            var pendingHostnameIndices
-        ) = state else {
-            return
+        let (resolvedTunnel, pendingIndices) = try resolveTunnel(for: profile, policy: policy)
+        let endpoints = resolveEffectiveEndpoints(for: resolvedTunnel, policy: policy)
+        let deviceConfiguration: DeviceConfiguration
+        do {
+            deviceConfiguration = try ResolvedTunnel(profile: profile, endpoints: endpoints).makeDeviceConfiguration()
+        } catch {
+            throw TunnelControllerError.configuration(error)
         }
-
-        guard pauseOnOffline else {
-            if !pendingHostnameIndices.isEmpty {
-                let updated = resolvePendingHostnameEndpoints(
-                    device: device,
-                    resolvedTunnel: resolvedTunnel,
-                    pendingIndices: pendingHostnameIndices
-                )
-                resolvedTunnel = updated.resolvedTunnel
-                pendingHostnameIndices = updated.remainingIndices
-                state = .running(
-                    device: device,
-                    tunnel: tunnel,
-                    resolvedTunnel: resolvedTunnel,
-                    paused: paused,
-                    endpointResolutionPolicy: endpointPolicy,
-                    pendingHostnameIndices: pendingHostnameIndices
-                )
-            }
-            device.reevaluateDeadlines()
-            bumpSockets(device)
-            scheduleEndpointRetryIfNeeded()
-            return
-        }
-
-        if !path.isSatisfiable {
-            guard !paused else { return }
-            logHandler(.verbose, "Connectivity offline, pausing engine.")
-            cancelRetry()
-            pendingSocketOperation = nil
-            retryAttempts = 0
-            state = .running(
-                device: device,
-                tunnel: tunnel,
-                resolvedTunnel: resolvedTunnel,
-                paused: true,
-                endpointResolutionPolicy: endpointPolicy,
-                pendingHostnameIndices: pendingHostnameIndices
-            )
-            try? device.pause(reason: .offline)
-            return
-        }
-
-        if !pendingHostnameIndices.isEmpty {
-            let updated = resolvePendingHostnameEndpoints(
-                device: device,
-                resolvedTunnel: resolvedTunnel,
-                pendingIndices: pendingHostnameIndices
-            )
-            resolvedTunnel = updated.resolvedTunnel
-            pendingHostnameIndices = updated.remainingIndices
-        }
-
-        let reresolved = resolvedTunnel.reresolveEndpoints(using: reresolveEndpoint)
-        logEndpointReresolutionResults(
-            initialEndpoints: resolvedTunnel.endpoints,
-            results: reresolved.map(\.1)
+        return PreparedConfiguration(
+            networkSettings: NetworkSettingsBuilder.build(for: profile),
+            deviceConfiguration: deviceConfiguration,
+            profile: profile,
+            pendingHostnameIndices: pendingIndices,
+            pathRevision: pathRevision
         )
-        let updates = ResolvedTunnel.endpointUpdates(from: reresolved)
-        if !updates.isEmpty {
-            device.updateEndpoints(updates)
+    }
+
+    private func beginSettingsRequest(
+        _ settings: NEPacketTunnelNetworkSettings,
+        on provider: any TunnelProviderHost,
+        operation: SettingsOperation
+    ) {
+        assert(settingsRequest == nil)
+        let id = UUID()
+        settingsRequest = SettingsRequest(id: id, operation: operation)
+        scheduleSettingsTimeout { [weak self] in
+            self?.workQueue.async { [weak self] in
+                guard let self, self.settingsRequest?.id == id else { return }
+                self.abandonSettingsRequest(with: .timeout)
+            }
         }
+        provider.setTunnelNetworkSettings(settings) { [weak self] error in
+            self?.workQueue.async { [weak self] in
+                self?.receiveSettingsResponse(error, id: id)
+            }
+        }
+    }
+
+    private func receiveSettingsResponse(_ error: Error?, id: UUID) {
+        guard let request = settingsRequest, request.id == id else { return }
+        settingsRequest = nil
+        guard let operation = request.operation else { return }
+        let result: Result<Void, SettingsError> = error.map { .failure(.rejected($0)) } ?? .success(())
+        finishSettingsOperation(operation, result: result)
+    }
+
+    private func abandonSettingsRequest(with error: SettingsError) {
+        guard let operation = settingsRequest?.operation else { return }
+        settingsRequest?.operation = nil
+        finishSettingsOperation(operation, result: .failure(error))
+    }
+
+    private func finishSettingsOperation(_ operation: SettingsOperation, result: Result<Void, SettingsError>) {
+        if case .failure(.timeout) = result {
+            logHandler(.error, "Tunnel network settings timed out")
+        }
+        switch operation {
+        case .start(let applying, let completion):
+            switch result {
+            case .success:
+                completion(startEngine(applying))
+            case .failure(let error):
+                applying.device.close()
+                completion(error.controllerError)
+            }
+        case .update(let prepared, let completion):
+            finishUpdate(prepared, result: result, completion: completion)
+        case .rollback(let originalError, let completion):
+            provider?.reasserting = false
+            switch result {
+            case .success:
+                if case .running(let applied) = state,
+                   !applied.paused, applied.device.listenPort == 0 {
+                    bumpSockets(applied.device)
+                }
+            case .failure(.cancelled):
+                completion(.invalidState)
+                return
+            case .failure(let error):
+                logHandler(.error, "Restoring prior network settings failed: \(error.controllerError)")
+                cancelUnconfirmedTunnel(with: error.controllerError)
+            }
+            completion(originalError)
+        }
+    }
+
+    private func startEngine(_ applied: AppliedTunnel) -> TunnelControllerError? {
+        let device = applied.device
+        device.onEvent = { [weak self] event in
+            guard let self else { return }
+            Self.logEvent(event, to: self.logHandler)
+            self.onEvent?(event)
+        }
+
+        configureSplitDNSInterceptor(for: applied.profile)
+        if let hookEntry = activeDeviceLock.withLock({ installedHook }) {
+            device.setHook(hookEntry.hook, matching: hookEntry.filter)
+        }
+        do {
+            try device.up()
+        } catch {
+            clearActiveInterceptorIfNeeded()
+            device.close()
+            return .startEngine(error)
+        }
+
         #if os(iOS)
         device.disableSomeRoamingForBrokenMobileSemantics()
         #endif
 
-        if paused {
-            logHandler(.verbose, "Connectivity online, resuming engine.")
-            device.reevaluateDeadlines()
-            state = .running(
-                device: device,
-                tunnel: tunnel,
-                resolvedTunnel: resolvedTunnel,
-                paused: false,
-                endpointResolutionPolicy: endpointPolicy,
-                pendingHostnameIndices: pendingHostnameIndices
+        activeDeviceLock.withLock { activeDevice = device }
+        state = .running(applied)
+        let monitor = makePathMonitor()
+        let monitorID = UUID()
+        monitor.onPathUpdate = { [weak self] path in
+            self?.workQueue.async { [weak self] in
+                guard let self, self.pathMonitorID == monitorID else { return }
+                self.didReceivePathUpdate(path)
+            }
+        }
+        pathMonitorID = monitorID
+        pathMonitor = monitor
+        monitor.start(queue: workQueue)
+        scheduleEndpointRetryIfNeeded()
+        logHandler(.verbose, "WireGuard engine started (\(Self.engineVersion))")
+        return nil
+    }
+
+    private func finishUpdate(
+        _ prepared: PreparedConfiguration,
+        result: Result<Void, SettingsError>,
+        completion: @escaping Completion
+    ) {
+        switch result {
+        case .failure(.cancelled):
+            provider?.reasserting = false
+            completion(.invalidState)
+        case .failure(.timeout):
+            provider?.reasserting = false
+            let error = SettingsError.timeout.controllerError
+            cancelUnconfirmedTunnel(with: error)
+            completion(error)
+        case .failure(let error):
+            restoreNetworkSettings(after: error.controllerError, completion: completion)
+        case .success:
+            guard case .running(let applied) = state else {
+                provider?.reasserting = false
+                completion(.invalidState)
+                return
+            }
+
+            do {
+                try applied.device.apply(prepared.deviceConfiguration)
+            } catch {
+                restoreNetworkSettings(after: .configuration(error), completion: completion)
+                return
+            }
+
+            // WireGuard commits its configuration atomically. Until it accepts the update,
+            // the applied state still owns the previous MTU, DNS hook and network settings.
+            applied.tunnel.setMTU(prepared.networkSettings.mtu?.intValue ?? 0)
+            #if os(iOS)
+            applied.device.disableSomeRoamingForBrokenMobileSemantics()
+            #endif
+            configureSplitDNSInterceptor(for: prepared.profile)
+            var updated = AppliedTunnel(
+                device: applied.device,
+                tunnel: applied.tunnel,
+                networkSettings: prepared.networkSettings,
+                profile: prepared.profile,
+                paused: applied.paused,
+                pendingHostnameIndices: prepared.pendingHostnameIndices
             )
+            if let latestPath, latestPath.isSatisfiable, prepared.pathRevision != pathRevision {
+                refreshEndpoints(for: &updated, refreshAllHostnames: true)
+            }
+            state = .running(updated)
+            scheduleEndpointRetryIfNeeded()
+            provider?.reasserting = false
+            completion(nil)
+        }
+    }
+
+    private func restoreNetworkSettings(after error: TunnelControllerError, completion: @escaping Completion) {
+        guard case .running(let applied) = state, let provider else {
+            cancelUnconfirmedTunnel(with: error)
+            completion(error)
+            return
+        }
+        beginSettingsRequest(applied.networkSettings, on: provider, operation: .rollback(originalError: error, completion))
+    }
+
+    private func cancelUnconfirmedTunnel(with error: TunnelControllerError) {
+        closeAppliedTunnel()
+        state = .awaitingProviderStop
+        provider?.cancelTunnelWithError(error)
+    }
+
+    private func closeAppliedTunnel() {
+        cancelRetry()
+        pendingSocketOperation = nil
+        retryAttempts = 0
+        pathMonitorID = nil
+        pathMonitor?.cancel()
+        pathMonitor = nil
+        latestPath = nil
+        physicalInterfaceLock.withLock { physicalInterfaceIndexStorage = nil }
+        clearActiveInterceptorIfNeeded()
+        activeDeviceLock.withLock { activeDevice = nil }
+        if case .running(let applied) = state {
+            applied.device.close()
+        }
+    }
+
+    // MARK: - Path Monitoring & Retry Handling
+
+    private func didReceivePathUpdate(_ path: TunnelNetworkPath) {
+        guard case .running(var applied) = state else { return }
+
+        let isHandoff = latestPath != nil
+        latestPath = path
+        pathRevision &+= 1
+        physicalInterfaceLock.withLock {
+            physicalInterfaceIndexStorage = path.isSatisfiable ? path.physicalInterfaceIndex : nil
+        }
+        logHandler(.verbose, "Network change detected with \(path.summary)")
+
+        if !path.isSatisfiable && pauseOnOffline {
+            guard !applied.paused else { return }
+            logHandler(.verbose, "Connectivity offline, pausing engine.")
             cancelRetry()
             pendingSocketOperation = nil
             retryAttempts = 0
-            attemptResume(device)
-        } else {
-            state = .running(
-                device: device,
-                tunnel: tunnel,
-                resolvedTunnel: resolvedTunnel,
-                paused: false,
-                endpointResolutionPolicy: endpointPolicy,
-                pendingHostnameIndices: pendingHostnameIndices
-            )
-            device.reevaluateDeadlines()
-            bumpSockets(device)
+            applied.paused = true
+            state = .running(applied)
+            try? applied.device.pause(reason: .offline)
+            return
         }
 
+        if path.isSatisfiable {
+            refreshEndpoints(for: &applied, refreshAllHostnames: isHandoff)
+        }
+
+        let wasPaused = applied.paused
+        applied.paused = false
+        state = .running(applied)
+        applied.device.reevaluateDeadlines()
+        if wasPaused {
+            logHandler(.verbose, "Connectivity online, resuming engine.")
+        }
+        bumpSockets(applied.device)
         scheduleEndpointRetryIfNeeded()
     }
 
@@ -744,9 +826,9 @@ public final class TunnelController: @unchecked Sendable {
     }
 
     private func scheduleEndpointRetryIfNeeded() {
-        guard case .running(_, _, _, let paused, _, let pendingIndices) = state,
-              !paused,
-              !pendingIndices.isEmpty,
+        guard case .running(let applied) = state,
+              !applied.paused,
+              !applied.pendingHostnameIndices.isEmpty,
               nextRetry == nil else {
             return
         }
@@ -772,14 +854,7 @@ public final class TunnelController: @unchecked Sendable {
             retryTimer.schedule(deadline: nextRetry)
             return
         }
-        guard case .running(
-            let device,
-            let tunnel,
-            let resolvedTunnel,
-            let paused,
-            let endpointPolicy,
-            let pendingHostnameIndices
-        ) = state, !paused else {
+        guard case .running(var applied) = state, !applied.paused else {
             cancelRetry()
             pendingSocketOperation = nil
             return
@@ -790,65 +865,62 @@ public final class TunnelController: @unchecked Sendable {
         if let socketOperation = pendingSocketOperation {
             switch socketOperation {
             case .rebind:
-                attemptRebind(device)
+                attemptRebind(applied.device)
             case .resume:
-                attemptResume(device)
+                attemptResume(applied.device)
             }
         }
 
-        if !pendingHostnameIndices.isEmpty {
-            let updated = resolvePendingHostnameEndpoints(
-                device: device,
-                resolvedTunnel: resolvedTunnel,
-                pendingIndices: pendingHostnameIndices
-            )
-            state = .running(
-                device: device,
-                tunnel: tunnel,
-                resolvedTunnel: updated.resolvedTunnel,
-                paused: paused,
-                endpointResolutionPolicy: endpointPolicy,
-                pendingHostnameIndices: updated.remainingIndices
-            )
-            if updated.remainingIndices.isEmpty && pendingSocketOperation == nil {
+        if !applied.pendingHostnameIndices.isEmpty {
+            refreshHostnameEndpoints(for: &applied)
+            state = .running(applied)
+            if applied.pendingHostnameIndices.isEmpty && pendingSocketOperation == nil {
                 retryAttempts = 0
-            } else if !updated.remainingIndices.isEmpty && self.nextRetry == nil {
-                retryAttempts += 1
-                scheduleRetryTimer()
+            } else {
+                scheduleEndpointRetryIfNeeded()
             }
         }
     }
 
-    private func resolvePendingHostnameEndpoints(
-        device: WireGuardDevice,
-        resolvedTunnel: ResolvedTunnel,
-        pendingIndices: Set<Int>
-    ) -> (resolvedTunnel: ResolvedTunnel, remainingIndices: Set<Int>) {
-        let peers = resolvedTunnel.profile.peers
-        var updatedTunnel = resolvedTunnel
-        var remaining = pendingIndices
+    private func refreshEndpoints(for applied: inout AppliedTunnel, refreshAllHostnames: Bool) {
+        if refreshAllHostnames {
+            applied.pendingHostnameIndices.formUnion(applied.profile.peers.indices.filter {
+                applied.profile.peers[$0].endpoint?.hostname != nil
+            })
+        }
+        refreshHostnameEndpoints(for: &applied)
+
+        if pauseOnOffline {
+            var updates: [WireGuardPublicKey: IPEndpoint?] = [:]
+            for peer in applied.profile.peers {
+                guard let literal = peer.endpoint?.ipEndpoint,
+                      let adapted = adaptEndpoint(literal) else { continue }
+                updates[peer.publicKey] = adapted
+            }
+            if !updates.isEmpty {
+                applied.device.updateEndpoints(updates)
+            }
+        }
+        #if os(iOS)
+        applied.device.disableSomeRoamingForBrokenMobileSemantics()
+        #endif
+    }
+
+    private func refreshHostnameEndpoints(for applied: inout AppliedTunnel) {
+        guard !applied.pendingHostnameIndices.isEmpty else { return }
+        let peers = applied.profile.peers
+        let indices = applied.pendingHostnameIndices.sorted()
+        let results = resolveEndpoints(indices.map { peers[$0].endpoint })
         var updates: [WireGuardPublicKey: IPEndpoint?] = [:]
 
-        let sortedIndices = pendingIndices.sorted()
-        let queryEndpoints: [Endpoint?] = sortedIndices.map { index in
-            index < peers.count ? peers[index].endpoint : nil
-        }
-        let results = resolveEndpoints(queryEndpoints)
-
-        for (offset, peerIndex) in sortedIndices.enumerated() {
-            guard peerIndex < peers.count,
-                  let originalEndpoint = peers[peerIndex].endpoint,
-                  let hostname = originalEndpoint.hostname else {
-                remaining.remove(peerIndex)
-                continue
-            }
-            guard let result = results[offset] else { continue }
+        for (index, result) in zip(indices, results) {
+            guard let hostname = peers[index].endpoint?.hostname, let result else { continue }
             switch result {
             case .success(let resolved):
                 endpointCache.store(resolvedEndpoint: resolved, for: hostname)
-                updatedTunnel.endpoints[peerIndex] = resolved
-                remaining.remove(peerIndex)
-                updates[peers[peerIndex].publicKey] = resolved
+                guard let adapted = adaptEndpoint(resolved) else { continue }
+                updates[peers[index].publicKey] = adapted
+                applied.pendingHostnameIndices.remove(index)
                 logHandler(.verbose, "Resolved pending endpoint \(hostname) to \(resolved.address)")
             case .failure(let error):
                 logHandler(
@@ -859,10 +931,19 @@ public final class TunnelController: @unchecked Sendable {
         }
 
         if !updates.isEmpty {
-            device.updateEndpoints(updates)
+            applied.device.updateEndpoints(updates)
         }
+    }
 
-        return (updatedTunnel, remaining)
+    private func adaptEndpoint(_ endpoint: IPEndpoint) -> IPEndpoint? {
+        do {
+            let adapted = try reresolveEndpoint(endpoint)
+            logEndpointReresolutionResults(initialEndpoints: [endpoint], results: [.success(adapted)])
+            return adapted
+        } catch {
+            logHandler(.error, "Failed to resolve endpoint \(endpoint.address): \(error.localizedDescription)")
+            return nil
+        }
     }
 
     // MARK: - Settings & DNS Resolution
@@ -950,46 +1031,6 @@ public final class TunnelController: @unchecked Sendable {
                 return nil
             case .none:
                 return nil
-            }
-        }
-    }
-
-    private func setNetworkSettings(
-        _ networkSettings: NEPacketTunnelNetworkSettings,
-        on provider: any TunnelProviderHost
-    ) throws {
-        final class WaitState: @unchecked Sendable {
-            let condition = NSCondition()
-            var systemError: Error?
-            var completed = false
-            var timedOut = false
-        }
-
-        let waitState = WaitState()
-        scheduleSettingsTimeout {
-            waitState.condition.withLock {
-                waitState.timedOut = true
-                waitState.condition.signal()
-            }
-        }
-        provider.setTunnelNetworkSettings(networkSettings) { error in
-            waitState.condition.withLock {
-                waitState.systemError = error
-                waitState.completed = true
-                waitState.condition.signal()
-            }
-        }
-
-        try waitState.condition.withLock {
-            while !waitState.completed && !waitState.timedOut {
-                waitState.condition.wait()
-            }
-            guard waitState.completed else {
-                logHandler(.error, "setTunnelNetworkSettings timed out after 5 seconds; proceeding anyway")
-                return
-            }
-            if let systemError = waitState.systemError {
-                throw TunnelControllerError.setNetworkSettings(systemError)
             }
         }
     }
