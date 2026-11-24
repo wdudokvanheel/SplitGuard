@@ -36,13 +36,13 @@ public enum TunnelProfileCodec {
             case .interfaceHasNoPrivateKey:
                 return "Interface is missing a PrivateKey."
             case .interfaceHasInvalidPrivateKey:
-                return "Interface PrivateKey is not a valid 32-byte base64 key."
+                return "Interface PrivateKey must be a nonzero 32-byte key in base64 encoding."
             case .interfaceHasInvalidListenPort(let value):
                 return "Interface ListenPort \"\(value)\" is invalid."
             case .interfaceHasInvalidAddress(let value):
                 return "Interface Address \"\(value)\" is invalid."
             case .interfaceHasInvalidMTU(let value):
-                return "Interface MTU \"\(value)\" is invalid."
+                return InterfaceConfiguration.invalidMTUDescription(value)
             case .interfaceHasUnrecognizedKey(let key):
                 return "Unrecognized Interface key \"\(key)\"."
             case .peerHasNoPublicKey:
@@ -150,6 +150,10 @@ public enum TunnelProfileCodec {
     private static let peerKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
 
     public static func parse(_ wgQuickConfig: String, name: String = "") throws -> TunnelProfile {
+        try parse(wgQuickConfig, name: name, allowUnsupportedMTU: false)
+    }
+
+    static func parse(_ wgQuickConfig: String, name: String, allowUnsupportedMTU: Bool) throws -> TunnelProfile {
         var interfaceConfiguration: InterfaceConfiguration?
         var peerConfigurations: [PeerConfiguration] = []
         var directives = DirectiveAccumulator()
@@ -162,7 +166,7 @@ public enum TunnelProfileCodec {
             case .notInASection:
                 break
             case .inInterfaceSection:
-                let parsedInterface = try collateInterface(attributes)
+                let parsedInterface = try collateInterface(attributes, allowUnsupportedMTU: allowUnsupportedMTU)
                 guard interfaceConfiguration == nil else {
                     throw ParseError.multipleInterfaces
                 }
@@ -307,7 +311,10 @@ public enum TunnelProfileCodec {
 
     // MARK: - Section Collation
 
-    private static func collateInterface(_ attributes: [String: String]) throws -> InterfaceConfiguration {
+    private static func collateInterface(
+        _ attributes: [String: String],
+        allowUnsupportedMTU: Bool
+    ) throws -> InterfaceConfiguration {
         guard let privateKeyString = attributes["privatekey"] else {
             throw ParseError.interfaceHasNoPrivateKey
         }
@@ -350,7 +357,8 @@ public enum TunnelProfileCodec {
         }
 
         if let mtuString = attributes["mtu"] {
-            guard let mtu = parseUnsignedDecimal(mtuString[...], as: UInt16.self) else {
+            guard let mtu = parseUnsignedDecimal(mtuString[...], as: UInt16.self),
+                  allowUnsupportedMTU || InterfaceConfiguration.isSupportedMTU(mtu) else {
                 throw ParseError.interfaceHasInvalidMTU(mtuString)
             }
             config.mtu = mtu

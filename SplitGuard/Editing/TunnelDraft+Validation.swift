@@ -157,7 +157,7 @@ private extension TunnelDraft {
             output.errorFields.insert(.privateKey)
             output.messages.append(String(
                 localized: "alert.invalidInterface.privateKeyInvalid",
-                defaultValue: "Interface’s private key must be a 32-byte key in base64 encoding"
+                defaultValue: "Interface’s private key must be a nonzero 32-byte key in base64 encoding"
             ))
             return nil
         }
@@ -197,11 +197,12 @@ private extension TunnelDraft {
     func parseOptionalMTU(_ raw: String, into output: inout InterfaceValidationOutput) -> UInt16? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        guard let value = Self.parseUInt16(trimmed), value >= 576 else {
+        guard let value = Self.parseUInt16(trimmed), InterfaceConfiguration.isSupportedMTU(value) else {
+            let range = InterfaceConfiguration.supportedMTURange
             output.errorFields.insert(.mtu)
             output.messages.append(String(
                 localized: "alert.invalidInterface.mtuInvalid",
-                defaultValue: "Interface’s MTU must be between 576 and 65535, or unspecified"
+                defaultValue: "Enter an MTU between \(range.lowerBound) and \(range.upperBound), or leave it blank for Automatic"
             ))
             return nil
         }

@@ -128,7 +128,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Interface’s MTU must be between 576 and 65535, or unspecified"
+            "value" : "Enter an MTU between %lld and %lld, or leave it blank for Automatic"
           }
         }
       }
@@ -150,7 +150,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Interface’s private key must be a 32-byte key in base64 encoding"
+            "value" : "Interface’s private key must be a nonzero 32-byte key in base64 encoding"
           }
         }
       }

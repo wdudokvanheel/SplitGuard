@@ -170,6 +170,7 @@ public struct ProfileStore: Sendable {
     }
 
     public func save(_ profile: TunnelProfile, replacing oldReference: Data? = nil) throws -> Data {
+        try profile.interface.validateMTU()
         let serialized = TunnelProfileCodec.serialize(profile)
         let data = Data(serialized.utf8)
         let newReference = try keychain.add(
@@ -191,7 +192,8 @@ public struct ProfileStore: Sendable {
         guard let text = String(data: data, encoding: .utf8) else {
             throw ProfileStoreError.invalidUTF8Data
         }
-        return try TunnelProfileCodec.parse(text, name: name)
+        // Keep older profiles readable so users can repair an unsupported MTU in the editor.
+        return try TunnelProfileCodec.parse(text, name: name, allowUnsupportedMTU: true)
     }
 
     public func delete(reference: Data) {

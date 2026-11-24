@@ -56,12 +56,15 @@ public struct WireGuardPrivateKey: Equatable, Sendable {
 
     public init?(rawValue: Data, preservingZero: Bool = false) {
         guard rawValue.count == Self.byteCount else { return nil }
-        var key = rawValue
-        if !preservingZero || !SecretBytes.isZero(key) {
-            key[key.startIndex] &= 248
-            let last = key.index(before: key.endIndex)
-            key[last] = (key[last] & 127) | 64
+        if SecretBytes.isZero(rawValue) {
+            guard preservingZero else { return nil }
+            self.rawValue = rawValue
+            return
         }
+        var key = rawValue
+        key[key.startIndex] &= 248
+        let last = key.index(before: key.endIndex)
+        key[last] = (key[last] & 127) | 64
         self.rawValue = key
     }
 

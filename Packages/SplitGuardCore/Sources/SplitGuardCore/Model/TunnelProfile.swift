@@ -5,11 +5,14 @@ import WireGuardEngine
 
 public enum TunnelProfileError: Error, Equatable, LocalizedError, Sendable {
     case duplicatePeerPublicKey
+    case unsupportedMTU(UInt16)
 
     public var errorDescription: String? {
         switch self {
         case .duplicatePeerPublicKey:
             return "Two or more peers have the same public key."
+        case .unsupportedMTU(let value):
+            return InterfaceConfiguration.invalidMTUDescription(String(value))
         }
     }
 }
