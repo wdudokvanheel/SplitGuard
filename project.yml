@@ -41,6 +41,7 @@ targets:
       - path: Vendor/wireguard-apple/Sources/Shared
         excludes:
           - NotificationToken.swift
+      - path: Tools/wg-interop/Shared
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
@@ -80,6 +81,8 @@ targets:
           - SplitGuard.entitlements
           - SplitGuard-Bridging-Header.h
       - path: Vendor/wireguard-apple/Sources/Shared
+      - path: Tools/wg-interop/Device
+      - path: Tools/wg-interop/Shared
       - path: Vendor/wireguard-apple/Sources/WireGuardApp
         excludes:
           - ZipArchive/3rdparty/minizip/MiniZip64_info.txt
