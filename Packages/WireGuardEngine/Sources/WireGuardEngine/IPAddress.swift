@@ -14,12 +14,18 @@ public struct IPAddress: Hashable, CustomStringConvertible {
     var bitCount: Int { isIPv6 ? 128 : 32 }
 
     public init?(bytes: some Collection<UInt8>) {
+        self.init(bytes: bytes, zoneID: nil)
+    }
+
+    /// Create an address from BSD socket bytes and an optional IPv6 scope identifier.
+    public init?(bytes: some Collection<UInt8>, zoneID: String?) {
         switch bytes.count {
-        case 4:
+        case 4 where zoneID == nil:
             self.init(isIPv6: false, high: 0, low: Self.networkWord(bytes))
         case 16:
             self.init(
-                isIPv6: true, high: Self.networkWord(bytes.prefix(8)), low: Self.networkWord(bytes.suffix(8))
+                isIPv6: true, high: Self.networkWord(bytes.prefix(8)), low: Self.networkWord(bytes.suffix(8)),
+                zone: zoneID.map { Array($0.utf8) } ?? []
             )
         default:
             return nil
