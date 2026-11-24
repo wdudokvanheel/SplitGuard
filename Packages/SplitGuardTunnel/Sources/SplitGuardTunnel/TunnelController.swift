@@ -153,7 +153,7 @@ public final class TunnelController: @unchecked Sendable {
     private let endpointCache: any EndpointCaching
     private let resolveEndpoints: @Sendable ([Endpoint?]) -> [Result<IPEndpoint, EndpointResolutionError>?]
     private let reresolveEndpoint: (IPEndpoint) throws -> IPEndpoint
-    private let settingsTimeout: TimeInterval
+    private let scheduleSettingsTimeout: @Sendable (@escaping @Sendable () -> Void) -> Void
     private let physicalResolver: any PhysicalResolver
 
     private let workQueue = DispatchQueue(label: "SplitGuard.TunnelController.work")
@@ -214,7 +214,9 @@ public final class TunnelController: @unchecked Sendable {
             EndpointResolver.resolve($0)
         },
         reresolveEndpoint: @escaping (IPEndpoint) throws -> IPEndpoint = EndpointResolver.reresolve,
-        settingsTimeout: TimeInterval = 5,
+        scheduleSettingsTimeout: @escaping @Sendable (@escaping @Sendable () -> Void) -> Void = { expire in
+            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(5), execute: expire)
+        },
         physicalResolver: any PhysicalResolver = DNSSDResolver(),
         logHandler: @escaping @Sendable (TunnelLogLevel, String) -> Void
     ) {
@@ -226,7 +228,7 @@ public final class TunnelController: @unchecked Sendable {
         self.endpointCache = endpointCache
         self.resolveEndpoints = resolveEndpoints
         self.reresolveEndpoint = reresolveEndpoint
-        self.settingsTimeout = settingsTimeout
+        self.scheduleSettingsTimeout = scheduleSettingsTimeout
         self.physicalResolver = physicalResolver
         self.logHandler = logHandler
 
@@ -960,9 +962,16 @@ public final class TunnelController: @unchecked Sendable {
             let condition = NSCondition()
             var systemError: Error?
             var completed = false
+            var timedOut = false
         }
 
         let waitState = WaitState()
+        scheduleSettingsTimeout {
+            waitState.condition.withLock {
+                waitState.timedOut = true
+                waitState.condition.signal()
+            }
+        }
         provider.setTunnelNetworkSettings(networkSettings) { error in
             waitState.condition.withLock {
                 waitState.systemError = error
@@ -971,13 +980,13 @@ public final class TunnelController: @unchecked Sendable {
             }
         }
 
-        let deadline = Date().addingTimeInterval(settingsTimeout)
         try waitState.condition.withLock {
-            while !waitState.completed {
-                if !waitState.condition.wait(until: deadline), !waitState.completed {
-                    logHandler(.error, "setTunnelNetworkSettings timed out after 5 seconds; proceeding anyway")
-                    return
-                }
+            while !waitState.completed && !waitState.timedOut {
+                waitState.condition.wait()
+            }
+            guard waitState.completed else {
+                logHandler(.error, "setTunnelNetworkSettings timed out after 5 seconds; proceeding anyway")
+                return
             }
             if let systemError = waitState.systemError {
                 throw TunnelControllerError.setNetworkSettings(systemError)
