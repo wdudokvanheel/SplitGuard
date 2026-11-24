@@ -64,6 +64,8 @@ final class DeviceIO: @unchecked Sendable {
     }
     var run: UInt64 = 0
     var bindGeneration: UInt64 = 0
+    // The tunnel read registration and its run token stay live during a pause.
+    var deliveryGeneration: UInt64 = 0
     var brokenRoaming = false
     var readyPeers = ReadyPeers()
     var stagedCount = 0
@@ -184,36 +186,42 @@ extension WireGuardDevice {
 
     /// Pause dispatching packets and retire UDP sockets and peer sessions while keeping
     /// the tunnel read registration, static configuration, and byte/handshake statistics alive.
+    /// Any adapter submissions already in progress finish before this method returns.
     public func pause(reason: PauseReason = .offline) throws {
         guard let io else { return }
         try io.withHandshakeLane {
-            try lock.withLock {
-                switch io.state {
-                case .down, .closed:
-                    return
-                case .paused(let current):
-                    if current != reason {
-                        io.state = .paused(reason)
-                        emitEvent(.stateChanged(.paused(reason)))
-                    }
-                    return
-                case .up:
-                    break
-                }
-                io.state = .paused(reason)
-                io.inbound.register(nil, discard: true)
-                io.handshake.register(nil, discard: true)
-                io.outbound.discardPending()
-                defer {
-                    io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
-                    flushPendingDrops(force: true)
-                    for peer in peers.values { stopPeer(peer) }
-                    armNextDeadline(io)
+            try withSubmissionLocks { try pauseLocked(io, reason: reason) }
+        }
+    }
+
+    private func pauseLocked(_ io: DeviceIO, reason: PauseReason) throws {
+        try lock.withLock {
+            switch io.state {
+            case .down, .closed:
+                return
+            case .paused(let current):
+                if current != reason {
+                    io.state = .paused(reason)
                     emitEvent(.stateChanged(.paused(reason)))
                 }
-                boundPort = 0
-                try io.transport.unbind()
+                return
+            case .up:
+                break
             }
+            io.state = .paused(reason)
+            io.deliveryGeneration &+= 1
+            io.inbound.register(nil, discard: true)
+            io.handshake.register(nil, discard: true)
+            io.outbound.discardPending()
+            defer {
+                io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
+                flushPendingDrops(force: true)
+                for peer in peers.values { stopPeer(peer) }
+                armNextDeadline(io)
+                emitEvent(.stateChanged(.paused(reason)))
+            }
+            boundPort = 0
+            try io.transport.unbind()
         }
     }
 
@@ -249,42 +257,53 @@ extension WireGuardDevice {
     /// Stop dispatching packets and retire all sessions. Static configuration and
     /// statistics persist. An adapter may still call an old receive closure after down.
     public func down() throws {
-        try lock.withLock {
-            guard let io else { return }
-            switch io.state {
-            case .up, .paused:
-                try stopLocked(io, finalState: .down, emitStateChange: true)
-            case .down, .closed:
-                return
+        try withSubmissionLocks {
+            try lock.withLock {
+                guard let io else { return }
+                switch io.state {
+                case .up, .paused:
+                    try stopLocked(io, finalState: .down, emitStateChange: true)
+                case .down, .closed:
+                    return
+                }
             }
         }
     }
 
     /// Permanently release the adapters and remove the device's peers.
     public func close() {
-        lock.withLock {
-            if let io {
-                guard io.state != .closed else { return }
-                switch io.state {
-                case .up, .paused:
-                    _ = try? stopLocked(io, finalState: .closed, emitStateChange: true)
-                case .down, .closed:
-                    io.state = .closed
-                    flushPendingDrops(force: true)
+        withSubmissionLocks {
+            lock.withLock {
+                if let io {
+                    guard io.state != .closed else { return }
+                    switch io.state {
+                    case .up, .paused:
+                        _ = try? stopLocked(io, finalState: .closed, emitStateChange: true)
+                    case .down, .closed:
+                        io.state = .closed
+                        flushPendingDrops(force: true)
+                    }
+                    io.tunnel.close()
+                    io.deadlines.update(peer: nil, kind: .collectRateLimiter, time: nil)
+                    io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
+                    armNextDeadline(io)
+                    io.limiter.reset()
                 }
-                io.tunnel.close()
-                io.deadlines.update(peer: nil, kind: .collectRateLimiter, time: nil)
-                io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
-                armNextDeadline(io)
-                io.limiter.reset()
+                for key in Array(peers.keys) { removePeer(key) }
+                io?.scheduler.cancel()
             }
-            for key in Array(peers.keys) { removePeer(key) }
-            io?.scheduler.cancel()
+        }
+    }
+
+    private func withSubmissionLocks<Result>(_ body: () throws -> Result) rethrows -> Result {
+        try transportSubmission.withLock {
+            try tunnelSubmission.withLock(body)
         }
     }
 
     private func stopLocked(_ io: DeviceIO, finalState: DeviceIO.State, emitStateChange: Bool) throws {
         io.state = finalState
+        io.deliveryGeneration &+= 1
         io.outbound.register(nil, discard: true)
         io.inbound.register(nil, discard: true)
         io.handshake.register(nil, discard: true)

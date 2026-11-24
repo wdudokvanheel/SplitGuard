@@ -47,7 +47,8 @@ public extension TunnelDevice {
 ///
 /// Send calls may run concurrently with control operations (such as rebind or unbind). Keep
 /// send bounded in time, thread-safe with respect to bind/unbind, and report local send errors
-/// via throws. A successful send means the datagram was handed to the transport.
+/// via throws. Do not call device control methods from adapter methods. A successful send
+/// means the datagram was handed to the transport.
 public protocol UDPTransport: AnyObject {
     func bind(port: UInt16, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16
     func bind(port: UInt16, interfaceIndex: UInt32?, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16

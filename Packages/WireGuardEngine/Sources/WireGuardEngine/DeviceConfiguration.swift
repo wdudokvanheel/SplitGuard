@@ -57,10 +57,13 @@ extension WireGuardDevice {
     ///
     /// Validation runs completely before any state mutation. Existing peers that remain
     /// present retain their `WireGuardPeer` instance, active `SessionKeypairs`, counters,
-    /// handshake timestamps, and health state.
+    /// handshake timestamps, and health state. Staged packets are dropped if their
+    /// original peer no longer owns the destination at transport submission.
     public func apply(_ configuration: DeviceConfiguration) throws {
         if let io {
-            try io.withHandshakeLane { try applyTypedConfiguration(configuration) }
+            try io.withHandshakeLane {
+                try transportSubmission.withLock { try applyTypedConfiguration(configuration) }
+            }
         } else {
             try applyTypedConfiguration(configuration)
         }

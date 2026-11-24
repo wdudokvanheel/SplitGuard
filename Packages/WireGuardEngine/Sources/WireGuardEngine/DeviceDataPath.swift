@@ -3,11 +3,17 @@
 import CryptoKit
 import Foundation
 
+struct StagedPacket {
+    let data: Data
+    // Keepalives use a peer session without an IP destination.
+    let destination: IPAddress?
+}
+
 private struct StagedTransport {
     let peer: WireGuardPeer
     let session: SessionKeypair
     let counter: UInt64
-    let packet: Data
+    let packet: StagedPacket
     let run: UInt64
 }
 
@@ -49,7 +55,8 @@ extension WireGuardDevice {
                 recordDrop(.noRoute)
                 return
             }
-            if stage(incoming.data, for: peer, io: io, requireRunning: true) {
+            let packet = StagedPacket(data: incoming.data, destination: route.address)
+            if stage(packet, for: peer, io: io, requireRunning: true) {
                 scheduleStagedDrain(peer, io: io, wake: true)
             }
         }
@@ -57,7 +64,7 @@ extension WireGuardDevice {
 
     /// Stages a packet for `peer`. Returns true if the peer has at least one staged packet ready to drain.
     @discardableResult
-    private func stage(_ packet: Data, for peer: WireGuardPeer, io: DeviceIO, requireRunning: Bool = false) -> Bool {
+    private func stage(_ packet: StagedPacket, for peer: WireGuardPeer, io: DeviceIO, requireRunning: Bool = false) -> Bool {
         enum StageOutcome {
             case skipped
             case staged
@@ -165,7 +172,7 @@ extension WireGuardDevice {
         case .skipped:
             return
         case .needsStage:
-            if stage(Data(), for: peer, io: io) {
+            if stage(StagedPacket(data: Data(), destination: nil), for: peer, io: io) {
                 scheduleStagedDrain(peer, io: io, wake: true)
             }
         case .ready:
@@ -203,7 +210,7 @@ extension WireGuardDevice {
             enum TakeAction {
                 case skip
                 case initiate
-                case send(SessionKeypair, UInt64, Data, Bool)
+                case send(SessionKeypair, UInt64, StagedPacket, Bool)
             }
             let action: TakeAction = peer.withState { state in
                 guard state.running, state.staged.count > 0 else { return .skip }
@@ -248,17 +255,18 @@ extension WireGuardDevice {
 
     private func encryptAndSend(_ work: StagedTransport, io: DeviceIO) {
         let header = TransportHeader(receiver: work.session.remoteIndex, counter: work.counter)
+        let packet = work.packet.data
         let mtu = io.tunnel.mtu
-        let padding = min(Self.maxContentSize - work.packet.count,
-                          Self.paddingSize(work.packet.count, mtu: mtu < 0 ? 1420 : min(mtu, Self.maxContentSize)))
+        let padding = min(Self.maxContentSize - packet.count,
+                          Self.paddingSize(packet.count, mtu: mtu < 0 ? 1420 : min(mtu, Self.maxContentSize)))
         let payload: Data
         if padding == 0 {
-            payload = work.packet
+            payload = packet
         } else {
             // The outbound lane owns this reusable scratch buffer. Tunnel and UDP
             // buffers keep their value ownership at the adapter boundary.
             io.paddingScratch.removeAll(keepingCapacity: true)
-            io.paddingScratch.append(work.packet)
+            io.paddingScratch.append(packet)
             io.paddingScratch.append(Self.paddingZeros.prefix(padding))
             payload = io.paddingScratch
         }
@@ -269,12 +277,23 @@ extension WireGuardDevice {
         datagram.append(box.ciphertext)
         datagram.append(box.tag)
 
+        transportSubmission.withLock {
+            submitTransport(datagram, work: work, io: io)
+        }
+    }
+
+    private func submitTransport(_ datagram: Data, work: StagedTransport, io: DeviceIO) {
         let peer = work.peer
         let endpoint: IPEndpoint? = lock.withLock {
             guard work.run == io.run, io.state == .up, peers[peer.publicKey] === peer,
                   !work.session.isSendingExpired,
                   case .keypair(let owner, let session)? = indices.lookup(work.session.localIndex),
                   owner === peer, session === work.session else { return nil }
+            if let destination = work.packet.destination, allowedIPs.lookup(destination) !== peer {
+                io.stagedDrops += 1
+                recordDrop(.noRoute)
+                return nil
+            }
             let peerSnapshot: (running: Bool, endpoint: IPEndpoint?, keepaliveInterval: UInt16) = peer.withState {
                 ($0.running, $0.endpoint, $0.persistentKeepaliveInterval)
             }
@@ -287,7 +306,7 @@ extension WireGuardDevice {
             }
             timerAuthenticatedTraversal(peer, interval: peerSnapshot.keepaliveInterval, io: io)
             timerAuthenticatedSent(peer, io: io)
-            if !work.packet.isEmpty { timerDataSent(peer, io: io) }
+            if work.packet.destination != nil { timerDataSent(peer, io: io) }
             return peerSnapshot.endpoint
         }
         guard let endpoint else { return }
@@ -355,25 +374,33 @@ extension WireGuardDevice {
     }
 
     func decryptTransportBatch(_ batch: [DeviceIO.EncryptedTransport]) {
-        guard let io else { return }
+        guard let io, let generation = lock.withLock({
+            io.state == .up ? io.deliveryGeneration : nil
+        }) else { return }
         var outgoing: [Data] = []
         outgoing.reserveCapacity(batch.count)
         for work in batch {
-            if let packet = decryptTransport(work, io: io) {
+            if let packet = decryptTransport(work, io: io, generation: generation) {
                 outgoing.append(packet)
             }
         }
-        if !outgoing.isEmpty {
-            if let (hook, filter) = currentHook() {
-                for packet in outgoing where filter.matches(packet, inbound: true) {
-                    hook.inbound(packet)
-                }
+        guard !outgoing.isEmpty else { return }
+        if let (hook, filter) = currentHook() {
+            for packet in outgoing where filter.matches(packet, inbound: true) {
+                hook.inbound(packet)
             }
-            try? io.tunnel.writeBatch(outgoing)
+        }
+        tunnelSubmission.withLock {
+            guard lock.withLock({ io.state == .up && io.deliveryGeneration == generation }) else { return }
+            do {
+                try io.tunnel.writeBatch(outgoing)
+            } catch {
+                recordDrop(.tunnelWriteFailed, count: outgoing.count)
+            }
         }
     }
 
-    private func decryptTransport(_ work: DeviceIO.EncryptedTransport, io: DeviceIO) -> Data? {
+    private func decryptTransport(_ work: DeviceIO.EncryptedTransport, io: DeviceIO, generation: UInt64) -> Data? {
         let sealed = work.wire.data.dropFirst(TransportHeader.size)
         guard let nonce = work.header.withNonceBytes({ try? ChaChaPoly.Nonce(data: $0) }),
               let box = try? ChaChaPoly.SealedBox(
@@ -382,7 +409,8 @@ extension WireGuardDevice {
               ),
               let plaintext = try? ChaChaPoly.open(box, using: work.keypair.receiveKey) else { return nil }
         return lock.withLock {
-            guard work.wire.run == io.run, canRun(work.peer, io: io) else { return nil }
+            guard generation == io.deliveryGeneration, work.wire.run == io.run,
+                  canRun(work.peer, io: io) else { return nil }
             return receiveAuthenticated(plaintext, work, io: io)
         }
     }

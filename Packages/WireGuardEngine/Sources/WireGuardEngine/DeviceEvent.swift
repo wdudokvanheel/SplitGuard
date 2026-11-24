@@ -12,6 +12,8 @@ public enum DropReason: String, Codable, Sendable, Equatable {
     case invalidPacket
     case paused
     case hookDropped
+    /// Packets in a failed adapter write batch. An adapter may have delivered a prefix of the batch.
+    case tunnelWriteFailed
 }
 
 public enum DeviceEvent: Sendable, Equatable {

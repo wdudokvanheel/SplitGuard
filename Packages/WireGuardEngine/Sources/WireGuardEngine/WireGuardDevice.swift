@@ -15,6 +15,10 @@ public final class WireGuardDevice: @unchecked Sendable {
     // Live transitions use the same lock as Noise and configuration updates. The handshake
     // pipeline can use the existing locked Noise methods as part of a larger atomic transition.
     let lock = NSRecursiveLock()
+    // Final adapter submissions use separate locks to keep I/O off the device lock.
+    // Take these before the device lock, and the transport lock before the tunnel lock.
+    let transportSubmission = NSLock()
+    let tunnelSubmission = NSLock()
     let io: DeviceIO?
     let events = DeviceEventDispatcher()
     let hookStorage = PacketHookStorage()

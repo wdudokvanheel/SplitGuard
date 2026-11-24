@@ -30,7 +30,7 @@ final class WireGuardPeer: @unchecked Sendable {
         var handshakeAttempts = 0
         var needAnotherKeepalive = false
         var sentLastMinuteHandshake = false
-        var staged = PacketQueue<Data>(capacity: WireGuardDevice.stagedCapacity)
+        var staged = PacketQueue<StagedPacket>(capacity: WireGuardDevice.stagedCapacity)
 
         init(publicKey: NoisePublicKey) {
             cookieGenerator = CookieGenerator(for: publicKey)

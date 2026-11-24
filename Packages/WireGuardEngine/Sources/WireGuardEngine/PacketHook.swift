@@ -115,13 +115,11 @@ extension WireGuardDevice {
                 throw PacketDeliveryError.invalidPacket
             }
         }
-        let tunnel: TunnelDevice? = lock.withLock {
-            guard let io, io.state == .up else { return nil }
-            return io.tunnel
+        try tunnelSubmission.withLock {
+            guard let io, lock.withLock({ io.state == .up }) else {
+                throw PacketDeliveryError.deviceNotRunning
+            }
+            try io.tunnel.write(packet)
         }
-        guard let tunnel else {
-            throw PacketDeliveryError.deviceNotRunning
-        }
-        try tunnel.write(packet)
     }
 }
