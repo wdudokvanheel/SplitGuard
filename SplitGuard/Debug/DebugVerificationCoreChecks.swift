@@ -16,49 +16,6 @@ enum DebugVerificationCoreChecks {
         let detail: String
     }
 
-    static func reviewRegression(_ id: AutomatedCheckID) -> AutomatedCheckResult {
-        measure(id) {
-            let failures: [String]
-            switch id {
-            case .zeroKeyBoundary, .mtuBoundary:
-                let profile = try makeFullSampleProfile(name: "BoundaryFixture")
-                let text = TunnelProfileCodec.serialize(profile)
-                var draft = TunnelDraft(profile: profile)
-                if id == .zeroKeyBoundary {
-                    let zero = Data(repeating: 0, count: 32).base64EncodedString()
-                    draft.interface.privateKey = zero
-                    let invalid = text.replacingOccurrences(of: profile.interface.privateKey.base64, with: zero)
-                    failures = inputMismatches(draft, invalid, expectingValid: false)
-                } else {
-                    var results: [String] = []
-                    for mtu in [WireGuardDevice.maxContentSize, WireGuardDevice.maxContentSize + 1] {
-                        draft.interface.mtu = String(mtu)
-                        let config = text.replacingOccurrences(of: "MTU = 1280", with: "MTU = \(mtu)")
-                        results += inputMismatches(draft, config, expectingValid: mtu == WireGuardDevice.maxContentSize)
-                            .map { "MTU \(mtu) \($0)" }
-                    }
-                    failures = results
-                }
-            case .liveVerdictFixtures:
-                failures = DebugVerificationLiveChecks.verdictMismatches()
-            default:
-                throw CheckError(message: "Unknown regression fixture")
-            }
-            return CheckPayload(status: failures.isEmpty ? .passed : .failed,
-                                summary: failures.isEmpty ? "Fixture expectations met" : failures.joined(separator: ", "),
-                                detail: failures.joined(separator: "\n"))
-        }
-    }
-
-    private static func inputMismatches(_ draft: TunnelDraft, _ text: String, expectingValid: Bool) -> [String] {
-        let imported = (try? TunnelProfileCodec.parse(text)) != nil
-        let edited = (try? draft.validate().get()) != nil
-        var failures = [String]()
-        if imported != expectingValid { failures.append("import accepted=\(imported)") }
-        if edited != expectingValid { failures.append("editor accepted=\(edited)") }
-        return failures
-    }
-
     static func runAppGroupAndLoggingCheck(
         bundle: Bundle = .main,
         fileManager: FileManager = .default

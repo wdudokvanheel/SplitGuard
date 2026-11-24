@@ -29,7 +29,8 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var category: String {
         switch self {
-        case .transientProfileRead, .zeroKeyBoundary, .mtuBoundary, .liveVerdictFixtures, .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
+        case .transientProfileRead, .zeroKeyBoundary, .mtuBoundary, .liveVerdictFixtures,
+             .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
              .onDemandAndDraftValidation, .importPasteCreateAndSort:
             return "Core, Import & Storage"
         case .neManagerCrudAndSort, .liveConnectMetricsDisconnect, .liveSwitchAndEditConnected,

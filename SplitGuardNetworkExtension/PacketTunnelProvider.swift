@@ -8,8 +8,12 @@ import WireGuardEngine
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
+    #if DEBUG && !targetEnvironment(simulator)
+    private let cacheProbe = DebugEndpointCacheProbe()
+    #endif
+
     private lazy var controller: TunnelController = {
-        return TunnelController(provider: self) { [weak self] logLevel, message in
+        let logger: @Sendable (TunnelLogLevel, String) -> Void = { [weak self] logLevel, message in
             #if DEBUG && !targetEnvironment(simulator)
             let prefixes = [
                 "Network change detected",
@@ -29,6 +33,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 Log.error(message)
             }
         }
+        #if DEBUG && !targetEnvironment(simulator)
+        return cacheProbe.makeController(provider: self, logHandler: logger)
+        #else
+        return TunnelController(provider: self, logHandler: logger)
+        #endif
     }()
 
     private let startErrorLock = NSLock()
@@ -178,21 +187,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
-        if profile.splitDNS.mode == .onlyDomains {
-            let domains = profile.splitDNS.normalizedDomainNames.joined(separator: ", ")
-            Log.info("Split DNS enabled for domains: \(domains)")
-        }
-        if profile.splitDNS.hasExclusions {
-            let exclusions = profile.splitDNS.exclusions.map {
-                $0.includesSubdomains ? $0.name : "\($0.name) (exact)"
-            }.joined(separator: ", ")
-            Log.info("Split DNS exclusions enabled: \(exclusions)")
-        }
+        logConfiguration(profile)
 
-        if profile.options.killSwitch.isEnabled {
-            Log.info("Kill switch enabled (allowLocalNetwork=\(profile.options.killSwitch.allowLocalNetwork))")
-        }
-
+        #if DEBUG && !targetEnvironment(simulator)
+        configureCacheProbe(options: options, configuration: tunnelProviderProtocol, profile: profile)
+        #endif
         controller.start(profile: profile) { [weak self] controllerError in
             guard let controllerError else {
                 Log.info("Tunnel started with WireGuard engine \(TunnelController.engineVersion)")
@@ -229,6 +228,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         guard let completionHandler else { return }
 
         #if DEBUG && !targetEnvironment(simulator)
+        if messageData == DebugCacheProbeMessage.request {
+            completionHandler(cacheProbe.cachedAddressUsed.map { Data($0.utf8) })
+            return
+        }
         if let provider = interopProfile,
            handleInteropMessage(messageData, provider: provider, completionHandler: completionHandler) {
             return
@@ -267,6 +270,32 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 }
 
 private extension PacketTunnelProvider {
+    #if DEBUG && !targetEnvironment(simulator)
+    func configureCacheProbe(options: [String: NSObject]?, configuration: NETunnelProviderProtocol, profile: TunnelProfile) {
+        let requestedRef = options?[DebugCacheProbeMessage.startOption] as? Data
+        let runProbe = requestedRef != nil && requestedRef == configuration.passwordReference
+            && profile.options.killSwitch.isEnabled && profile.peers.count == 1
+        cacheProbe.begin(blocking: runProbe ? profile.peers.first?.endpoint?.hostname : nil)
+    }
+    #endif
+
+    func logConfiguration(_ profile: TunnelProfile) {
+        if profile.splitDNS.mode == .onlyDomains {
+            let domains = profile.splitDNS.normalizedDomainNames.joined(separator: ", ")
+            Log.info("Split DNS enabled for domains: \(domains)")
+        }
+        if profile.splitDNS.hasExclusions {
+            let exclusions = profile.splitDNS.exclusions.map {
+                $0.includesSubdomains ? $0.name : "\($0.name) (exact)"
+            }.joined(separator: ", ")
+            Log.info("Split DNS exclusions enabled: \(exclusions)")
+        }
+
+        if profile.options.killSwitch.isEnabled {
+            Log.info("Kill switch enabled (allowLocalNetwork=\(profile.options.killSwitch.allowLocalNetwork))")
+        }
+    }
+
     static func logAndMapStartError(_ controllerError: TunnelControllerError) -> TunnelStartError {
         switch controllerError {
         case .dnsResolution(let dnsErrors):

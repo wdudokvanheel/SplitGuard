@@ -188,3 +188,10 @@ public enum TunnelStartError: Error, Codable, Equatable, Hashable, LocalizedErro
         }
     }
 }
+
+#if DEBUG && os(iOS) && !targetEnvironment(simulator)
+public enum DebugCacheProbeMessage {
+    public static let startOption = "debugEndpointCacheProbeReference"
+    public static let request = Data("SplitGuard.Debug.cachedAddressUsed".utf8)
+}
+#endif

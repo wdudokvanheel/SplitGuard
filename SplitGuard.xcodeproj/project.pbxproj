@@ -26,6 +26,7 @@
 		2A903186ECB1A15A64DCE645 /* InteropTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 453A1B77456556853BE24744 /* InteropTelemetry.swift */; };
 		2D07EFCA4534FA38DC00922F /* OnDemandPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE6AC3D54CBED4658CBFE7D /* OnDemandPolicy.swift */; };
 		2E68C5299449768567CA56A2 /* LogViewerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */; };
+		360A8F28671E481DDD2C426D /* SystemTunnelBackendReloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1004E767F751F66FE03DD573 /* SystemTunnelBackendReloadTests.swift */; };
 		38C34CB39E040D4369D97A77 /* TunnelLiveMetricsMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D949C22A5EAB79B7914F4D3B /* TunnelLiveMetricsMonitor.swift */; };
 		3C836C1652ECEAF7111CC35B /* LogViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D11E4CBFFF5A3AA4FDD8A0D /* LogViewerView.swift */; };
 		3D70C18625D4D7389F4D80F8 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */; };
@@ -71,6 +72,7 @@
 		A54355774D3799292CC22DF2 /* TunnelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD61FA8EC01D06D9B4EF132 /* TunnelStore.swift */; };
 		A6D03DF9F4139F85DDA8B6E4 /* PrivateDataConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D72BD677DCE56EA9965BC3 /* PrivateDataConfirmation.swift */; };
 		A80A1389A0B1B0298EA1AA97 /* TunnelError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0633B31E22E9FFB4E146B00D /* TunnelError.swift */; };
+		A86BA763C475847AB099631B /* DebugVerificationReviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81CDBBF10853A7A9E8CBBB9F /* DebugVerificationReviewFixtures.swift */; };
 		A8C55AB8BFAE766505EF94DB /* KillSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E917C7B55084B089925C8FE1 /* KillSwitchTests.swift */; };
 		AAA38D9EB1CA1424B6418A1F /* DebugVerificationCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75815BD69D8534E94715A465 /* DebugVerificationCatalog.swift */; };
 		AEF352C8AB8AB7B56C2183D7 /* TunnelDraft+Validation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FEF1C830ADD951598E97B8A /* TunnelDraft+Validation.swift */; };
@@ -160,6 +162,7 @@
 		0C9CB4F0091825D81393497C /* SplitDNSFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSFlowTests.swift; sourceTree = "<group>"; };
 		0D11E4CBFFF5A3AA4FDD8A0D /* LogViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerView.swift; sourceTree = "<group>"; };
 		0F09A8E9C7A1B09139E2C9BD /* OnDemandPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDemandPolicyTests.swift; sourceTree = "<group>"; };
+		1004E767F751F66FE03DD573 /* SystemTunnelBackendReloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTunnelBackendReloadTests.swift; sourceTree = "<group>"; };
 		134641E2A49CCE1245E11B16 /* TunnelImportExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelImportExportTests.swift; sourceTree = "<group>"; };
 		19A772A1AC6281A9CDF7E4FE /* SSIDOptionEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSIDOptionEditorView.swift; sourceTree = "<group>"; };
 		1A8DAFD7AC9C8490A078F5B2 /* TunnelStatus+Presentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStatus+Presentation.swift"; sourceTree = "<group>"; };
@@ -206,6 +209,7 @@
 		7D99E97C6418F5F136187077 /* InMemoryTunnelBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryTunnelBackend.swift; sourceTree = "<group>"; };
 		7EE73D70DC971740A1DC47AA /* DebugVerificationWizardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationWizardModel.swift; sourceTree = "<group>"; };
 		80FDD2266663749F240D22F5 /* DebugManualStepPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugManualStepPage.swift; sourceTree = "<group>"; };
+		81CDBBF10853A7A9E8CBBB9F /* DebugVerificationReviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationReviewFixtures.swift; sourceTree = "<group>"; };
 		81D4F3516E1C76A2E94CC214 /* PasteConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteConfigSheet.swift; sourceTree = "<group>"; };
 		8C43B7F862B195466AB27FE3 /* DebugVerificationNetworkChecks+LiveQuirks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DebugVerificationNetworkChecks+LiveQuirks.swift"; sourceTree = "<group>"; };
 		8D8FEB2C80BC5C7F3DB81FF1 /* BebasNeue-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BebasNeue-Regular.ttf"; sourceTree = "<group>"; };
@@ -368,6 +372,7 @@
 				0417C40241A46021A19D6370 /* LogViewerAndQuickActionsTests.swift */,
 				0F09A8E9C7A1B09139E2C9BD /* OnDemandPolicyTests.swift */,
 				0C9CB4F0091825D81393497C /* SplitDNSFlowTests.swift */,
+				1004E767F751F66FE03DD573 /* SystemTunnelBackendReloadTests.swift */,
 				AF8000D3BD6D700460EE1226 /* TunnelEditingAndDetailTests.swift */,
 				134641E2A49CCE1245E11B16 /* TunnelImportExportTests.swift */,
 				CB207AA35E836F51AECD7494 /* TunnelStoreStateMachineTests.swift */,
@@ -534,6 +539,7 @@
 				8C43B7F862B195466AB27FE3 /* DebugVerificationNetworkChecks+LiveQuirks.swift */,
 				540871D1C4C971C69BC27442 /* DebugVerificationNetworkChecks+Quirks.swift */,
 				4E8C8D2C59F11E47A90F843C /* DebugVerificationReportBuilder.swift */,
+				81CDBBF10853A7A9E8CBBB9F /* DebugVerificationReviewFixtures.swift */,
 				B5DF1A6231D4957C679DC35B /* DebugVerificationSummaryPage.swift */,
 				7EE73D70DC971740A1DC47AA /* DebugVerificationWizardModel.swift */,
 				0996B07931BEE28F5DB2705B /* DebugVerificationWizardView.swift */,
@@ -771,6 +777,7 @@
 				F85270BD19C4AE3BDFE5A9A6 /* DebugVerificationNetworkChecks+Quirks.swift in Sources */,
 				0C4F3891D1B2D571C8A47375 /* DebugVerificationNetworkChecks.swift in Sources */,
 				B68FB72F18AAA2D7DB88D882 /* DebugVerificationReportBuilder.swift in Sources */,
+				A86BA763C475847AB099631B /* DebugVerificationReviewFixtures.swift in Sources */,
 				9139AF43EE1CDEED28915B19 /* DebugVerificationSummaryPage.swift in Sources */,
 				78A1DBFE35A1D2073B6B565C /* DebugVerificationWizardModel.swift in Sources */,
 				83F63B84AD354DEF74815670 /* DebugVerificationWizardView.swift in Sources */,
@@ -838,6 +845,7 @@
 				5A45F7F24923090E09098791 /* LogViewerAndQuickActionsTests.swift in Sources */,
 				1D08575A49CE95718A859651 /* OnDemandPolicyTests.swift in Sources */,
 				99727E7C8CD479E9D89BE21D /* SplitDNSFlowTests.swift in Sources */,
+				360A8F28671E481DDD2C426D /* SystemTunnelBackendReloadTests.swift in Sources */,
 				81F19D40D893EF1ADFAEA630 /* TunnelEditingAndDetailTests.swift in Sources */,
 				8AC496038585E02D2E08EEE0 /* TunnelImportExportTests.swift in Sources */,
 				4E8C5289C67A5844030E66C5 /* TunnelStoreStateMachineTests.swift in Sources */,

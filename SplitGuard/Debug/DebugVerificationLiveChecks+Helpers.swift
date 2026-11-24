@@ -122,8 +122,16 @@ extension DebugVerificationLiveChecks {
         let strictFlags = await readProtocolKillSwitchFlags(named: name)
         try await stopAndWaitInactive(tunnel: tunnel, store: store)
 
-        try await activateAndWaitActive(tunnel: tunnel, store: store)
+        let session = try await startCacheProbe(named: name, tunnel: tunnel)
         let cachedMetrics = await driveTrafficAndAwaitMetrics(tunnel: tunnel, store: store)
+
+        let selected: String? = await withCheckedContinuation { continuation in
+            do {
+                try session.sendProviderMessage(DebugCacheProbeMessage.request) { response in
+                    continuation.resume(returning: response.flatMap { String(data: $0, encoding: .utf8) })
+                }
+            } catch { continuation.resume(returning: nil) }
+        }
 
         profile.options = TunnelOptions(killSwitch: .init(isEnabled: true, allowLocalNetwork: true))
         _ = try await store.updateTunnel(tunnel, profile: profile, onDemandPolicy: .off)
@@ -133,15 +141,32 @@ extension DebugVerificationLiveChecks {
         let detail = [
             "Strict KS flags: includeAll=\(strictFlags.includeAll), excludeLAN=\(strictFlags.excludeLAN)",
             "First connect metrics: \(firstMetrics?.descriptionText ?? "none")",
+            "Cached address selected with fixture DNS unavailable: \(selected ?? "none")",
             "Endpoint-cache reconnect metrics: \(cachedMetrics?.descriptionText ?? "none")",
             "Allow-LAN flags: includeAll=\(lanFlags.includeAll), excludeLAN=\(lanFlags.excludeLAN), reconnected=\(lanReconnected)"
         ].joined(separator: "\n")
 
         let allPassed = strictFlags.includeAll && !strictFlags.excludeLAN
             && lanFlags.includeAll && lanFlags.excludeLAN
-            && cacheReconnectPassed(handshake: cachedMetrics?.hasHandshake == true, forcedLookupFailure: false)
+            && cacheReconnectPassed(handshake: cachedMetrics?.hasHandshake == true, forcedLookupFailure: selected != nil)
             && lanReconnected
         return KillSwitchCycleReport(allPassed: allPassed, detail: detail)
+    }
+
+    static func startCacheProbe(named name: String, tunnel: Tunnel) async throws -> NETunnelProviderSession {
+        guard name.hasPrefix(DebugVerificationNetworkChecks.probeNamePrefix + "KS_"),
+              let manager = try await NETunnelProviderManager.loadAllFromPreferences().first(where: { $0.localizedDescription == name }),
+              let configuration = manager.protocolConfiguration as? NETunnelProviderProtocol,
+              configuration.providerBundleIdentifier == Bundle.main.bundleIdentifier.map({ $0 + ".network-extension" }),
+              let reference = configuration.passwordReference,
+              let session = manager.connection as? NETunnelProviderSession else {
+            throw LiveCheckError("Disposable cache probe manager unavailable")
+        }
+        try session.startTunnel(options: [DebugCacheProbeMessage.startOption: reference as NSData, "startedByApp": NSNumber(value: true)])
+        guard await waitUntil(timeout: .seconds(15), condition: { await MainActor.run { tunnel.status == .active } }) else {
+            throw LiveCheckError("Cache probe reconnect failed with fixture DNS unavailable")
+        }
+        return session
     }
 
     static func skipIfBlocked(
