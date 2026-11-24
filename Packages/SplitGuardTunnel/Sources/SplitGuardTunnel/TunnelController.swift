@@ -146,6 +146,8 @@ public final class TunnelController: @unchecked Sendable {
     private let pauseOnOffline: Bool
     private let endpointCache: any EndpointCaching
     private let resolveEndpoints: @Sendable ([Endpoint?]) -> [Result<IPEndpoint, EndpointResolutionError>?]
+    private let reresolveEndpoint: (IPEndpoint) throws -> IPEndpoint
+    private let settingsTimeout: TimeInterval
     private let physicalResolver: any PhysicalResolver
 
     private let workQueue = DispatchQueue(label: "SplitGuard.TunnelController.work")
@@ -205,6 +207,8 @@ public final class TunnelController: @unchecked Sendable {
         resolveEndpoints: @escaping @Sendable ([Endpoint?]) -> [Result<IPEndpoint, EndpointResolutionError>?] = {
             EndpointResolver.resolve($0)
         },
+        reresolveEndpoint: @escaping (IPEndpoint) throws -> IPEndpoint = EndpointResolver.reresolve,
+        settingsTimeout: TimeInterval = 5,
         physicalResolver: any PhysicalResolver = DNSSDResolver(),
         logHandler: @escaping @Sendable (TunnelLogLevel, String) -> Void
     ) {
@@ -215,6 +219,8 @@ public final class TunnelController: @unchecked Sendable {
         self.pauseOnOffline = pauseOnOffline
         self.endpointCache = endpointCache
         self.resolveEndpoints = resolveEndpoints
+        self.reresolveEndpoint = reresolveEndpoint
+        self.settingsTimeout = settingsTimeout
         self.physicalResolver = physicalResolver
         self.logHandler = logHandler
 
@@ -643,7 +649,7 @@ public final class TunnelController: @unchecked Sendable {
             pendingHostnameIndices = updated.remainingIndices
         }
 
-        let reresolved = resolvedTunnel.reresolveEndpoints()
+        let reresolved = resolvedTunnel.reresolveEndpoints(using: reresolveEndpoint)
         logEndpointReresolutionResults(
             initialEndpoints: resolvedTunnel.endpoints,
             results: reresolved.map(\.1)
@@ -919,7 +925,7 @@ public final class TunnelController: @unchecked Sendable {
         for resolvedTunnel: ResolvedTunnel,
         policy: EndpointResolutionPolicy
     ) -> [IPEndpoint?] {
-        let reresolved = resolvedTunnel.reresolveEndpoints()
+        let reresolved = resolvedTunnel.reresolveEndpoints(using: reresolveEndpoint)
         logEndpointReresolutionResults(
             initialEndpoints: resolvedTunnel.endpoints,
             results: reresolved.map(\.1)
@@ -959,7 +965,7 @@ public final class TunnelController: @unchecked Sendable {
             }
         }
 
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(settingsTimeout)
         try waitState.condition.withLock {
             while !waitState.completed {
                 if !waitState.condition.wait(until: deadline), !waitState.completed {
