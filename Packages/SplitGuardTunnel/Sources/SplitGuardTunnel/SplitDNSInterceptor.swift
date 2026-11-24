@@ -20,6 +20,8 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
     }
 
     public static let defaultMaxPendingLookups = 64
+    private static let maxPendingWaiters = 256
+    private static let maxWaitersPerLookup = 16
 
     private let configuration: SplitDNSConfiguration
     private let dnsServers: [IPAddress]
@@ -31,6 +33,7 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
 
     private let lock = NSLock()
     private var pending: [LookupKey: [PendingWaiter]] = [:]
+    private var pendingWaiterCount = 0
 
     public init(
         configuration: SplitDNSConfiguration,
@@ -67,27 +70,27 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
         enum Admission {
             case startLookup
             case joinedExisting
-            case tableFull
+            case atCapacity
         }
 
         let admission: Admission = lock.withLock {
-            if var existing = pending[key] {
-                existing.append(waiter)
-                pending[key] = existing
-                return .joinedExisting
+            let existingWaiterCount = pending[key]?.count ?? 0
+            guard pendingWaiterCount < Self.maxPendingWaiters,
+                  existingWaiterCount < Self.maxWaitersPerLookup,
+                  existingWaiterCount > 0 || pending.count < maxPendingLookups else {
+                return .atCapacity
             }
-            if pending.count >= maxPendingLookups {
-                return .tableFull
-            }
-            pending[key] = [waiter]
-            return .startLookup
+
+            pending[key, default: []].append(waiter)
+            pendingWaiterCount += 1
+            return existingWaiterCount == 0 ? .startLookup : .joinedExisting
         }
 
         switch admission {
         case .joinedExisting:
             return .consume
 
-        case .tableFull:
+        case .atCapacity:
             sendReply(for: waiter, responseCode: .serverFailure, records: [])
             return .consume
 
@@ -108,7 +111,11 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
     public func inbound(_ packet: Data) {}
 
     private func completeLookup(for key: LookupKey, result: Result<DNSLookupResponse, Error>) {
-        let waiters = lock.withLock { pending.removeValue(forKey: key) } ?? []
+        let waiters = lock.withLock {
+            let waiters = pending.removeValue(forKey: key) ?? []
+            pendingWaiterCount -= waiters.count
+            return waiters
+        }
         guard !waiters.isEmpty else { return }
 
         let responseCode: DNSResponseCode
