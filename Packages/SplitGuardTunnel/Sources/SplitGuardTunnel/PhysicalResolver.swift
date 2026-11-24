@@ -25,6 +25,7 @@ public protocol PhysicalResolver: Sendable {
 }
 
 public enum DNSSDResolverError: Error, Equatable, Sendable {
+    case missingInterface
     case timeout
     case serviceError(Int32)
 }
@@ -132,19 +133,23 @@ public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
         completion: @escaping @Sendable (Result<DNSLookupResponse, Error>) -> Void
     ) {
         queue.async {
+            guard let interfaceIndex, interfaceIndex != kDNSServiceInterfaceIndexAny else {
+                completion(.failure(DNSSDResolverError.missingInterface))
+                return
+            }
+
             let token = Self.registry.allocateToken()
             let state = QueryState(token: token, recordType: recordType, recordClass: recordClass, completion: completion)
             Self.registry.store(state, for: token)
 
             var serviceRef: DNSServiceRef?
             let flags = DNSServiceFlags(kDNSServiceFlagsReturnIntermediates)
-            let iface = interfaceIndex ?? UInt32(kDNSServiceInterfaceIndexAny)
 
             let context = UnsafeMutableRawPointer(bitPattern: token)
             let queryError = DNSServiceQueryRecord(
                 &serviceRef,
                 flags,
-                iface,
+                interfaceIndex,
                 name,
                 recordType,
                 recordClass,

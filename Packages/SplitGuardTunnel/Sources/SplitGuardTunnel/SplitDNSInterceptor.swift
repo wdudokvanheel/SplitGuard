@@ -12,6 +12,7 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
         let name: String
         let type: UInt16
         let recordClass: UInt16
+        let interfaceIndex: UInt32
     }
 
     private struct PendingWaiter {
@@ -64,8 +65,17 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
             return .pass
         }
 
-        let key = LookupKey(name: query.name, type: query.type, recordClass: query.recordClass)
         let waiter = PendingWaiter(datagram: datagram, query: query)
+        guard let interfaceIndex = interfaceIndexProvider(), interfaceIndex > 0 else {
+            sendReply(for: waiter, responseCode: .serverFailure, records: [])
+            return .consume
+        }
+        let key = LookupKey(
+            name: query.name,
+            type: query.type,
+            recordClass: query.recordClass,
+            interfaceIndex: interfaceIndex
+        )
 
         enum Admission {
             case startLookup
@@ -95,7 +105,6 @@ public final class SplitDNSInterceptor: PacketHook, @unchecked Sendable {
             return .consume
 
         case .startLookup:
-            let interfaceIndex = interfaceIndexProvider()
             resolver.resolve(
                 name: query.name,
                 recordType: query.type,
