@@ -193,7 +193,7 @@ extension SystemTunnelBackend {
 
     func loadManagersFromPreferences() async throws -> [NETunnelProviderManager] {
         do {
-            return try await NETunnelProviderManager.loadAllFromPreferences()
+            return try await loadPreferenceManagers()
         } catch {
             Log.error("Failed to load tunnel provider managers: \(error)")
             throw TunnelError.loadFailed(TunnelError.describeSystemError(error))

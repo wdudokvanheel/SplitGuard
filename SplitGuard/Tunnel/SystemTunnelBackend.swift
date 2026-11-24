@@ -28,6 +28,7 @@ actor SystemTunnelBackend: TunnelBackend {
 
     let profileStore: ProfileStore
     let providerBundleIdentifier: String
+    let loadPreferenceManagers: @Sendable () async throws -> [NETunnelProviderManager]
     let eventHub = BackendEventHub()
     private let observerBag = ObserverBag()
 
@@ -42,8 +43,14 @@ actor SystemTunnelBackend: TunnelBackend {
 
     nonisolated var saveNewDeactivatesActiveTunnel: Bool { true }
 
-    init(profileStore: ProfileStore = ProfileStore(), bundle: Bundle = .main) {
+    init(
+        profileStore: ProfileStore = ProfileStore(),
+        bundle: Bundle = .main,
+        loadPreferenceManagers: @escaping @Sendable () async throws -> [NETunnelProviderManager]
+            = NETunnelProviderManager.loadAllFromPreferences
+    ) {
         self.profileStore = profileStore
+        self.loadPreferenceManagers = loadPreferenceManagers
         let baseIdentifier = bundle.bundleIdentifier ?? "com.bitechular.splitguard"
         self.providerBundleIdentifier = baseIdentifier + ".network-extension"
     }
