@@ -475,7 +475,7 @@ public final class TunnelController: @unchecked Sendable {
         try device.deliverToTunnel(packet)
     }
 
-    private func configureSplitDNSInterceptor(for profile: TunnelProfile) {
+    private func configureSplitDNSInterceptor(for profile: TunnelProfile, device: WireGuardDevice) {
         guard !profile.splitDNS.exclusions.isEmpty else {
             clearActiveInterceptorIfNeeded()
             return
@@ -494,9 +494,9 @@ public final class TunnelController: @unchecked Sendable {
             interfaceIndexProvider: { [weak self] in
                 self?.currentPhysicalInterfaceIndex
             },
-            deliverToTunnel: { [weak self] packet in
-                guard let self else { throw PacketDeliveryError.deviceNotRunning }
-                try self.deliverToTunnel(packet)
+            deliverToTunnel: { [weak device] packet in
+                guard let device else { throw PacketDeliveryError.deviceNotRunning }
+                try device.deliverToTunnel(packet)
             },
             logHandler: logHandler
         )
@@ -627,7 +627,7 @@ public final class TunnelController: @unchecked Sendable {
             self.onEvent?(event)
         }
 
-        configureSplitDNSInterceptor(for: applied.profile)
+        configureSplitDNSInterceptor(for: applied.profile, device: device)
         if let hookEntry = activeDeviceLock.withLock({ installedHook }) {
             device.setHook(hookEntry.hook, matching: hookEntry.filter)
         }
@@ -698,7 +698,7 @@ public final class TunnelController: @unchecked Sendable {
             #if os(iOS)
             applied.device.disableSomeRoamingForBrokenMobileSemantics()
             #endif
-            configureSplitDNSInterceptor(for: prepared.profile)
+            configureSplitDNSInterceptor(for: prepared.profile, device: applied.device)
             var updated = AppliedTunnel(
                 device: applied.device,
                 tunnel: applied.tunnel,
