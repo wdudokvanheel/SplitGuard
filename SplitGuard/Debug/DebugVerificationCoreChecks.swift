@@ -80,16 +80,26 @@ enum DebugVerificationCoreChecks {
     static func runCodecAndZipExportCheck(fileManager: FileManager = .default) -> AutomatedCheckResult {
         measure(.codecAndZipExport) {
             let parsed = try verifyCodecRoundTrip()
-            let zipByteCount = try verifyZipArchiveExport(primaryProfile: parsed, fileManager: fileManager)
-            let details = [
+            let bundledProfiles = try parseAndVerifyBundledFixtures()
+            let zipByteCount = try verifyZipArchiveExport(
+                primaryProfile: parsed,
+                extraProfiles: bundledProfiles,
+                fileManager: fileManager
+            )
+            var details = [
                 "Codec round-trip passed (IPv4/IPv6, hostnames, host-bit masking, # SplitGuard: directives).",
-                "PKZIP verified (\(zipByteCount) bytes, contains CodecProbe.conf & SecondProbe.conf).",
-                "Temp staging cleanup verified (0 SplitGuardExport-* directories left)."
-            ].joined(separator: "\n")
+                "PKZIP verified (\(zipByteCount) bytes) with temp staging cleanup (0 leaked dirs)."
+            ]
+            if bundledProfiles.isEmpty {
+                details.append("Bundled docs/*.conf fixtures: none bundled in this build.")
+            } else {
+                let names = bundledProfiles.map(\.name).joined(separator: ", ")
+                details.append("Bundled fixtures parsed & exported cleanly: \(names).")
+            }
             return CheckPayload(
                 status: .passed,
-                summary: "Codec round-trip & PKZIP export verified (\(zipByteCount) bytes)",
-                detail: details
+                summary: "Codec, fixtures (\(bundledProfiles.count)) & PKZIP verified (\(zipByteCount) B)",
+                detail: details.joined(separator: "\n")
             )
         }
     }
@@ -111,6 +121,120 @@ enum DebugVerificationCoreChecks {
                 detail: details
             )
         }
+    }
+
+    @MainActor
+    static func runImportPasteCreateAndSortCheck(fileManager: FileManager = .default) async -> AutomatedCheckResult {
+        let clock = ContinuousClock()
+        let start = clock.now
+        do {
+            let notes = try await executeImportPasteCreateCheck(fileManager: fileManager)
+            return AutomatedCheckResult(
+                id: .importPasteCreateAndSort,
+                status: .passed,
+                summary: "File import, paste, create-from-scratch, name validation & sort verified",
+                detail: notes.joined(separator: "\n"),
+                durationMilliseconds: durationMs(since: start, clock: clock)
+            )
+        } catch {
+            return AutomatedCheckResult(
+                id: .importPasteCreateAndSort,
+                status: .failed,
+                summary: error.localizedDescription,
+                detail: String(describing: error),
+                durationMilliseconds: durationMs(since: start, clock: clock)
+            )
+        }
+    }
+
+    @MainActor
+    private static func executeImportPasteCreateCheck(fileManager: FileManager) async throws -> [String] {
+        let scratchDir = fileManager.temporaryDirectory.appendingPathComponent("sg-import-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: scratchDir, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: scratchDir) }
+
+        let invalidURL = scratchDir.appendingPathComponent("broken.conf")
+        try Data("not a valid wireguard config".utf8).write(to: invalidURL)
+        let bundled = DebugBundledFixtures.allAvailable()
+        var validURLs = bundled.map(\.bundleURL)
+        if validURLs.isEmpty {
+            let fallbackURL = scratchDir.appendingPathComponent("fallback.conf")
+            let fallbackText = TunnelProfileCodec.serialize(try makeFullSampleProfile(name: "fallback"))
+            try Data(fallbackText.utf8).write(to: fallbackURL)
+            validURLs = [fallbackURL]
+        }
+
+        let outcome = await TunnelImportService.importFiles(from: validURLs + [invalidURL])
+        guard outcome.profiles.count == validURLs.count, outcome.failures.count == 1 else {
+            throw CheckError(message: "TunnelImportService returned \(outcome.profiles.count) ok / \(outcome.failures.count) failed.")
+        }
+
+        let pasteText: String
+        if let firstBundled = bundled.first {
+            pasteText = firstBundled.rawText
+        } else {
+            pasteText = TunnelProfileCodec.serialize(try makeFullSampleProfile(name: "wg10"))
+        }
+        try await verifyPasteCreateAndNaturalSort(pasteText: pasteText)
+        return [
+            "TunnelImportService parsed \(outcome.profiles.count) valid .conf file(s) and rejected 1 invalid file.",
+            "Paste import, natural sort (wg2 < wg10), keypair regeneration & duplicate/empty name guards passed."
+        ]
+    }
+
+    @MainActor
+    private static func verifyPasteCreateAndNaturalSort(pasteText: String) async throws {
+        let scratchStore = TunnelStore(backend: InMemoryTunnelBackend(), autoLoad: false)
+        await scratchStore.loadTunnels()
+        guard await scratchStore.importConfigText(pasteText, named: "wg10"),
+              await scratchStore.importConfigText(pasteText, named: "wg2") else {
+            throw CheckError(message: "Paste import (importConfigText) failed for wg10 or wg2.")
+        }
+        guard scratchStore.tunnels.map(\.name) == ["wg2", "wg10"] else {
+            throw CheckError(message: "Natural sort failed: \(scratchStore.tunnels.map(\.name))")
+        }
+
+        let editor = TunnelEditorViewModel()
+        editor.generateKeyPair()
+        let firstKey = editor.privateKey
+        editor.generateKeyPair()
+        guard !firstKey.isEmpty, editor.privateKey != firstKey, !editor.publicKey.isEmpty else {
+            throw CheckError(message: "TunnelEditorViewModel keypair generation/regeneration failed.")
+        }
+        guard await scratchStore.importConfigText(pasteText, named: "   ") == false,
+              await scratchStore.importConfigText(pasteText, named: "wg2") == false else {
+            throw CheckError(message: "Empty or duplicate tunnel name was not rejected.")
+        }
+    }
+
+    static func measure(_ id: AutomatedCheckID, body: () throws -> CheckPayload) -> AutomatedCheckResult {
+        let clock = ContinuousClock()
+        let start = clock.now
+        do {
+            let payload = try body()
+            return AutomatedCheckResult(
+                id: id,
+                status: payload.status,
+                summary: payload.summary,
+                detail: payload.detail,
+                durationMilliseconds: durationMs(since: start, clock: clock)
+            )
+        } catch {
+            return AutomatedCheckResult(
+                id: id,
+                status: .failed,
+                summary: error.localizedDescription,
+                detail: String(describing: error),
+                durationMilliseconds: durationMs(since: start, clock: clock)
+            )
+        }
+    }
+
+    static func durationMs(since start: ContinuousClock.Instant, clock: ContinuousClock) -> Int {
+        let duration = start.duration(to: clock.now)
+        let secondsMs = Int(duration.components.seconds) * 1000
+        let attoMs = Int(duration.components.attoseconds / 1_000_000_000_000_000)
+        return max(0, secondsMs + attoMs)
     }
 }
 #endif

@@ -2,7 +2,6 @@
 import SplitGuardCore
 import SwiftUI
 import UIKit
-import WireGuardEngine
 
 enum DebugWizardAction {
     case openFileImporter
@@ -24,7 +23,7 @@ struct DebugManualStepToolbox: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: "Live Context & Shortcuts")
+            BrutalistSectionBar(title: "Supplied Configs & Shortcuts")
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 content
@@ -40,37 +39,25 @@ struct DebugManualStepToolbox: View {
     @ViewBuilder
     private var content: some View {
         switch stepID {
-        case .importConfFile:
+        case .importFilesAndAirDrop:
             ImportConfToolboxView(store: store, onAction: onAction)
         case .importQRCode:
             ImportQRToolboxView(store: store, onAction: onAction)
-        case .pasteAndCreateFromScratch:
-            PasteAndCreateToolboxView(store: store, onAction: onAction)
-        case .connectMetricsDisconnect:
-            LiveMetricsToolboxView(store: store, onAction: onAction)
-        case .switchAndEditConnected:
-            SwitchAndEditToolboxView(store: store, onAction: onAction)
-        case .failedStartErrorReporting:
-            FailedStartToolboxView(model: model, store: store)
-        case .splitDNS:
-            SplitDNSToolboxView(store: store, onAction: onAction)
-        case .killSwitch:
-            KillSwitchToolboxView(store: store, onAction: onAction)
-        case .onDemandActivation:
+        case .physicalSplitDNSAndKillSwitch:
+            PhysicalSplitDNSAndKillSwitchToolboxView(store: store, onAction: onAction)
+        case .onDemandNetworkSwitch:
             OnDemandToolboxView(store: store, onAction: onAction)
         case .deviceAuthAndZipExport:
             AuthAndExportToolboxView(store: store, onAction: onAction)
         case .externalIOSSettingsChanges:
             ExternalSettingsToolboxView(store: store)
-        case .homeScreenQuickActions:
-            QuickActionsToolboxView(store: store)
-        case .logViewerAndExport:
-            LogViewerToolboxView(onAction: onAction)
+        case .quickActionsAndLogViewer:
+            QuickActionsAndLogToolboxView(store: store, onAction: onAction)
         }
     }
 }
 
-// MARK: - Steps 1 to 6 Toolboxes
+// MARK: - Manual Steps 1 to 3 Toolboxes
 
 private struct ImportConfToolboxView: View {
     let store: TunnelStore
@@ -83,9 +70,24 @@ private struct ImportConfToolboxView: View {
             onAction(.openFileImporter)
         }
 
-        DebugActionButton(title: "SHARE SAMPLE .CONF TO FILES", icon: "square.and.arrow.up", fill: SGColor.popBlue) {
-            if let sampleURL = DebugSampleConfigFactory.writeSampleConfFile() {
-                onAction(.shareFile(sampleURL))
+        let fixtures = DebugBundledFixtures.allAvailable()
+        if fixtures.isEmpty {
+            DebugActionButton(title: "SHARE SAMPLE .CONF TO FILES", icon: "square.and.arrow.up", fill: SGColor.popBlue) {
+                if let url = DebugSampleConfigFactory.writeSampleConfFile() {
+                    onAction(.shareFile(url))
+                }
+            }
+        } else {
+            ForEach(fixtures) { fixture in
+                DebugActionButton(
+                    title: "SHARE \(fixture.fileName.uppercased()) TO FILES",
+                    icon: "square.and.arrow.up",
+                    fill: SGColor.popBlue
+                ) {
+                    if let url = DebugBundledFixtures.writeTempConfFile(for: fixture) {
+                        onAction(.shareFile(url))
+                    }
+                }
             }
         }
     }
@@ -94,49 +96,81 @@ private struct ImportConfToolboxView: View {
 private struct ImportQRToolboxView: View {
     let store: TunnelStore
     let onAction: (DebugWizardAction) -> Void
+    @State private var selectedFixtureID: String = DebugBundledFixtures.serverTestBaseName
+
+    private var selectedFixture: DebugBundledFixture? {
+        let fixtures = DebugBundledFixtures.allAvailable()
+        return fixtures.first { $0.id == selectedFixtureID } ?? fixtures.first
+    }
 
     var body: some View {
         DebugTunnelCountSummary(store: store)
 
-        DebugActionButton(title: "OPEN QR SCANNER", icon: "qrcode.viewfinder", fill: SGColor.popPink, foreground: SGColor.pureWhite) {
+        let fixtures = DebugBundledFixtures.allAvailable()
+        if let fixture = selectedFixture {
+            if fixtures.count > 1 {
+                HStack(spacing: SGSpacing.xSmall) {
+                    ForEach(fixtures) { item in
+                        Button {
+                            selectedFixtureID = item.id
+                        } label: {
+                            Text(item.displayName.uppercased())
+                                .font(SGTypography.badge)
+                                .foregroundStyle(item.id == fixture.id ? SGColor.inkOnPop : SGColor.textPrimary)
+                                .padding(.horizontal, SGSpacing.small)
+                                .padding(.vertical, 6)
+                                .background(item.id == fixture.id ? SGColor.popYellow : SGColor.surfaceElevated)
+                                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if let qrImage = DebugBundledFixtures.qrCodeImage(for: fixture.rawText) {
+                HStack {
+                    Spacer()
+                    Image(uiImage: qrImage)
+                        .interpolation(.none)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 170, height: 170)
+                        .padding(SGSpacing.xSmall)
+                        .background(SGColor.pureWhite)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.regular))
+                    Spacer()
+                }
+            }
+
+            DebugActionButton(
+                title: "SHARE \(fixture.displayName.uppercased()) QR IMAGE",
+                icon: "square.and.arrow.up",
+                fill: SGColor.popBlue
+            ) {
+                if let pngURL = DebugBundledFixtures.writeQRCodePNG(for: fixture) {
+                    onAction(.shareFile(pngURL))
+                }
+            }
+        }
+
+        DebugActionButton(
+            title: "OPEN QR SCANNER",
+            icon: "qrcode.viewfinder",
+            fill: SGColor.popPink,
+            foreground: SGColor.pureWhite
+        ) {
             onAction(.openQRScanner)
         }
     }
 }
 
-private struct PasteAndCreateToolboxView: View {
-    let store: TunnelStore
-    let onAction: (DebugWizardAction) -> Void
-    @State private var copiedSample = false
-
-    var body: some View {
-        DebugTunnelCountSummary(store: store)
-
-        DebugActionButton(
-            title: copiedSample ? "SAMPLE CONFIG COPIED!" : "COPY SAMPLE WG-QUICK CONFIG",
-            icon: "doc.on.doc",
-            fill: SGColor.popBlue
-        ) {
-            UIPasteboard.general.string = DebugSampleConfigFactory.sampleConfigText()
-            copiedSample = true
-        }
-
-        DebugActionButton(title: "OPEN PASTE CONFIG", icon: "doc.on.clipboard", fill: SGColor.popYellow) {
-            onAction(.openPasteConfig)
-        }
-
-        DebugActionButton(title: "CREATE FROM SCRATCH", icon: "square.and.pencil", fill: SGColor.popGreen) {
-            onAction(.openCreateTunnel)
-        }
-    }
-}
-
-private struct LiveMetricsToolboxView: View {
+private struct PhysicalSplitDNSAndKillSwitchToolboxView: View {
     let store: TunnelStore
     let onAction: (DebugWizardAction) -> Void
 
     @State private var selectedTunnelID: Tunnel.ID?
     @State private var monitor = TunnelLiveMetricsMonitor()
+    @State private var statusNote: String?
 
     private var selectedTunnel: Tunnel? {
         if let selectedTunnelID, let match = store.tunnel(for: selectedTunnelID) {
@@ -146,218 +180,125 @@ private struct LiveMetricsToolboxView: View {
     }
 
     var body: some View {
-        if store.tunnels.isEmpty {
-            Text("No tunnels configured yet. Import or create one first.")
-                .font(SGTypography.caption)
+        HStack(spacing: SGSpacing.xSmall) {
+            if let certFixture = DebugBundledFixtures.testCert() {
+                DebugActionButton(title: "LOAD TESTCERT (SPLIT DNS)", icon: "network", fill: SGColor.popBlue) {
+                    Task { await loadSplitDNSFixture(certFixture) }
+                }
+            }
+            if let serverFixture = DebugBundledFixtures.serverTest() {
+                DebugActionButton(title: "LOAD SERVERTEST (KS)", icon: "shield.lefthalf.filled", fill: SGColor.popYellow) {
+                    Task { await loadKillSwitchFixture(serverFixture) }
+                }
+            }
+        }
+
+        if let statusNote {
+            Text(statusNote)
+                .font(SGTypography.monoCompact)
                 .foregroundStyle(SGColor.textSecondary)
-        } else {
+        }
+
+        if !store.tunnels.isEmpty {
             DebugTunnelPickerStrip(store: store, selectedTunnelID: $selectedTunnelID)
-
-            if let tunnel = selectedTunnel {
-                VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-                    HStack {
-                        Text(tunnel.name)
-                            .font(SGTypography.bodyBold)
-                            .foregroundStyle(SGColor.textPrimary)
-                        Spacer()
-                        SGStatusBadge(
-                            title: tunnel.status.displayTitle,
-                            color: tunnel.status == .active ? SGColor.popGreen : SGColor.popYellow,
-                            isAnimated: tunnel.status.isTransitioning,
-                            isInactive: tunnel.status == .inactive
-                        )
-                    }
-
-                    Text("Endpoint: \(tunnel.primaryEndpoint ?? "None")")
-                        .font(SGTypography.monoCompact)
-                        .foregroundStyle(SGColor.textSecondary)
-                    Text("RX: \(monitor.rxFormatted)   TX: \(monitor.txFormatted)")
-                        .font(SGTypography.monoCompact)
-                        .foregroundStyle(SGColor.textPrimary)
-                    Text("Last Handshake: \(monitor.handshakeAgeText ?? "None yet")")
-                        .font(SGTypography.monoCompact)
-                        .foregroundStyle(SGColor.textSecondary)
-                }
-                .padding(SGSpacing.xSmall)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SGColor.surfaceElevated)
-                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
-
-                HStack(spacing: SGSpacing.xSmall) {
-                    let isActive = tunnel.status != .inactive
-                    DebugActionButton(
-                        title: isActive ? "DISCONNECT" : "CONNECT",
-                        icon: isActive ? "stop.fill" : "bolt.fill",
-                        fill: isActive ? SGColor.popRed : SGColor.popGreen
-                    ) {
-                        Task { await store.setTunnelActive(!isActive, for: tunnel) }
-                    }
-
-                    DebugActionButton(title: "DETAIL", icon: "info.circle", fill: SGColor.popYellow) {
-                        onAction(.openTunnelDetail(tunnel))
-                    }
-                }
-            }
-        }
-        Color.clear.frame(height: 0)
-            .onAppear { syncMonitor(visible: true) }
-            .onDisappear { monitor.stop() }
-            .onChange(of: selectedTunnel?.id) { _, _ in syncMonitor(visible: true) }
-            .onChange(of: selectedTunnel?.status) { _, _ in syncMonitor(visible: true) }
-    }
-
-    private func syncMonitor(visible: Bool) {
-        monitor.update(
-            tunnel: selectedTunnel,
-            status: selectedTunnel?.status ?? .inactive,
-            store: store,
-            isVisible: visible
-        )
-    }
-}
-
-private struct SwitchAndEditToolboxView: View {
-    let store: TunnelStore
-    let onAction: (DebugWizardAction) -> Void
-
-    var body: some View {
-        if store.tunnels.isEmpty {
-            Text("No tunnels configured yet. Add at least 2 tunnels to test switching.")
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textSecondary)
-        } else {
-            ForEach(store.tunnels) { tunnel in
-                HStack(spacing: SGSpacing.xSmall) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tunnel.name)
-                            .font(SGTypography.bodyBold)
-                            .foregroundStyle(SGColor.textPrimary)
-                        Text(tunnel.status.displayTitle.uppercased())
-                            .font(SGTypography.metricLabel)
-                            .foregroundStyle(SGColor.textSecondary)
-                    }
-                    Spacer()
-                    let isOn = tunnel.status == .active || tunnel.status == .activating || tunnel.status == .waiting
-                    Button(isOn ? "STOP" : "START") {
-                        Task { await store.setTunnelActive(!isOn, for: tunnel) }
-                    }
-                    .font(SGTypography.metricLabel)
-                    .padding(.horizontal, SGSpacing.xSmall)
-                    .padding(.vertical, 6)
-                    .buttonStyle(
-                        BrutalistButtonStyle(
-                            fill: isOn ? SGColor.popRed : SGColor.popGreen,
-                            foreground: SGColor.inkOnPop,
-                            borderWidth: SGBorder.thin,
-                            shadowOffset: 2
-                        )
-                    )
-                    Button("EDIT") {
-                        onAction(.openEditTunnel(tunnel))
-                    }
-                    .font(SGTypography.metricLabel)
-                    .padding(.horizontal, SGSpacing.xSmall)
-                    .padding(.vertical, 6)
-                    .buttonStyle(
-                        BrutalistButtonStyle(
-                            fill: SGColor.popYellow,
-                            foreground: SGColor.inkOnPop,
-                            borderWidth: SGBorder.thin,
-                            shadowOffset: 2
-                        )
-                    )
-                }
-                .padding(SGSpacing.xSmall)
-                .background(SGColor.surfaceElevated)
-                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
-            }
-
-            if let active = store.activeTunnel {
-                DebugActionButton(title: "EDIT ACTIVE TUNNEL (\(active.name))", icon: "pencil", fill: SGColor.popYellow) {
-                    onAction(.openEditTunnel(active))
-                }
-            }
-        }
-    }
-}
-
-private struct FailedStartToolboxView: View {
-    @Bindable var model: DebugVerificationWizardModel
-    let store: TunnelStore
-    @State private var statusMessage: String?
-
-    private var failingTunnel: Tunnel? {
-        store.tunnel(named: DebugVerificationNetworkChecks.manualFailingTunnelName)
-    }
-
-    var body: some View {
-        if let banner = store.lastActivationError {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("LAST STORE ACTIVATION ERROR (\(banner.tunnelName))")
-                    .font(SGTypography.metricLabel)
-                    .foregroundStyle(SGColor.inkOnPop)
-                Text("\(banner.title): \(banner.message)")
-                    .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.inkOnPop)
-            }
-            .padding(SGSpacing.xSmall)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(SGColor.popRed)
-            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
         }
 
-        if let summary = model.startErrorSummary {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("PROBE RESULT: \(summary.verdictLine)")
-                    .font(SGTypography.caption.weight(.bold))
+        if let tunnel = selectedTunnel {
+            let killSwitch = tunnel.options.killSwitch
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(tunnel.name) • \(tunnel.status.displayTitle)")
+                    .font(SGTypography.bodyBold)
                     .foregroundStyle(SGColor.textPrimary)
-                Text("fetchLastDisconnectError: \(summary.fetchLastDisconnectDecoded ?? summary.fetchLastDisconnectRaw)")
-                    .font(SGTypography.monoCompact)
-                    .foregroundStyle(SGColor.textSecondary)
-                Text("IPC fallback: \(summary.ipcDecoded ?? summary.ipcReply)")
-                    .font(SGTypography.monoCompact)
-                    .foregroundStyle(SGColor.textSecondary)
+                Text(
+                    "Kill Switch: \(killSwitch.isEnabled ? "ON" : "OFF") "
+                        + "(Allow LAN: \(killSwitch.allowLocalNetwork ? "YES" : "NO")) • "
+                        + "Block: \(monitor.killSwitchBlockState?.displayText ?? "Normal")"
+                )
+                .font(SGTypography.monoCompact)
+                .foregroundStyle(SGColor.textSecondary)
             }
             .padding(SGSpacing.xSmall)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(SGColor.surfaceElevated)
             .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
-        }
 
-        DebugActionButton(title: "RUN START-ERROR PROBE", icon: "exclamationmark.triangle.fill", fill: SGColor.popYellow) {
-            Task { await model.runAutomatedCheck(.startErrorProbe, store: store) }
-        }
-
-        if let failingTunnel {
             HStack(spacing: SGSpacing.xSmall) {
-                DebugActionButton(title: "ACTIVATE FAILING TUNNEL", icon: "bolt.slash.fill", fill: SGColor.popRed) {
-                    Task { await store.setTunnelActive(true, for: failingTunnel) }
+                let isOn = tunnel.status != .inactive
+                DebugActionButton(
+                    title: isOn ? "DISCONNECT" : "CONNECT",
+                    icon: isOn ? "stop.fill" : "bolt.fill",
+                    fill: isOn ? SGColor.popRed : SGColor.popGreen
+                ) {
+                    Task { await store.setTunnelActive(!isOn, for: tunnel) }
                 }
-                DebugActionButton(title: "DELETE TEST TUNNEL", icon: "trash.fill", fill: SGColor.surfaceElevated) {
-                    Task {
-                        _ = await DebugVerificationNetworkChecks.removeManualFailingTunnel(in: store)
-                        statusMessage = "Removed \(DebugVerificationNetworkChecks.manualFailingTunnelName)."
-                    }
-                }
-            }
-        } else {
-            DebugActionButton(title: "CREATE FAILING TEST TUNNEL", icon: "plus.square.fill", fill: SGColor.popBlue) {
-                Task {
-                    do {
-                        _ = try await DebugVerificationNetworkChecks.createManualFailingTunnel(in: store)
-                        statusMessage = "Created \(DebugVerificationNetworkChecks.manualFailingTunnelName)."
-                    } catch {
-                        statusMessage = "Failed: \(error.localizedDescription)"
-                    }
+                DebugActionButton(title: "EDIT", icon: "pencil", fill: SGColor.popYellow) {
+                    onAction(.openEditTunnel(tunnel))
                 }
             }
+
+            SplitDNSRoutingPreviewView(
+                splitDNS: tunnel.splitDNS,
+                dnsServers: tunnel.profile.interface.dnsServers
+            )
+
+            SplitDNSNameTesterView(
+                splitDNS: tunnel.splitDNS,
+                dnsServers: tunnel.profile.interface.dnsServers,
+                isTunnelActive: tunnel.status == .active
+            )
         }
 
-        if let statusMessage {
-            Text(statusMessage)
-                .font(SGTypography.monoCompact)
-                .foregroundStyle(SGColor.textSecondary)
+        Color.clear.frame(height: 0)
+            .onAppear { syncMonitor() }
+            .onDisappear { monitor.stop() }
+            .onChange(of: selectedTunnel?.id) { _, _ in syncMonitor() }
+            .onChange(of: selectedTunnel?.status) { _, _ in syncMonitor() }
+    }
+
+    private func loadSplitDNSFixture(_ fixture: DebugBundledFixture) async {
+        do {
+            let base = try DebugBundledFixtures.parsedProfile(for: fixture)
+            let domain = base.peers.first?.endpoint?.hostname ?? "internal.example"
+            let splitDNS = SplitDNSConfiguration(
+                mode: .onlyDomains,
+                domains: [.init(name: domain)],
+                exclusions: [.init(name: domain, includesSubdomains: false)]
+            )
+            let tunnel = try await DebugBundledFixtures.ensureLoaded(
+                fixture: fixture,
+                named: "TestCert-SplitDNS",
+                splitDNS: splitDNS,
+                in: store
+            )
+            selectedTunnelID = tunnel.id
+            statusNote = "Loaded \(tunnel.name) (only-domains: \(domain), exact apex excluded)."
+        } catch {
+            statusNote = "Error: \(error.localizedDescription)"
         }
+    }
+
+    private func loadKillSwitchFixture(_ fixture: DebugBundledFixture) async {
+        do {
+            let tunnel = try await DebugBundledFixtures.ensureLoaded(
+                fixture: fixture,
+                named: "ServerTest-KillSwitch",
+                killSwitch: .init(isEnabled: true, allowLocalNetwork: false),
+                in: store
+            )
+            selectedTunnelID = tunnel.id
+            statusNote = "Loaded \(tunnel.name) with strict Kill Switch."
+        } catch {
+            statusNote = "Error: \(error.localizedDescription)"
+        }
+    }
+
+    private func syncMonitor() {
+        monitor.update(
+            tunnel: selectedTunnel,
+            status: selectedTunnel?.status ?? .inactive,
+            store: store,
+            isVisible: true
+        )
     }
 }
 #endif

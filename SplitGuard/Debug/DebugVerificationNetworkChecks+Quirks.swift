@@ -171,125 +171,6 @@ extension DebugVerificationNetworkChecks {
         }
     }
 
-    static func runDeviceQuirk1(
-        store: TunnelStore,
-        allowActiveTunnelInterruption: Bool,
-        start: ContinuousClock.Instant,
-        clock: ContinuousClock
-    ) async -> NetworkCheckOutcome {
-        let managers = (try? await NETunnelProviderManager.loadAllFromPreferences()) ?? []
-        guard let activeMgr = managers.first(where: {
-            let name = $0.localizedDescription ?? ""
-            return !name.hasPrefix(probeNamePrefix) && $0.connection.status == .connected
-        }) else {
-            return quirk1InfoOutcome(
-                summary: "Needs Active Tunnel",
-                detail: "Needs Active Tunnel: connect a real tunnel first, enable the opt-in toggle, and re-run.",
-                start: start,
-                clock: clock
-            )
-        }
-
-        let activeName = activeMgr.localizedDescription ?? "Active Tunnel"
-        guard allowActiveTunnelInterruption else {
-            let detail = "Active tunnel '\(activeName)' detected, but opt-in toggle is OFF. Enable toggle to test saving a new config."
-            return quirk1InfoOutcome(summary: "Opt-in required (active: \(activeName))", detail: detail, start: start, clock: clock)
-        }
-
-        return await executeQuirk1Save(activeMgr: activeMgr, activeName: activeName, store: store, start: start, clock: clock)
-    }
-}
-
-private extension DebugVerificationNetworkChecks {
-    static func probeImmediateStart(manager: NETunnelProviderManager) -> (Bool, String) {
-        do {
-            try (manager.connection as? NETunnelProviderSession)?.startTunnel(options: nil)
-            (manager.connection as? NETunnelProviderSession)?.stopTunnel()
-            return (false, "startTunnel succeeded without prior loadFromPreferences()")
-        } catch let vpnErr as NEVPNError
-            where vpnErr.code == .configurationInvalid || vpnErr.code == .configurationStale {
-            return (true, "Threw NEVPNError(\(vpnErr.code.rawValue)) without loadFromPreferences()")
-        } catch {
-            return (false, "Threw \(error.localizedDescription)")
-        }
-    }
-
-    static func probeOnDemandWithoutReload(manager: NETunnelProviderManager) async throws -> (String?, [String]) {
-        let policy = OnDemandPolicy(cellular: false, wifi: true, ssidFilter: .only(["__SG_NONEXISTENT_SSID__"]))
-        policy.apply(to: manager)
-        manager.isOnDemandEnabled = true
-        manager.isEnabled = true
-        try await manager.saveToPreferences()
-
-        let recorder = StatusTransitionRecorder(connection: manager.connection)
-        defer { recorder.stop() }
-        var startError: String?
-        do {
-            try (manager.connection as? NETunnelProviderSession)?.startTunnel(options: ["startedByApp": NSNumber(value: true)])
-        } catch {
-            startError = error.localizedDescription
-        }
-        _ = await recorder.waitForDisconnect(timeout: .seconds(6))
-        return (startError, recorder.recordedLabels())
-    }
-
-    static func executeQuirk1Save(
-        activeMgr: NETunnelProviderManager,
-        activeName: String,
-        store: TunnelStore,
-        start: ContinuousClock.Instant,
-        clock: ContinuousClock
-    ) async -> NetworkCheckOutcome {
-        await store.backend.setConfigurationChangeObservationPaused(true)
-        let profileStore = ProfileStore()
-        var tempManager: NETunnelProviderManager?
-        let recorder = StatusTransitionRecorder(connection: activeMgr.connection)
-        defer { recorder.stop() }
-
-        do {
-            let suffix = String(UUID().uuidString.prefix(6))
-            let created = try await createTempManager(name: "\(probeNamePrefix)Q1_\(suffix)", profileStore: profileStore)
-            tempManager = created
-            try? await Task.sleep(for: .seconds(2))
-
-            let statusAfterSave = activeMgr.connection.status
-            let transitions = recorder.recordedLabels()
-            await cleanupManagers([created], profileStore: profileStore, store: store)
-
-            let deactivated = statusAfterSave != .connected
-                || transitions.contains("disconnected")
-                || transitions.contains("disconnecting")
-            let transitionText = transitions.isEmpty ? "none" : transitions.joined(separator: " -> ")
-            let obs = "Saved new config while '\(activeName)' was connected. Post-save=\(statusLabel(statusAfterSave)), "
-                + "transitions=\(transitionText)."
-            let finding = IOSQuirkFinding(
-                id: .saveNewDeactivatesActive,
-                status: deactivated ? .reproduced : .notReproduced,
-                observation: obs
-            )
-            return makeQuirkOutcome(
-                checkID: .quirk1ActiveTunnelSave,
-                finding: finding,
-                summary: "\(deactivated ? "Reproduced" : "Not Reproduced") (post-save: \(statusLabel(statusAfterSave)))",
-                elapsedMs: durationMs(since: start, clock: clock)
-            )
-        } catch {
-            if let mgr = tempManager {
-                await cleanupManagers([mgr], profileStore: profileStore, store: store)
-            } else {
-                await store.backend.setConfigurationChangeObservationPaused(false)
-                await store.reloadFromBackend()
-            }
-            return failedOutcome(
-                id: .quirk1ActiveTunnelSave,
-                summary: error.localizedDescription,
-                detail: String(describing: error),
-                start: start,
-                clock: clock
-            )
-        }
-    }
-
     static func cleanupOnDemandTempManager(
         _ manager: NETunnelProviderManager?,
         profileStore: ProfileStore,
@@ -360,6 +241,40 @@ private extension DebugVerificationNetworkChecks {
                 IOSQuirkFinding(id: .saveNewDeactivatesActive, status: .needsActiveTunnel, observation: detail)
             ]
         )
+    }
+}
+
+private extension DebugVerificationNetworkChecks {
+    static func probeImmediateStart(manager: NETunnelProviderManager) -> (Bool, String) {
+        do {
+            try (manager.connection as? NETunnelProviderSession)?.startTunnel(options: nil)
+            (manager.connection as? NETunnelProviderSession)?.stopTunnel()
+            return (false, "startTunnel succeeded without prior loadFromPreferences()")
+        } catch let vpnErr as NEVPNError
+            where vpnErr.code == .configurationInvalid || vpnErr.code == .configurationStale {
+            return (true, "Threw NEVPNError(\(vpnErr.code.rawValue)) without loadFromPreferences()")
+        } catch {
+            return (false, "Threw \(error.localizedDescription)")
+        }
+    }
+
+    static func probeOnDemandWithoutReload(manager: NETunnelProviderManager) async throws -> (String?, [String]) {
+        let policy = OnDemandPolicy(cellular: false, wifi: true, ssidFilter: .only(["__SG_NONEXISTENT_SSID__"]))
+        policy.apply(to: manager)
+        manager.isOnDemandEnabled = true
+        manager.isEnabled = true
+        try await manager.saveToPreferences()
+
+        let recorder = StatusTransitionRecorder(connection: manager.connection)
+        defer { recorder.stop() }
+        var startError: String?
+        do {
+            try (manager.connection as? NETunnelProviderSession)?.startTunnel(options: ["startedByApp": NSNumber(value: true)])
+        } catch {
+            startError = error.localizedDescription
+        }
+        _ = await recorder.waitForDisconnect(timeout: .seconds(6))
+        return (startError, recorder.recordedLabels())
     }
 }
 #endif

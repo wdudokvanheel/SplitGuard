@@ -252,13 +252,31 @@ extension DebugVerificationCoreChecks {
         return parsed
     }
 
-    static func verifyZipArchiveExport(primaryProfile: TunnelProfile, fileManager: FileManager) throws -> Int {
+    static func parseAndVerifyBundledFixtures() throws -> [TunnelProfile] {
+        var parsed: [TunnelProfile] = []
+        for fixture in DebugBundledFixtures.allAvailable() {
+            let profile = try DebugBundledFixtures.parsedProfile(for: fixture)
+            let reparsed = try TunnelProfileCodec.parse(TunnelProfileCodec.serialize(profile), name: profile.name)
+            guard profile == reparsed else {
+                throw CheckError(message: "Bundled fixture \(fixture.fileName) failed serialize/parse round-trip.")
+            }
+            parsed.append(profile)
+        }
+        return parsed
+    }
+
+    static func verifyZipArchiveExport(
+        primaryProfile: TunnelProfile,
+        extraProfiles: [TunnelProfile] = [],
+        fileManager: FileManager
+    ) throws -> Int {
         let tempZipURL = fileManager.temporaryDirectory
             .appendingPathComponent("SplitGuardVerify-\(UUID().uuidString).zip")
         defer { try? fileManager.removeItem(at: tempZipURL) }
 
         let secondProfile = try makeFullSampleProfile(name: "SecondProbe")
-        try ProfileArchiveExporter.export(profiles: [primaryProfile, secondProfile], to: tempZipURL)
+        let allProfiles = [primaryProfile, secondProfile] + extraProfiles
+        try ProfileArchiveExporter.export(profiles: allProfiles, to: tempZipURL)
 
         let zipData = try Data(contentsOf: tempZipURL)
         guard zipData.count >= 4,
@@ -364,36 +382,6 @@ extension DebugVerificationCoreChecks {
                 notes.append("Live \(url.lastPathComponent): not created yet")
             }
         }
-    }
-
-    static func measure(_ id: AutomatedCheckID, body: () throws -> CheckPayload) -> AutomatedCheckResult {
-        let clock = ContinuousClock()
-        let start = clock.now
-        do {
-            let payload = try body()
-            return AutomatedCheckResult(
-                id: id,
-                status: payload.status,
-                summary: payload.summary,
-                detail: payload.detail,
-                durationMilliseconds: durationMs(since: start, clock: clock)
-            )
-        } catch {
-            return AutomatedCheckResult(
-                id: id,
-                status: .failed,
-                summary: error.localizedDescription,
-                detail: String(describing: error),
-                durationMilliseconds: durationMs(since: start, clock: clock)
-            )
-        }
-    }
-
-    static func durationMs(since start: ContinuousClock.Instant, clock: ContinuousClock) -> Int {
-        let duration = start.duration(to: clock.now)
-        let secondsMs = Int(duration.components.seconds) * 1000
-        let attoMs = Int(duration.components.attoseconds / 1_000_000_000_000_000)
-        return max(0, secondsMs + attoMs)
     }
 }
 #endif

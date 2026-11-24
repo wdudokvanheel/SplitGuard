@@ -14,12 +14,11 @@ final class DebugVerificationWizardModel {
     var startErrorSummary: StartErrorProbeSummary?
     var manualRecords: [ManualStepID: ManualStepRecord]
     var isRunningAutomatedSuite = false
-    var allowActiveTunnelQuirkProbe = false
     var lastCleanupMessage: String?
 
     init() {
         self.automatedResults = AutomatedCheckID.allCases.map { AutomatedCheckResult(id: $0) }
-        self.quirkFindings = Self.initialQuirkFindings()
+        self.quirkFindings = IOSQuirkID.allCases.map { IOSQuirkFinding(id: $0) }
         var records: [ManualStepID: ManualStepRecord] = [:]
         for stepID in ManualStepID.allCases {
             records[stepID] = ManualStepRecord()
@@ -84,7 +83,7 @@ final class DebugVerificationWizardModel {
     func resetAll() {
         currentStepIndex = 0
         automatedResults = AutomatedCheckID.allCases.map { AutomatedCheckResult(id: $0) }
-        quirkFindings = Self.initialQuirkFindings()
+        quirkFindings = IOSQuirkID.allCases.map { IOSQuirkFinding(id: $0) }
         startErrorSummary = nil
         lastCleanupMessage = nil
         for stepID in ManualStepID.allCases {
@@ -106,41 +105,16 @@ final class DebugVerificationWizardModel {
         updateAutomatedResult(
             AutomatedCheckResult(id: checkID, status: .running, summary: "Running check...")
         )
-
-        switch checkID {
-        case .appGroupLogging:
-            let result = DebugVerificationCoreChecks.runAppGroupAndLoggingCheck()
-            updateAutomatedResult(result)
-        case .keychainProfileStore:
-            let result = DebugVerificationCoreChecks.runKeychainAndProfileStoreCheck()
-            updateAutomatedResult(result)
-        case .codecAndZipExport:
-            let result = DebugVerificationCoreChecks.runCodecAndZipExportCheck()
-            updateAutomatedResult(result)
-        case .onDemandAndDraftValidation:
-            let result = DebugVerificationCoreChecks.runOnDemandAndDraftValidationCheck()
-            updateAutomatedResult(result)
-        case .neManagerCrudAndSort:
-            let outcome = await DebugVerificationNetworkChecks.runManagerCRUDAndSortCheck(store: store)
-            applyNetworkOutcome(outcome)
-        case .startErrorProbe:
-            let outcome = await DebugVerificationNetworkChecks.runStartErrorProbe(store: store)
-            applyNetworkOutcome(outcome)
-        case .quirk6BulkSaveNotifications:
-            let outcome = await DebugVerificationNetworkChecks.runQuirk6BulkSaveCheck(store: store)
-            applyNetworkOutcome(outcome)
-        case .quirk4FreshStartAndEnabled:
-            let outcome = await DebugVerificationNetworkChecks.runQuirk4FreshStartAndEnabledCheck(store: store)
-            applyNetworkOutcome(outcome)
-        case .quirk3OnDemandReload:
-            let outcome = await DebugVerificationNetworkChecks.runQuirk3OnDemandReloadCheck(store: store)
-            applyNetworkOutcome(outcome)
-        case .quirk1ActiveTunnelSave:
-            let outcome = await DebugVerificationNetworkChecks.runQuirk1ActiveTunnelSaveCheck(
-                store: store,
-                allowActiveTunnelInterruption: allowActiveTunnelQuirkProbe
-            )
-            applyNetworkOutcome(outcome)
+        if let coreResult = await runCoreCheck(checkID) {
+            updateAutomatedResult(coreResult)
+            return
+        }
+        if let liveOutcome = await runLiveCheck(checkID, store: store) {
+            applyNetworkOutcome(liveOutcome)
+            return
+        }
+        if let quirkOutcome = await runQuirkCheck(checkID, store: store) {
+            applyNetworkOutcome(quirkOutcome)
         }
     }
 
@@ -178,14 +152,71 @@ final class DebugVerificationWizardModel {
     var manualPendingCount: Int {
         ManualStepID.allCases.filter { (manualRecords[$0]?.verdict ?? .pending) == .pending }.count
     }
+}
 
-    private func updateAutomatedResult(_ result: AutomatedCheckResult) {
+private extension DebugVerificationWizardModel {
+    func runCoreCheck(_ checkID: AutomatedCheckID) async -> AutomatedCheckResult? {
+        switch checkID {
+        case .appGroupLogging:
+            return DebugVerificationCoreChecks.runAppGroupAndLoggingCheck()
+        case .keychainProfileStore:
+            return DebugVerificationCoreChecks.runKeychainAndProfileStoreCheck()
+        case .codecAndZipExport:
+            return DebugVerificationCoreChecks.runCodecAndZipExportCheck()
+        case .onDemandAndDraftValidation:
+            return DebugVerificationCoreChecks.runOnDemandAndDraftValidationCheck()
+        case .importPasteCreateAndSort:
+            return await DebugVerificationCoreChecks.runImportPasteCreateAndSortCheck()
+        default:
+            return nil
+        }
+    }
+
+    func runLiveCheck(_ checkID: AutomatedCheckID, store: TunnelStore) async -> NetworkCheckOutcome? {
+        switch checkID {
+        case .neManagerCrudAndSort:
+            return await DebugVerificationNetworkChecks.runManagerCRUDAndSortCheck(store: store)
+        case .liveConnectMetricsDisconnect:
+            return await DebugVerificationLiveChecks.runLiveConnectMetricsDisconnect(store: store)
+        case .liveSwitchAndEditConnected:
+            return await DebugVerificationLiveChecks.runLiveSwitchAndEditConnected(store: store)
+        case .liveSplitDNSAndProbe:
+            return await DebugVerificationLiveChecks.runLiveSplitDNSAndProbe(store: store)
+        case .liveKillSwitchAndEndpointCache:
+            return await DebugVerificationLiveChecks.runLiveKillSwitchAndEndpointCache(store: store)
+        case .startErrorProbe:
+            return await DebugVerificationNetworkChecks.runStartErrorProbe(store: store)
+        case .liveMergedLogs:
+            return DebugVerificationLiveChecks.runLiveMergedLogsCheck()
+        default:
+            return nil
+        }
+    }
+
+    func runQuirkCheck(_ checkID: AutomatedCheckID, store: TunnelStore) async -> NetworkCheckOutcome? {
+        switch checkID {
+        case .quirk1ActiveTunnelSave:
+            return await DebugVerificationNetworkChecks.runQuirk1ActiveTunnelSaveCheck(store: store)
+        case .quirk2AddOnDemandRunning:
+            return await DebugVerificationNetworkChecks.runQuirk2AddOnDemandRunningCheck(store: store)
+        case .quirk3OnDemandReload:
+            return await DebugVerificationNetworkChecks.runQuirk3OnDemandReloadCheck(store: store)
+        case .quirk4FreshStartAndEnabled:
+            return await DebugVerificationNetworkChecks.runQuirk4FreshStartAndEnabledCheck(store: store)
+        case .quirk6BulkSaveNotifications:
+            return await DebugVerificationNetworkChecks.runQuirk6BulkSaveCheck(store: store)
+        default:
+            return nil
+        }
+    }
+
+    func updateAutomatedResult(_ result: AutomatedCheckResult) {
         if let idx = automatedResults.firstIndex(where: { $0.id == result.id }) {
             automatedResults[idx] = result
         }
     }
 
-    private func applyNetworkOutcome(_ outcome: NetworkCheckOutcome) {
+    func applyNetworkOutcome(_ outcome: NetworkCheckOutcome) {
         updateAutomatedResult(outcome.result)
         if let summary = outcome.startErrorSummary {
             startErrorSummary = summary
@@ -194,19 +225,6 @@ final class DebugVerificationWizardModel {
             if let idx = quirkFindings.firstIndex(where: { $0.id == finding.id }) {
                 quirkFindings[idx] = finding
             }
-        }
-    }
-
-    private static func initialQuirkFindings() -> [IOSQuirkFinding] {
-        IOSQuirkID.allCases.map { quirk in
-            if quirk == .onDemandOnRunningNeedsStop {
-                return IOSQuirkFinding(
-                    id: quirk,
-                    status: .manualCheck,
-                    observation: "Verify on Manual Step 9 (add on-demand rules to a running tunnel)."
-                )
-            }
-            return IOSQuirkFinding(id: quirk, status: .notRun, observation: "")
         }
     }
 }

@@ -5,8 +5,10 @@ struct DebugAutomatedChecksPage: View {
     @Bindable var model: DebugVerificationWizardModel
     let store: TunnelStore
 
+    @State private var fixtureLoadMessage: String?
+
     private var groupedCategories: [(title: String, checks: [AutomatedCheckResult])] {
-        let order = ["Core & Storage", "NetworkExtension & Errors", "iOS 26 Quirk Probes"]
+        let order = ["Core, Import & Storage", "Live Tunnel & Runtime", "iOS 26 Quirk Probes"]
         return order.compactMap { category in
             let items = model.automatedResults.filter { $0.id.category == category }
             return items.isEmpty ? nil : (category, items)
@@ -16,7 +18,7 @@ struct DebugAutomatedChecksPage: View {
     var body: some View {
         VStack(spacing: SGSpacing.medium) {
             heroActionCard
-            quirkOptInCard
+            bundledFixturesCard
 
             if let startErrorSummary = model.startErrorSummary {
                 startErrorHighlightCard(startErrorSummary)
@@ -46,17 +48,17 @@ struct DebugAutomatedChecksPage: View {
 
     private var heroActionCard: some View {
         VStack(alignment: .leading, spacing: SGSpacing.small) {
-            HStack(spacing: SGSpacing.small) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("AUTOMATED DIAGNOSTICS")
-                        .font(SGTypography.displaySection)
-                        .tracking(1.0)
-                        .foregroundStyle(SGColor.textPrimary)
-                    Text("Self-cleaning on-device checks for Core, Keychain, Codec, Zip, NetworkExtension & iOS 26 quirks.")
-                        .font(SGTypography.caption)
-                        .foregroundStyle(SGColor.textSecondary)
-                }
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("AUTOMATED DIAGNOSTICS")
+                    .font(SGTypography.displaySection)
+                    .tracking(1.0)
+                    .foregroundStyle(SGColor.textPrimary)
+                Text(
+                    "Self-cleaning suite using bundled ServerTest & TestCert configs: Core, Keychain, Codec, "
+                        + "Live Connect/Metrics/Switch/Split DNS/Kill Switch, Start Error & all 6 iOS 26 Quirks."
+                )
+                .font(SGTypography.caption)
+                .foregroundStyle(SGColor.textSecondary)
             }
 
             HStack(spacing: SGSpacing.xSmall) {
@@ -134,18 +136,74 @@ struct DebugAutomatedChecksPage: View {
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 
-    private var quirkOptInCard: some View {
-        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-            BrutalistFormToggleRow(
-                title: "Allow Active-Tunnel Quirk #1 Probe",
-                subtitle: "When ON and a real VPN is connected, saves a temp config to check if iOS 26 drops the active tunnel.",
-                isOn: $model.allowActiveTunnelQuirkProbe,
-                activeTint: SGColor.popYellow
+    private var bundledFixturesCard: some View {
+        let fixtures = DebugBundledFixtures.allAvailable()
+        return VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: "Supplied Test Configs",
+                trailingText: fixtures.isEmpty ? "MISSING" : "\(fixtures.count) BUNDLED"
             )
+
+            VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+                if fixtures.isEmpty {
+                    Text(
+                        "No docs/*.conf fixtures found in DebugFixtures/. "
+                            + "Place ServerTest.conf & TestCert.conf in docs/ and rebuild."
+                    )
+                        .font(SGTypography.caption)
+                        .foregroundStyle(SGColor.popRed)
+                } else {
+                    ForEach(fixtures) { fixture in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(fixture.fileName)
+                                .font(SGTypography.bodyBold)
+                                .foregroundStyle(SGColor.textPrimary)
+                            Text(fixture.roleSummary)
+                                .font(SGTypography.monoCompact)
+                                .foregroundStyle(SGColor.textSecondary)
+                        }
+                        .padding(SGSpacing.xSmall)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(SGColor.surfaceElevated)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+                    }
+
+                    DebugActionButton(
+                        title: "LOAD SUPPLIED CONFIGS INTO APP",
+                        icon: "tray.and.arrow.down.fill",
+                        fill: SGColor.popBlue
+                    ) {
+                        Task { await loadBundledFixtures(fixtures) }
+                    }
+                    .disabled(model.isRunningAutomatedSuite)
+
+                    if let fixtureLoadMessage {
+                        Text(fixtureLoadMessage)
+                            .font(SGTypography.monoCompact)
+                            .foregroundStyle(SGColor.textSecondary)
+                    }
+                }
+            }
+            .padding(SGSpacing.medium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(SGColor.surfaceCard)
         }
-        .padding(.horizontal, SGSpacing.medium)
-        .padding(.vertical, SGSpacing.small)
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+
+    private func loadBundledFixtures(_ fixtures: [DebugBundledFixture]) async {
+        var loaded: [String] = []
+        for fixture in fixtures {
+            do {
+                _ = try await DebugBundledFixtures.ensureLoaded(fixture: fixture, named: fixture.displayName, in: store)
+                loaded.append(fixture.displayName)
+            } catch {
+                fixtureLoadMessage = "Failed loading \(fixture.displayName): \(error.localizedDescription)"
+                return
+            }
+        }
+        fixtureLoadMessage = "Ready in tunnel list: \(loaded.joined(separator: ", "))."
     }
 
     private func startErrorHighlightCard(_ summary: StartErrorProbeSummary) -> some View {

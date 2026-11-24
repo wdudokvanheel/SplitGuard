@@ -83,10 +83,7 @@ enum DebugVerificationNetworkChecks {
         #endif
     }
 
-    static func runQuirk1ActiveTunnelSaveCheck(
-        store: TunnelStore,
-        allowActiveTunnelInterruption: Bool
-    ) async -> NetworkCheckOutcome {
+    static func runQuirk1ActiveTunnelSaveCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
         #if targetEnvironment(simulator)
@@ -97,12 +94,22 @@ enum DebugVerificationNetworkChecks {
             clock: clock
         )
         #else
-        return await runDeviceQuirk1(
-            store: store,
-            allowActiveTunnelInterruption: allowActiveTunnelInterruption,
+        return await runDeviceQuirk1(store: store, start: start, clock: clock)
+        #endif
+    }
+
+    static func runQuirk2AddOnDemandRunningCheck(store: TunnelStore) async -> NetworkCheckOutcome {
+        let clock = ContinuousClock()
+        let start = clock.now
+        #if targetEnvironment(simulator)
+        return simulatorQuirkOutcome(
+            checkID: .quirk2AddOnDemandRunning,
+            quirkID: .onDemandOnRunningNeedsStop,
             start: start,
             clock: clock
         )
+        #else
+        return await runDeviceQuirk2(store: store, start: start, clock: clock)
         #endif
     }
 

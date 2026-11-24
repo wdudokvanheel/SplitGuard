@@ -83,6 +83,19 @@ targets:
           - "$(inherited)"
           - "@executable_path/Frameworks"
     postCompileScripts:
+      - name: Copy Debug Verification Fixtures
+        basedOnDependencyAnalysis: false
+        script: |
+          DEST="${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/DebugFixtures"
+          rm -rf "$DEST"
+          if [ "${CONFIGURATION}" = "Debug" ]; then
+            mkdir -p "$DEST"
+            for conf in "${SRCROOT}/docs/"*.conf; do
+              if [ -f "$conf" ]; then
+                cp "$conf" "$DEST/"
+              fi
+            done
+          fi
       - name: SwiftLint
         basedOnDependencyAnalysis: false
         script: |

@@ -4,171 +4,88 @@ import Foundation
 enum DebugVerificationCatalog {
     static let manualSteps: [ManualStepDefinition] = [
         ManualStepDefinition(
-            id: .importConfFile,
+            id: .importFilesAndAirDrop,
             number: 1,
-            title: "Import .conf File",
-            subtitle: "Files picker, AirDrop, and Open-In handling",
+            title: "Files & Open-In Import",
+            subtitle: "System document picker & AirDrop using supplied ServerTest / TestCert configs",
             instructions: [
-                "Tap 'Pick .conf File(s)' below to import from Files, or AirDrop/Open-In a .conf file into SplitGuard.",
-                "Verify the imported tunnel appears with the filename as its name and valid keys/endpoint.",
-                "Optional: select 2+ .conf files at once (multi-select) and test an invalid .conf to confirm the error alert."
+                "Tap 'Share ServerTest.conf' or 'Share TestCert.conf' below and save to Files (or AirDrop from Mac).",
+                "Tap 'Pick .conf File(s)' and select one or both saved .conf files (tests multi-select).",
+                "Confirm the tunnel(s) import with filename as name and Split DNS suggestion prompts when applicable."
             ],
-            whatToVerify: "Valid .conf files import cleanly (including # SplitGuard: directives), and invalid files show a clear alert."
+            whatToVerify: "iOS Files picker and Open-In import bundled .conf files cleanly with zero crashes."
         ),
         ManualStepDefinition(
             id: .importQRCode,
             number: 2,
-            title: "Import via QR Code",
-            subtitle: "Camera permission, WireGuard QR parsing, and naming prompt",
+            title: "QR Code Camera Scanner",
+            subtitle: "Camera permission & scan using supplied QR code image",
             instructions: [
-                "Tap 'Open QR Scanner' below and grant camera permission if prompted.",
-                "Scan a valid WireGuard configuration QR code and enter a unique tunnel name when prompted.",
-                "Optional: scan a non-WireGuard QR code and verify the invalid QR alert appears without crashing."
+                "Tap 'Share QR Image' below to send the ServerTest or TestCert QR code to your Mac / another screen.",
+                "Tap 'Open QR Scanner', grant camera access if prompted, and scan the QR code.",
+                "Enter a tunnel name when prompted and confirm it saves into SplitGuard."
             ],
-            whatToVerify: "Scanned WireGuard QR config saves cleanly into the tunnel list with all peer/interface fields intact."
+            whatToVerify: "Camera scanner decodes the WireGuard QR code and imports the profile cleanly."
         ),
         ManualStepDefinition(
-            id: .pasteAndCreateFromScratch,
+            id: .physicalSplitDNSAndKillSwitch,
             number: 3,
-            title: "Paste & Create From Scratch",
-            subtitle: "Clipboard import, keypair generation, name validation, natural sort",
+            title: "Private DNS & LAN Kill Switch",
+            subtitle: "Optional physical-network spot check using supplied TestCert & ServerTest",
             instructions: [
-                "Tap 'Copy Sample Config', then 'Open Paste Config' and import it under a test name.",
-                "Tap 'Create From Scratch' and verify a private/public keypair is generated and regenerates cleanly.",
-                "Test saving with an empty name and with a duplicate name to confirm validation rejects both.",
-                "Create or rename tunnels named like 'wg2' and 'wg10' and check natural sort order ('wg2' before 'wg10')."
+                "Tap 'Load TestCert (Split DNS)' below, connect it, and use 'Test a Name' to resolve a private hw45.nl host on 10.0.0.10.",
+                "Tap 'Load ServerTest (Strict Kill Switch)', connect it, and confirm a local LAN IP is blocked while internet works.",
+                "Switch Allow Local Network ON in the editor and confirm local LAN access returns while internet stays tunnelled."
             ],
-            whatToVerify: "Paste and manual creation both work, unique non-empty names are enforced, and list uses natural sort."
+            whatToVerify: "Internal DNS host resolves via 10.0.0.10, strict Kill Switch blocks LAN, and Allow LAN restores LAN access."
         ),
         ManualStepDefinition(
-            id: .connectMetricsDisconnect,
+            id: .onDemandNetworkSwitch,
             number: 4,
-            title: "Connect, Live Metrics & Disconnect",
-            subtitle: "Real peer handshake, endpoint, RX/TX counters, and clean stop",
+            title: "On-Demand Wi-Fi / Cellular / SSID",
+            subtitle: "Physical radio switching & connected-SSID entitlement",
             instructions: [
-                "Pick a tunnel with a reachable WireGuard peer below and tap Connect (approve iOS VPN permission if asked).",
-                "Confirm status transitions Activating -> Active and open Tunnel Detail to inspect live state.",
-                "Generate brief traffic over the tunnel and verify endpoint, RX/TX counters, and last handshake update live.",
-                "Tap Disconnect and confirm the tunnel returns cleanly to Inactive."
+                "Tap 'Load ServerTest for On-Demand' below, then tap 'Edit Rules' to configure Wi-Fi / Cellular / SSID rules.",
+                "Tap 'Add connected SSID' inside the SSID editor to confirm the Wi-Fi info entitlement reads your SSID.",
+                "Enable On-Demand, toggle Wi-Fi or Cellular in Control Center, and confirm iOS auto-connects / disconnects per rule."
             ],
-            whatToVerify: "Live metrics stream from the extension via ProviderMessage.status and disconnect leaves no stuck state."
-        ),
-        ManualStepDefinition(
-            id: .switchAndEditConnected,
-            number: 5,
-            title: "Switch Tunnels & Edit Connected",
-            subtitle: "Mutual exclusion (A -> B) and live reconnect after editing",
-            instructions: [
-                "Start Tunnel A so it is Active, then tap Connect on Tunnel B below.",
-                "Confirm Tunnel A stops before Tunnel B activates (no stuck Waiting state).",
-                "While a tunnel is Active, tap 'Edit Active Tunnel', modify a field (e.g. MTU or DNS), and tap Save.",
-                "Confirm the tunnel enters Restarting and automatically reconnects with the updated settings."
-            ],
-            whatToVerify: "Switching cleanly hands off between tunnels and editing an active tunnel reconnects with the new config."
-        ),
-        ManualStepDefinition(
-            id: .failedStartErrorReporting,
-            number: 6,
-            title: "Failed Start Error Reporting",
-            subtitle: "Extension error alert + fetchLastDisconnectError vs IPC delivery",
-            instructions: [
-                "Tap 'Create Failing Tunnel' (uses nonexistent-verify-probe.invalid) and tap Activate, OR tap 'Run Probe'.",
-                "Confirm SplitGuard displays the extension's specific error reason (DNS resolution failed), not a generic error.",
-                "Review the diagnostic readout below confirming whether fetchLastDisconnectError or IPC delivered it.",
-                "Tap 'Delete Failing Tunnel' once verified."
-            ],
-            whatToVerify: "User sees the exact TunnelStartError from PacketTunnelProvider and delivery mechanism is confirmed."
-        ),
-        ManualStepDefinition(
-            id: .splitDNS,
-            number: 7,
-            title: "Split DNS",
-            subtitle: "Only-domains vs all-domains, exclusions, routing preview, live tester",
-            instructions: [
-                "Edit a tunnel to configure Split DNS in 'Only specific domains' mode with a private domain and an exclusion.",
-                "Check that the Routing Preview below matches your domains and exact vs wildcard exclusions.",
-                "Connect the tunnel and use the live 'Test a Name' widget below for a matched, excluded, and public hostname.",
-                "Switch to 'All domains' mode with an exclusion and verify routing updates accordingly."
-            ],
-            whatToVerify: "Matched domains resolve via tunnel DNS, excluded and unmatched domains use normal DNS."
-        ),
-        ManualStepDefinition(
-            id: .killSwitch,
-            number: 8,
-            title: "Kill Switch",
-            subtitle: "Strict vs Allow LAN access, and endpoint-cache start while blocked",
-            instructions: [
-                "Edit a full-tunnel (0.0.0.0/0) profile and enable Kill Switch with Allow Local Network OFF (strict).",
-                "Connect and verify LAN hosts are unreachable while VPN traffic works.",
-                "Enable Allow Local Network ON, reconnect, and verify local LAN access works while internet stays tunnelled.",
-                "With a hostname endpoint + Kill Switch ON: connect once (caches IP), disconnect, and reconnect to verify cache start."
-            ],
-            whatToVerify: "Strict kill switch blocks LAN, Allow LAN permits LAN, and cached endpoint starts when DNS is blocked."
-        ),
-        ManualStepDefinition(
-            id: .onDemandActivation,
-            number: 9,
-            title: "On-Demand & iOS 26 Quirks",
-            subtitle: "Wi-Fi, cellular, SSID include/exclude lists, and Quirks #2/#3",
-            instructions: [
-                "Edit a tunnel to enable On-Demand rules: test Wi-Fi, Cellular, and SSID Only/Except (try 'Add connected SSID').",
-                "Quirk #2 check: while a tunnel is Active WITHOUT on-demand rules, add on-demand rules and Save.",
-                "Quirk #3 check: toggle On-Demand ON/OFF below and verify live connection status updates keep arriving.",
-                "Toggle Wi-Fi / Cellular or switch SSIDs to verify iOS auto-connects and auto-disconnects per rule.",
-                "Record in Notes whether Quirks #2 and #3 reproduced on iOS 26."
-            ],
-            whatToVerify: "On-Demand rules persist accurately, auto-trigger as configured, and status updates continue smoothly."
+            whatToVerify: "Connected SSID detection works and iOS triggers automatic VPN connect/disconnect on radio changes."
         ),
         ManualStepDefinition(
             id: .deviceAuthAndZipExport,
-            number: 10,
-            title: "Device Auth & .zip Export",
-            subtitle: "Face ID / passcode gates and exported .conf directive preservation",
+            number: 5,
+            title: "Face ID Gate & .zip Export",
+            subtitle: "Biometric/passcode protection for private keys and archive export",
             instructions: [
-                "Tap 'Open Tunnel Detail' below and tap Edit or reveal Private Key — confirm Face ID / Passcode gate appears.",
-                "Test cancelling authentication to verify access is blocked cleanly.",
-                "Tap 'Export All Tunnels (.zip)' below, authenticate, and save or AirDrop the archive.",
-                "Unzip the archive and confirm every .conf is valid WireGuard config and preserves # SplitGuard: comments."
+                "Tap 'Ensure Bundled Tunnels Loaded' if you have no tunnels yet.",
+                "Tap 'Open Detail' and tap Edit / Private Key — confirm Face ID / Passcode gate triggers and blocks on Cancel.",
+                "Tap 'Export All Tunnels (.zip)', authenticate, save or AirDrop the archive, and verify it unzips cleanly."
             ],
-            whatToVerify: "Both private-key viewing and zip export enforce device auth, and exported .zip unzips cleanly."
+            whatToVerify: "Private key access & zip export enforce device auth, and .conf files preserve # SplitGuard: comments."
         ),
         ManualStepDefinition(
             id: .externalIOSSettingsChanges,
-            number: 11,
-            title: "External iOS Settings Changes",
+            number: 6,
+            title: "External iOS Settings Sync",
             subtitle: "NEVPNConfigurationChange sync from Settings -> VPN",
             instructions: [
-                "Note the current tunnel list and Store Revision counter shown below.",
-                "Tap 'Open iOS Settings' and go to General -> VPN & Device Management -> VPN.",
-                "Toggle a SplitGuard tunnel ON/OFF, toggle Connect On Demand, or delete a disposable test tunnel.",
-                "Switch back to SplitGuard and confirm the list, statuses, and revision update automatically."
+                "Tap 'Create Disposable TestCert Tunnel' below and note the Store Revision number.",
+                "Tap 'Open iOS Settings' -> General -> VPN & Device Management -> VPN.",
+                "Toggle Connect On Demand or delete the disposable tunnel in iOS Settings, then return to SplitGuard."
             ],
-            whatToVerify: "External edits and deletions in iOS Settings sync into SplitGuard without restarting the app."
+            whatToVerify: "SplitGuard automatically reflects the Settings change and increments Store Revision without restarting."
         ),
         ManualStepDefinition(
-            id: .homeScreenQuickActions,
-            number: 12,
-            title: "Home-Screen Quick Actions",
-            subtitle: "Long-press app icon shortcuts for recent tunnels",
+            id: .quickActionsAndLogViewer,
+            number: 7,
+            title: "Quick Actions & Log Viewer UI",
+            subtitle: "Home-screen icon long-press shortcuts and merged log viewer share sheet",
             instructions: [
-                "Ensure at least 1-2 tunnels appear in Recent Tunnels & Registered Shortcuts below.",
-                "Return to the iOS Home Screen and long-press the SplitGuard app icon.",
-                "Verify recent tunnels appear in the quick action menu.",
-                "Tap a shortcut and confirm SplitGuard opens, navigates to that tunnel, and toggles its state."
+                "Confirm recent tunnels appear below (automated live tests populate them, or tap 'Refresh Quick Actions').",
+                "Go to the iOS Home Screen, long-press the SplitGuard icon, and tap a recent tunnel shortcut.",
+                "Return here, tap 'Open Log Viewer', confirm merged [APP] + [NET] lines render cleanly, and test Log Export."
             ],
-            whatToVerify: "Quick actions reflect recent tunnels and launching one navigates to and toggles that tunnel."
-        ),
-        ManualStepDefinition(
-            id: .logViewerAndExport,
-            number: 13,
-            title: "Log Viewer & Log Export",
-            subtitle: "Merged app.log + tunnel.log timeline and plain-text export",
-            instructions: [
-                "Tap 'Write App Test Line' below (and connect a tunnel briefly if tunnel.log is empty).",
-                "Tap 'Open Log Viewer' and verify both [APP] and [NET] lines appear merged in chronological order.",
-                "Tap the Export button in Log Viewer and confirm the share sheet produces a readable merged text log."
-            ],
-            whatToVerify: "MergedLogReader displays interleaved APP and NET entries and exports a clean plain-text file."
+            whatToVerify: "Home-screen quick actions navigate & toggle the tunnel, and Log Viewer displays & exports merged logs."
         )
     ]
 

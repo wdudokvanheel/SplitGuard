@@ -209,7 +209,10 @@ struct DebugVerificationSummaryPage: View {
 
     private var manualResultsCard: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: "Manual Checks (1-13)", trailingText: "TAP TO EDIT")
+            BrutalistSectionBar(
+                title: "Manual Checks (1-\(ManualStepID.allCases.count))",
+                trailingText: "TAP TO EDIT"
+            )
 
             VStack(spacing: SGSpacing.xSmall) {
                 ForEach(DebugVerificationCatalog.manualSteps) { def in

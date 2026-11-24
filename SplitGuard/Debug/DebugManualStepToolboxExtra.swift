@@ -2,131 +2,38 @@
 import SplitGuardCore
 import SwiftUI
 import UIKit
-import WireGuardEngine
 
-// MARK: - Steps 7 to 13 Toolboxes
-
-struct SplitDNSToolboxView: View {
-    let store: TunnelStore
-    let onAction: (DebugWizardAction) -> Void
-    @State private var selectedTunnelID: Tunnel.ID?
-
-    private var selectedTunnel: Tunnel? {
-        if let selectedTunnelID, let match = store.tunnel(for: selectedTunnelID) {
-            return match
-        }
-        return store.activeTunnel ?? store.tunnels.first
-    }
-
-    var body: some View {
-        if store.tunnels.isEmpty {
-            Text("No tunnels available. Import or create a tunnel first.")
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textSecondary)
-        } else {
-            DebugTunnelPickerStrip(store: store, selectedTunnelID: $selectedTunnelID)
-
-            if let tunnel = selectedTunnel {
-                SplitDNSRoutingPreviewView(
-                    splitDNS: tunnel.splitDNS,
-                    dnsServers: tunnel.profile.interface.dnsServers
-                )
-
-                Rectangle()
-                    .fill(SGColor.borderSubtle)
-                    .frame(height: 1)
-
-                SplitDNSNameTesterView(
-                    splitDNS: tunnel.splitDNS,
-                    dnsServers: tunnel.profile.interface.dnsServers,
-                    isTunnelActive: tunnel.status == .active
-                )
-
-                DebugActionButton(title: "EDIT SPLIT DNS (\(tunnel.name))", icon: "pencil", fill: SGColor.popYellow) {
-                    onAction(.openEditTunnel(tunnel))
-                }
-            }
-        }
-    }
-}
-
-struct KillSwitchToolboxView: View {
-    let store: TunnelStore
-    let onAction: (DebugWizardAction) -> Void
-    @State private var selectedTunnelID: Tunnel.ID?
-    @State private var monitor = TunnelLiveMetricsMonitor()
-
-    private var selectedTunnel: Tunnel? {
-        if let selectedTunnelID, let match = store.tunnel(for: selectedTunnelID) {
-            return match
-        }
-        return store.activeTunnel ?? store.tunnels.first
-    }
-
-    var body: some View {
-        if store.tunnels.isEmpty {
-            Text("No tunnels available. Import or create a full-tunnel (0.0.0.0/0) profile first.")
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.textSecondary)
-        } else {
-            DebugTunnelPickerStrip(store: store, selectedTunnelID: $selectedTunnelID)
-
-            if let tunnel = selectedTunnel {
-                let killSwitch = tunnel.options.killSwitch
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Routes all IPv4 (0.0.0.0/0): \(tunnel.profile.routesAllIPv4Traffic ? "YES" : "NO")")
-                    Text("Kill Switch: \(killSwitch.isEnabled ? "ENABLED" : "OFF")")
-                    Text("Allow Local Network: \(killSwitch.allowLocalNetwork ? "YES (LAN allowed)" : "NO (Strict)")")
-                    Text("Status: \(tunnel.status.displayTitle) | Block State: \(blockStateLabel)")
-                }
-                .font(SGTypography.monoCompact)
-                .foregroundStyle(SGColor.textPrimary)
-                .padding(SGSpacing.xSmall)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SGColor.surfaceElevated)
-                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
-
-                HStack(spacing: SGSpacing.xSmall) {
-                    let isOn = tunnel.status != .inactive
-                    DebugActionButton(
-                        title: isOn ? "DISCONNECT" : "CONNECT",
-                        icon: isOn ? "stop.fill" : "bolt.fill",
-                        fill: isOn ? SGColor.popRed : SGColor.popGreen
-                    ) {
-                        Task { await store.setTunnelActive(!isOn, for: tunnel) }
-                    }
-                    DebugActionButton(title: "EDIT", icon: "pencil", fill: SGColor.popYellow) {
-                        onAction(.openEditTunnel(tunnel))
-                    }
-                }
-            }
-        }
-        Color.clear.frame(height: 0)
-            .onAppear { syncMonitor() }
-            .onDisappear { monitor.stop() }
-            .onChange(of: selectedTunnel?.id) { _, _ in syncMonitor() }
-            .onChange(of: selectedTunnel?.status) { _, _ in syncMonitor() }
-    }
-
-    private var blockStateLabel: String {
-        monitor.killSwitchBlockState?.displayText ?? "Normal"
-    }
-
-    private func syncMonitor() {
-        monitor.update(
-            tunnel: selectedTunnel,
-            status: selectedTunnel?.status ?? .inactive,
-            store: store,
-            isVisible: true
-        )
-    }
-}
+// MARK: - Manual Steps 4 to 7 Toolboxes
 
 struct OnDemandToolboxView: View {
     let store: TunnelStore
     let onAction: (DebugWizardAction) -> Void
+    @State private var noteText: String?
 
     var body: some View {
+        if let serverFixture = DebugBundledFixtures.serverTest() {
+            DebugActionButton(title: "LOAD SERVERTEST FOR ON-DEMAND", icon: "wifi", fill: SGColor.popBlue) {
+                Task {
+                    do {
+                        let tunnel = try await DebugBundledFixtures.ensureLoaded(
+                            fixture: serverFixture,
+                            named: "ServerTest-OnDemand",
+                            in: store
+                        )
+                        noteText = "Loaded \(tunnel.name). Tap Edit Rules below to configure Wi-Fi / Cellular / SSID."
+                    } catch {
+                        noteText = "Error: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+
+        if let noteText {
+            Text(noteText)
+                .font(SGTypography.monoCompact)
+                .foregroundStyle(SGColor.textSecondary)
+        }
+
         if store.tunnels.isEmpty {
             Text("No tunnels available yet.")
                 .font(SGTypography.caption)
@@ -202,6 +109,20 @@ struct AuthAndExportToolboxView: View {
     @State private var exportErrorText: String?
 
     var body: some View {
+        if store.tunnels.isEmpty, !DebugBundledFixtures.allAvailable().isEmpty {
+            DebugActionButton(title: "ENSURE BUNDLED TUNNELS LOADED", icon: "tray.and.arrow.down.fill", fill: SGColor.popBlue) {
+                Task {
+                    for fixture in DebugBundledFixtures.allAvailable() {
+                        _ = try? await DebugBundledFixtures.ensureLoaded(
+                            fixture: fixture,
+                            named: fixture.displayName,
+                            in: store
+                        )
+                    }
+                }
+            }
+        }
+
         DebugActionButton(title: "TEST FACE ID / PASSCODE PROMPT", icon: "faceid", fill: SGColor.popPurple) {
             Task {
                 let allowed = await PrivateDataConfirmation.confirmAccess(
@@ -263,6 +184,7 @@ struct AuthAndExportToolboxView: View {
 
 struct ExternalSettingsToolboxView: View {
     let store: TunnelStore
+    @State private var noteText: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -281,6 +203,29 @@ struct ExternalSettingsToolboxView: View {
         .background(SGColor.surfaceElevated)
         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
 
+        if let certFixture = DebugBundledFixtures.testCert() {
+            DebugActionButton(title: "CREATE DISPOSABLE TESTCERT TUNNEL", icon: "plus.square.fill", fill: SGColor.popGreen) {
+                Task {
+                    do {
+                        let tunnel = try await DebugBundledFixtures.ensureLoaded(
+                            fixture: certFixture,
+                            named: "SettingsSyncTest",
+                            in: store
+                        )
+                        noteText = "Created '\(tunnel.name)'. Modify or delete it in iOS Settings -> VPN."
+                    } catch {
+                        noteText = "Error: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+
+        if let noteText {
+            Text(noteText)
+                .font(SGTypography.monoCompact)
+                .foregroundStyle(SGColor.textSecondary)
+        }
+
         HStack(spacing: SGSpacing.xSmall) {
             DebugActionButton(title: "OPEN IOS SETTINGS", icon: "gear", fill: SGColor.popYellow) {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -297,10 +242,13 @@ struct ExternalSettingsToolboxView: View {
     }
 }
 
-struct QuickActionsToolboxView: View {
+struct QuickActionsAndLogToolboxView: View {
     let store: TunnelStore
+    let onAction: (DebugWizardAction) -> Void
+
     @State private var shortcutTitles: [String] = []
     @State private var recentNames: [String] = []
+    @State private var logStatusText = "Tap Refresh to inspect log files."
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -310,15 +258,29 @@ struct QuickActionsToolboxView: View {
             Text("Registered Shortcuts: \(shortcutTitles.isEmpty ? "None" : shortcutTitles.joined(separator: ", "))")
                 .font(SGTypography.monoCompact)
                 .foregroundStyle(SGColor.textSecondary)
+            Text(logStatusText)
+                .font(SGTypography.monoCompact)
+                .foregroundStyle(SGColor.textSecondary)
         }
         .padding(SGSpacing.xSmall)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SGColor.surfaceElevated)
         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
 
-        DebugActionButton(title: "REFRESH QUICK ACTIONS", icon: "bolt.horizontal.circle", fill: SGColor.popGreen) {
+        DebugActionButton(title: "REFRESH QUICK ACTIONS", icon: "bolt.horizontal.circle", fill: SGColor.popYellow) {
             store.updateQuickActions()
             refreshSnapshot()
+        }
+
+        HStack(spacing: SGSpacing.xSmall) {
+            DebugActionButton(title: "WRITE APP LOG LINE", icon: "pencil.line", fill: SGColor.popBlue) {
+                Log.info("Debug Verification Wizard marker (\(Int(Date().timeIntervalSince1970)))")
+                Log.flush()
+                refreshSnapshot()
+            }
+            DebugActionButton(title: "OPEN LOG VIEWER", icon: "doc.text.fill", fill: SGColor.popGreen) {
+                onAction(.openLogViewer)
+            }
         }
         .onAppear { refreshSnapshot() }
     }
@@ -329,38 +291,8 @@ struct QuickActionsToolboxView: View {
             userDefaults: store.recentTunnelsUserDefaults
         )
         shortcutTitles = (UIApplication.shared.shortcutItems ?? []).map(\.localizedTitle)
-    }
-}
-
-struct LogViewerToolboxView: View {
-    let onAction: (DebugWizardAction) -> Void
-    @State private var statusText = "Tap Refresh to inspect log files."
-
-    var body: some View {
-        Text(statusText)
-            .font(SGTypography.monoCompact)
-            .foregroundStyle(SGColor.textPrimary)
-            .padding(SGSpacing.xSmall)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(SGColor.surfaceElevated)
-            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
-
-        HStack(spacing: SGSpacing.xSmall) {
-            DebugActionButton(title: "WRITE APP TEST LINE", icon: "pencil.line", fill: SGColor.popBlue) {
-                Log.info("Debug Verification Wizard test log marker (\(Int(Date().timeIntervalSince1970)))")
-                Log.flush()
-                refreshLogStats()
-            }
-            DebugActionButton(title: "OPEN LOG VIEWER", icon: "doc.text.fill", fill: SGColor.popGreen) {
-                onAction(.openLogViewer)
-            }
-        }
-        .onAppear { refreshLogStats() }
-    }
-
-    private func refreshLogStats() {
         guard let dir = AppGroup.containerURL() else {
-            statusText = "App Group container unavailable."
+            logStatusText = "App Group container unavailable."
             return
         }
         let fileManager = FileManager.default
@@ -369,8 +301,8 @@ struct LogViewerToolboxView: View {
         let appSize = (try? fileManager.attributesOfItem(atPath: appPath)[.size] as? NSNumber)?.intValue
         let netSize = (try? fileManager.attributesOfItem(atPath: netPath)[.size] as? NSNumber)?.intValue
         let mergedCount = MergedLogReader(directoryURL: dir).readAll().count
-        statusText = "app.log: \(appSize.map { "\($0) B" } ?? "missing") | "
-            + "tunnel.log: \(netSize.map { "\($0) B" } ?? "missing") | Merged lines: \(mergedCount)"
+        logStatusText = "app.log: \(appSize.map { "\($0) B" } ?? "missing") | "
+            + "tunnel.log: \(netSize.map { "\($0) B" } ?? "missing") | Merged: \(mergedCount)"
     }
 }
 #endif

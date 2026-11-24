@@ -7,49 +7,55 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
     case keychainProfileStore
     case codecAndZipExport
     case onDemandAndDraftValidation
+    case importPasteCreateAndSort
     case neManagerCrudAndSort
+    case liveConnectMetricsDisconnect
+    case liveSwitchAndEditConnected
+    case liveSplitDNSAndProbe
+    case liveKillSwitchAndEndpointCache
     case startErrorProbe
-    case quirk6BulkSaveNotifications
-    case quirk4FreshStartAndEnabled
-    case quirk3OnDemandReload
+    case liveMergedLogs
     case quirk1ActiveTunnelSave
+    case quirk2AddOnDemandRunning
+    case quirk3OnDemandReload
+    case quirk4FreshStartAndEnabled
+    case quirk6BulkSaveNotifications
 
     var id: String { rawValue }
 
     var category: String {
         switch self {
-        case .appGroupLogging, .keychainProfileStore, .codecAndZipExport, .onDemandAndDraftValidation:
-            return "Core & Storage"
-        case .neManagerCrudAndSort, .startErrorProbe:
-            return "NetworkExtension & Errors"
-        case .quirk6BulkSaveNotifications, .quirk4FreshStartAndEnabled,
-             .quirk3OnDemandReload, .quirk1ActiveTunnelSave:
+        case .appGroupLogging, .keychainProfileStore, .codecAndZipExport,
+             .onDemandAndDraftValidation, .importPasteCreateAndSort:
+            return "Core, Import & Storage"
+        case .neManagerCrudAndSort, .liveConnectMetricsDisconnect, .liveSwitchAndEditConnected,
+             .liveSplitDNSAndProbe, .liveKillSwitchAndEndpointCache, .startErrorProbe, .liveMergedLogs:
+            return "Live Tunnel & Runtime"
+        case .quirk1ActiveTunnelSave, .quirk2AddOnDemandRunning, .quirk3OnDemandReload,
+             .quirk4FreshStartAndEnabled, .quirk6BulkSaveNotifications:
             return "iOS 26 Quirk Probes"
         }
     }
 
     var title: String {
         switch self {
-        case .appGroupLogging:
-            return "App Group & Logging"
-        case .keychainProfileStore:
-            return "Keychain & ProfileStore"
-        case .codecAndZipExport:
-            return "Codec & Zip Export"
-        case .onDemandAndDraftValidation:
-            return "OnDemandPolicy & TunnelDraft"
-        case .neManagerCrudAndSort:
-            return "NETunnelProviderManager CRUD & Sort"
-        case .startErrorProbe:
-            return "Start Error: fetchLastDisconnectError vs IPC"
-        case .quirk6BulkSaveNotifications:
-            return "Quirk #6: Bulk Save Notifications"
-        case .quirk4FreshStartAndEnabled:
-            return "Quirk #4: Fresh Save Start & isEnabled"
-        case .quirk3OnDemandReload:
-            return "Quirk #3: On-Demand Without Reload"
-        case .quirk1ActiveTunnelSave:
-            return "Quirk #1: New Save While Active"
+        case .appGroupLogging: return "App Group & Logging"
+        case .keychainProfileStore: return "Keychain & ProfileStore"
+        case .codecAndZipExport: return "Codec, Fixtures & Zip Export"
+        case .onDemandAndDraftValidation: return "OnDemandPolicy & TunnelDraft"
+        case .importPasteCreateAndSort: return "Import, Paste, Create & Sort"
+        case .neManagerCrudAndSort: return "NETunnelProviderManager CRUD & Sort"
+        case .liveConnectMetricsDisconnect: return "Live Connect, Metrics & Disconnect"
+        case .liveSwitchAndEditConnected: return "Live Switch (A -> B) & Edit Active"
+        case .liveSplitDNSAndProbe: return "Live Split DNS & Physical DNS Probe"
+        case .liveKillSwitchAndEndpointCache: return "Live Kill Switch & Endpoint Cache"
+        case .startErrorProbe: return "Start Error: fetchLastDisconnectError vs IPC"
+        case .liveMergedLogs: return "Live Merged Logs (APP + NET)"
+        case .quirk1ActiveTunnelSave: return "Quirk #1: New Save While Active"
+        case .quirk2AddOnDemandRunning: return "Quirk #2: Add On-Demand to Running"
+        case .quirk3OnDemandReload: return "Quirk #3: On-Demand Without Reload"
+        case .quirk4FreshStartAndEnabled: return "Quirk #4: Fresh Save Start & isEnabled"
+        case .quirk6BulkSaveNotifications: return "Quirk #6: Bulk Save Notifications"
         }
     }
 
@@ -60,21 +66,35 @@ enum AutomatedCheckID: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .keychainProfileStore:
             return "ProfileStore save/load/verify/delete & NETunnelProviderProtocol fields"
         case .codecAndZipExport:
-            return "TunnelProfileCodec round-trip + SplitGuard directives & PKZIP archive export"
+            return "Parse ServerTest/TestCert + SplitGuard directives & PKZIP archive export"
         case .onDemandAndDraftValidation:
             return "OnDemandPolicy rules, RFC1918 helper, and TunnelDraft validation"
+        case .importPasteCreateAndSort:
+            return "File import service, paste text, editor keypair/validation & natural sort"
         case .neManagerCrudAndSort:
             return "Temporary manager create, load, natural sort, rename, and clean removal"
+        case .liveConnectMetricsDisconnect:
+            return "Auto-connect bundled ServerTest, verify handshake + RX/TX metrics & stop"
+        case .liveSwitchAndEditConnected:
+            return "Auto-switch ServerTest -> TestCert, edit active MTU & verify reconnect"
+        case .liveSplitDNSAndProbe:
+            return "Auto-connect TestCert with Split DNS, verify DNS lookups & physical probe"
+        case .liveKillSwitchAndEndpointCache:
+            return "Auto-test ServerTest strict Kill Switch, endpoint cache reconnect & Allow LAN"
         case .startErrorProbe:
-            return "Trigger NXDOMAIN start failure and compare fetchLastDisconnectError vs IPC"
+            return "Trigger NXDOMAIN failure and compare fetchLastDisconnectError vs IPC"
+        case .liveMergedLogs:
+            return "Confirm live app.log + tunnel.log merge chronologically and export cleanly"
+        case .quirk1ActiveTunnelSave:
+            return "Connect temp ServerTest, save a 2nd config & observe if iOS 26 drops it"
+        case .quirk2AddOnDemandRunning:
+            return "Connect temp TestCert, add on-demand rules while active & observe behavior"
+        case .quirk3OnDemandReload:
+            return "Enable on-demand without reload and check status notifications"
+        case .quirk4FreshStartAndEnabled:
+            return "Immediate startTunnel without reload & isEnabled flip on second save"
         case .quirk6BulkSaveNotifications:
             return "Count NEVPNConfigurationChange notifications fired for 3 temp saves"
-        case .quirk4FreshStartAndEnabled:
-            return "Test immediate startTunnel without reload & isEnabled flip on second save"
-        case .quirk3OnDemandReload:
-            return "Test enabling on-demand without reload and check status / stale behavior"
-        case .quirk1ActiveTunnelSave:
-            return "Opt-in: save a temporary config while a real tunnel is active"
         }
     }
 }
@@ -128,7 +148,6 @@ enum IOSQuirkID: Int, CaseIterable, Identifiable, Hashable, Sendable {
     case bulkSaveNotificationPerItem = 6
 
     var id: Int { rawValue }
-
     var shortLabel: String { "Quirk #\(rawValue)" }
 
     var descriptionText: String {
@@ -196,19 +215,13 @@ enum ManualCheckVerdict: String, CaseIterable, Equatable, Hashable, Sendable {
 }
 
 enum ManualStepID: Int, CaseIterable, Identifiable, Hashable, Sendable {
-    case importConfFile = 1
+    case importFilesAndAirDrop = 1
     case importQRCode = 2
-    case pasteAndCreateFromScratch = 3
-    case connectMetricsDisconnect = 4
-    case switchAndEditConnected = 5
-    case failedStartErrorReporting = 6
-    case splitDNS = 7
-    case killSwitch = 8
-    case onDemandActivation = 9
-    case deviceAuthAndZipExport = 10
-    case externalIOSSettingsChanges = 11
-    case homeScreenQuickActions = 12
-    case logViewerAndExport = 13
+    case physicalSplitDNSAndKillSwitch = 3
+    case onDemandNetworkSwitch = 4
+    case deviceAuthAndZipExport = 5
+    case externalIOSSettingsChanges = 6
+    case quickActionsAndLogViewer = 7
 
     var id: Int { rawValue }
 }
@@ -234,23 +247,17 @@ enum WizardStep: Identifiable, Equatable, Hashable, Sendable {
 
     var id: String {
         switch self {
-        case .automatedDiagnostics:
-            return "automated"
-        case .manual(let stepID):
-            return "manual-\(stepID.rawValue)"
-        case .summary:
-            return "summary"
+        case .automatedDiagnostics: return "automated"
+        case .manual(let stepID): return "manual-\(stepID.rawValue)"
+        case .summary: return "summary"
         }
     }
 
     var shortTitle: String {
         switch self {
-        case .automatedDiagnostics:
-            return "Automated Checks"
-        case .manual(let stepID):
-            return DebugVerificationCatalog.definition(for: stepID).title
-        case .summary:
-            return "Summary & Report"
+        case .automatedDiagnostics: return "Automated Checks"
+        case .manual(let stepID): return DebugVerificationCatalog.definition(for: stepID).title
+        case .summary: return "Summary & Report"
         }
     }
 
