@@ -24,8 +24,8 @@ public enum UAPIError: Error, Equatable, Sendable {
 /// UAPI applies directly to this state, one line at a time, including on errors.
 public final class WireGuardDevice: @unchecked Sendable {
     struct StaticIdentity {
-        fileprivate(set) var privateKey = NoisePrivateKey.zero
-        fileprivate(set) var publicKey = NoisePublicKey.zero
+        var privateKey = NoisePrivateKey.zero
+        var publicKey = NoisePublicKey.zero
     }
 
     private struct PeerSelection {
@@ -35,7 +35,7 @@ public final class WireGuardDevice: @unchecked Sendable {
         var ignoredKeepaliveInterval: UInt16 = 0
     }
 
-    private static let maxPeers = 1 << 16
+    static let maxPeers = 1 << 16
     private static let maxScanTokenSize = 64 * 1024
 
     // Live transitions use the same lock as Noise and UAPI. The handshake pipeline
