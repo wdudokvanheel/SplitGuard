@@ -62,6 +62,7 @@ extension TunnelStore {
     func addConfiguration(
         _ configuration: TunnelConfiguration,
         splitDNSConfiguration: SplitDNSConfiguration = .allDomains,
+        tunnelOptions: TunnelOptions = .default,
         named rawName: String,
         completion: ((Bool) -> Void)? = nil
     ) {
@@ -80,7 +81,8 @@ extension TunnelStore {
         configuration.name = trimmedName
         manager.add(
             tunnelConfiguration: configuration,
-            splitDNSConfiguration: splitDNSConfiguration
+            splitDNSConfiguration: splitDNSConfiguration,
+            tunnelOptions: tunnelOptions.sanitized(for: configuration)
         ) { [weak self] result in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -112,9 +114,11 @@ extension TunnelStore {
         do {
             let splitDNS = SplitDNSConfigCodec.extract(from: text)
             let configuration = try TunnelConfiguration(fromWgQuickConfig: text, called: trimmedName)
+            let tunnelOptions = TunnelOptionsCodec.extract(from: text, for: configuration)
             addConfiguration(
                 configuration,
                 splitDNSConfiguration: splitDNS,
+                tunnelOptions: tunnelOptions,
                 named: trimmedName,
                 completion: completion
             )

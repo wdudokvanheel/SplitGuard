@@ -186,3 +186,49 @@ struct TunnelDetailOnDemandCard: View {
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
     }
 }
+
+struct TunnelDetailKillSwitchCard: View {
+    let isEnabled: Bool
+    let allowLocalNetwork: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: "Kill Switch",
+                trailingText: isEnabled ? "ON" : "OFF"
+            )
+            VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+                HStack {
+                    Text("STATUS")
+                        .font(SGTypography.metricLabel)
+                        .foregroundStyle(SGColor.textSecondary)
+                    Spacer()
+                    Text(isEnabled ? "ENABLED" : "OFF")
+                        .font(SGTypography.badge)
+                        .foregroundStyle(isEnabled ? SGColor.pureWhite : SGColor.textPrimary)
+                        .padding(.horizontal, SGSpacing.xSmall)
+                        .padding(.vertical, 3)
+                        .background(isEnabled ? SGColor.popRed : SGColor.surfaceElevated)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+                }
+
+                if isEnabled {
+                    Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+                    HStack {
+                        Text("LOCAL NETWORK")
+                            .font(SGTypography.metricLabel)
+                            .foregroundStyle(SGColor.textSecondary)
+                        Spacer()
+                        Text(allowLocalNetwork ? "Allowed (AirPlay, AirDrop, printers)" : "Blocked")
+                            .font(SGTypography.subheadline)
+                            .foregroundStyle(SGColor.textPrimary)
+                    }
+                }
+            }
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+}

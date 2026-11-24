@@ -163,11 +163,15 @@ final class TunnelStore {
         hasOnDemandRulesByTunnel[ObjectIdentifier(tunnel)] ?? tunnel.hasOnDemandRules
     }
 
-    func displayState(for tunnel: TunnelContainer) -> TunnelDisplayState {
+    func displayState(
+        for tunnel: TunnelContainer,
+        killSwitchBlockState: KillSwitchBlockState? = nil
+    ) -> TunnelDisplayState {
         TunnelDisplayState(
             status: status(for: tunnel),
             hasOnDemandRules: hasOnDemandRules(for: tunnel),
-            isOnDemandEnabled: isOnDemandEnabled(for: tunnel)
+            isOnDemandEnabled: isOnDemandEnabled(for: tunnel),
+            killSwitchBlockState: killSwitchBlockState
         )
     }
 

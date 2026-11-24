@@ -35,6 +35,9 @@ struct FeaturedTunnelHeroCardView: View {
         } else {
             tags.append("ALL DOMAINS")
         }
+        if tunnel.tunnelOptions.killSwitch.isEnabled {
+            tags.append("KILL SWITCH")
+        }
         if displayState.hasOnDemandRules {
             tags.append(displayState.isOnDemandEnabled ? "ON-DEMAND ON" : "ON-DEMAND OFF")
         }

@@ -36,6 +36,9 @@ struct TunnelRowView: View {
             let count = tunnel.splitDNSConfiguration.normalizedDomainNames.count
             result.append(count == 1 ? "SPLIT DNS" : "SPLIT DNS (\(count))")
         }
+        if tunnel.tunnelOptions.killSwitch.isEnabled {
+            result.append("KILL SWITCH")
+        }
         if displayState.hasOnDemandRules {
             result.append(displayState.isOnDemandEnabled ? "ON-DEMAND" : "ON-DEMAND OFF")
         }
@@ -59,7 +62,11 @@ struct TunnelRowView: View {
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
-                .fill(displayState.status == .active ? SGColor.popGreen : accentColor)
+                .fill(
+                    displayState.status == .active
+                        ? (displayState.killSwitchBlockState != nil ? SGColor.popRed : SGColor.popGreen)
+                        : accentColor
+                )
                 .frame(width: 8)
                 .overlay(alignment: .trailing) {
                     Rectangle()

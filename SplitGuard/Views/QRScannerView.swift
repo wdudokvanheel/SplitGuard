@@ -14,6 +14,7 @@ struct QRScannerView: View {
     @State private var isScanningPaused = false
     @State private var scannedConfiguration: TunnelConfiguration?
     @State private var scannedSplitDNS: SplitDNSConfiguration = .allDomains
+    @State private var scannedTunnelOptions: TunnelOptions = .default
     @State private var tunnelName = ""
     @State private var scanError: AlertItem?
 
@@ -175,6 +176,7 @@ struct QRScannerView: View {
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         scannedSplitDNS = SplitDNSConfigCodec.extract(from: payload)
+        scannedTunnelOptions = TunnelOptionsCodec.extract(from: payload, for: config)
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
             scannedConfiguration = config
         }
@@ -184,9 +186,16 @@ struct QRScannerView: View {
         guard let config = scannedConfiguration else { return }
         let name = tunnelName.trimmingCharacters(in: .whitespacesAndNewlines)
         let splitDNS = scannedSplitDNS
-        store.addConfiguration(config, splitDNSConfiguration: splitDNS, named: name) { succeeded in
+        let options = scannedTunnelOptions
+        store.addConfiguration(
+            config,
+            splitDNSConfiguration: splitDNS,
+            tunnelOptions: options,
+            named: name
+        ) { succeeded in
             scannedConfiguration = nil
             scannedSplitDNS = .allDomains
+            scannedTunnelOptions = .default
             if succeeded {
                 if let onCompleted {
                     onCompleted()

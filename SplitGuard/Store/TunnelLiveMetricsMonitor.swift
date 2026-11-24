@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WireGuardEngine
 import WireGuardKit
 
 @MainActor
@@ -10,10 +11,23 @@ final class TunnelLiveMetricsMonitor {
     private(set) var latestHandshakeDate: Date?
     private(set) var hasLiveStats = false
     private(set) var now = Date()
+    private(set) var deviceStatus: DeviceStatus?
+    private(set) var monitoredTunnelID: ObjectIdentifier?
 
-    private var monitoredTunnelID: ObjectIdentifier?
     private weak var monitoredTunnel: TunnelContainer?
     private var pollingTask: Task<Void, Never>?
+
+    var killSwitchBlockState: KillSwitchBlockState? {
+        KillSwitchBlockState.evaluate(
+            killSwitchEnabled: monitoredTunnel?.tunnelOptions.killSwitch.isEnabled ?? false,
+            deviceStatus: deviceStatus
+        )
+    }
+
+    func killSwitchBlockState(for tunnel: TunnelContainer) -> KillSwitchBlockState? {
+        guard ObjectIdentifier(tunnel) == monitoredTunnelID else { return nil }
+        return killSwitchBlockState
+    }
 
     var rxFormatted: String {
         TunnelDetailViewModel.formatBytes(totalRxBytes)
@@ -58,6 +72,7 @@ final class TunnelLiveMetricsMonitor {
         totalTxBytes = 0
         latestHandshakeDate = nil
         hasLiveStats = false
+        deviceStatus = nil
     }
 
     private func startPollingIfNeeded() {
@@ -73,14 +88,15 @@ final class TunnelLiveMetricsMonitor {
 
     private func pollOnce() async {
         guard let tunnel = monitoredTunnel else { return }
-        let runtimeConfig: TunnelConfiguration? = await withCheckedContinuation { continuation in
-            tunnel.getRuntimeTunnelConfiguration { config in
-                continuation.resume(returning: config)
+        let fetchedStatus: DeviceStatus? = await withCheckedContinuation { continuation in
+            tunnel.getRuntimeDeviceStatus { status in
+                continuation.resume(returning: status)
             }
         }
         guard !Task.isCancelled else { return }
         now = Date()
-        guard let runtimeConfig else { return }
+        deviceStatus = fetchedStatus
+        guard let runtimeConfig = tunnel.mergedRuntimeConfiguration(with: fetchedStatus) else { return }
         apply(configuration: runtimeConfig)
     }
 

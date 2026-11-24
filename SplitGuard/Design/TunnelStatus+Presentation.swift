@@ -1,4 +1,31 @@
 import SwiftUI
+import WireGuardEngine
+
+enum KillSwitchBlockState: Equatable {
+    case noNetwork
+    case serverUnreachable
+
+    var displayText: String {
+        switch self {
+        case .noNetwork:
+            return "Blocking traffic — no network"
+        case .serverUnreachable:
+            return "Blocking traffic — server unreachable"
+        }
+    }
+
+    static func evaluate(killSwitchEnabled: Bool, deviceStatus: DeviceStatus?) -> KillSwitchBlockState? {
+        guard killSwitchEnabled, let deviceStatus else { return nil }
+        if case .paused = deviceStatus.state {
+            return .noNetwork
+        }
+        guard deviceStatus.state == .up else { return nil }
+        let hasWorkingOrIdlePeer = deviceStatus.peers.contains {
+            $0.health == .healthy || $0.health == .idle
+        }
+        return hasWorkingOrIdlePeer ? nil : .serverUnreachable
+    }
+}
 
 extension TunnelStatus {
     var displayTitle: String {
@@ -67,6 +94,7 @@ struct TunnelDisplayState: Equatable {
     let status: TunnelStatus
     let hasOnDemandRules: Bool
     let isOnDemandEnabled: Bool
+    var killSwitchBlockState: KillSwitchBlockState?
 
     var isSwitchOn: Bool {
         status == .activating || status == .active || isOnDemandEnabled
@@ -83,10 +111,16 @@ struct TunnelDisplayState: Equatable {
         if isOnDemandEnabled && !(status == .activating || status == .active) {
             return SGColor.statusOnDemand
         }
+        if status == .active && killSwitchBlockState != nil {
+            return SGColor.statusError
+        }
         return SGColor.statusActive
     }
 
     var statusColor: Color {
+        if status == .active && killSwitchBlockState != nil {
+            return SGColor.statusError
+        }
         if isOnDemandEnabled && status == .inactive {
             return SGColor.statusOnDemand
         }
@@ -96,7 +130,7 @@ struct TunnelDisplayState: Equatable {
     var heroBannerColor: Color {
         switch status {
         case .active:
-            return SGColor.popGreen
+            return killSwitchBlockState != nil ? SGColor.popRed : SGColor.popGreen
         case .deactivating:
             return SGColor.popRed
         case .activating, .reasserting, .restarting, .waiting:
@@ -111,6 +145,9 @@ struct TunnelDisplayState: Equatable {
     }
 
     var statusText: String {
+        if status == .active, let killSwitchBlockState {
+            return killSwitchBlockState.displayText
+        }
         if hasOnDemandRules && !isOnDemandEnabled && status == .inactive {
             return tr("tunnelStatusOnDemandDisabled")
         }

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WireGuardEngine
 import WireGuardKit
 
 struct DetailFieldRow: Identifiable, Equatable {
@@ -42,12 +43,21 @@ final class TunnelDetailViewModel {
     private(set) var onDemandSSIDSummary: String?
     private(set) var onDemandSelectedSSIDs: [String] = []
     private(set) var splitDNSConfiguration: SplitDNSConfiguration = .allDomains
+    private(set) var tunnelOptions: TunnelOptions = .default
+    private(set) var deviceStatus: DeviceStatus?
     private(set) var dnsServers: [DNSServer] = []
     private(set) var splitDNSWarnings: [SplitDNSConfiguration.ValidationWarning] = []
     private(set) var totalRxBytes: UInt64 = 0
     private(set) var totalTxBytes: UInt64 = 0
     private(set) var latestHandshakeText: String?
     private(set) var hasAnyLiveStats = false
+
+    var killSwitchBlockState: KillSwitchBlockState? {
+        KillSwitchBlockState.evaluate(
+            killSwitchEnabled: tunnelOptions.killSwitch.isEnabled,
+            deviceStatus: deviceStatus
+        )
+    }
 
     private var tunnelViewModel: TunnelViewModel
     private var onDemandViewModel: ActivateOnDemandViewModel
@@ -94,6 +104,7 @@ final class TunnelDetailViewModel {
             startPollingIfNeeded()
         } else {
             stopPolling()
+            deviceStatus = nil
             refreshStaticConfiguration()
         }
     }
@@ -115,12 +126,14 @@ final class TunnelDetailViewModel {
     }
 
     private func pollRuntimeConfigurationOnce() async {
-        let runtimeConfig: TunnelConfiguration? = await withCheckedContinuation { continuation in
-            tunnel.getRuntimeTunnelConfiguration { config in
-                continuation.resume(returning: config)
+        let fetchedStatus: DeviceStatus? = await withCheckedContinuation { continuation in
+            tunnel.getRuntimeDeviceStatus { status in
+                continuation.resume(returning: status)
             }
         }
-        guard !Task.isCancelled, let runtimeConfig else { return }
+        guard !Task.isCancelled else { return }
+        deviceStatus = fetchedStatus
+        guard let runtimeConfig = tunnel.mergedRuntimeConfiguration(with: fetchedStatus) else { return }
         tunnelViewModel.applyConfiguration(other: runtimeConfig)
         onDemandViewModel = ActivateOnDemandViewModel(tunnel: tunnel)
         rebuildSnapshots(from: runtimeConfig)
@@ -132,6 +145,7 @@ final class TunnelDetailViewModel {
         updateLiveSummary(from: configuration)
         updateOnDemandSummary()
         updateSplitDNSSummary(from: configuration)
+        tunnelOptions = tunnel.tunnelOptions
     }
 
     private func updateSplitDNSSummary(from configuration: TunnelConfiguration?) {

@@ -39,6 +39,7 @@ struct TunnelEditorView: View {
                     OnDemandEditorCard(viewModel: viewModel) {
                         showSSIDEditor = true
                     }
+                    KillSwitchEditorCard(viewModel: viewModel)
                 }
                 .padding(.horizontal, SGSpacing.medium)
                 .padding(.top, SGSpacing.medium)

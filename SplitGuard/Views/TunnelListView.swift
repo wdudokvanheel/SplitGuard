@@ -151,7 +151,10 @@ private extension TunnelListView {
                     if !isSelecting, let featured = featuredTunnel {
                         FeaturedTunnelHeroCardView(
                             tunnel: featured,
-                            displayState: store.displayState(for: featured),
+                            displayState: store.displayState(
+                                for: featured,
+                                killSwitchBlockState: liveMetrics.killSwitchBlockState(for: featured)
+                            ),
                             isFavorite: store.isFavorite(featured),
                             rxText: liveMetrics.hasLiveStats ? liveMetrics.rxFormatted : "0 B",
                             txText: liveMetrics.hasLiveStats ? liveMetrics.txFormatted : "0 B",
@@ -178,7 +181,10 @@ private extension TunnelListView {
                             let tunnelID = ObjectIdentifier(tunnel)
                             TunnelRowView(
                                 tunnel: tunnel,
-                                displayState: store.displayState(for: tunnel),
+                                displayState: store.displayState(
+                                    for: tunnel,
+                                    killSwitchBlockState: liveMetrics.killSwitchBlockState(for: tunnel)
+                                ),
                                 rowIndex: index,
                                 isFavorite: store.isFavorite(tunnel),
                                 isSelecting: isSelecting,

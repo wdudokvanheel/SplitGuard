@@ -6,6 +6,7 @@ extension TunnelStore {
         existing tunnel: TunnelContainer?,
         configuration: TunnelConfiguration,
         splitDNSConfiguration: SplitDNSConfiguration = .allDomains,
+        tunnelOptions: TunnelOptions? = nil,
         onDemandOption: ActivateOnDemandOption,
         completion: @escaping (Result<TunnelContainer, TunnelsManagerError>) -> Void
     ) {
@@ -20,6 +21,7 @@ extension TunnelStore {
                 tunnel: tunnel,
                 tunnelConfiguration: configuration,
                 splitDNSConfiguration: splitDNSConfiguration,
+                tunnelOptions: tunnelOptions,
                 onDemandOption: onDemandOption
             ) { [weak self] error in
                 DispatchQueue.main.async {
@@ -41,6 +43,7 @@ extension TunnelStore {
             manager.add(
                 tunnelConfiguration: configuration,
                 splitDNSConfiguration: splitDNSConfiguration,
+                tunnelOptions: tunnelOptions ?? .default,
                 onDemandOption: onDemandOption
             ) { [weak self] result in
                 DispatchQueue.main.async {
@@ -82,9 +85,8 @@ extension TunnelStore {
     }
 
     func exportAllTunnelsZip(completion: @escaping (Result<URL, AlertItem>) -> Void) {
-        let entries: [(TunnelConfiguration, SplitDNSConfiguration)] = tunnels.compactMap { tunnel in
-            guard let configuration = tunnel.tunnelConfiguration else { return nil }
-            return (configuration, tunnel.splitDNSConfiguration)
+        let entries = tunnels.compactMap { tunnel in
+            tunnel.tunnelConfiguration.map { ($0, tunnel.splitDNSConfiguration, tunnel.tunnelOptions) }
         }
         let destinationURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("splitguard-export.zip")
@@ -158,6 +160,7 @@ extension TunnelStore {
     func applySplitDNSSuggestion(
         for tunnelID: ObjectIdentifier,
         domains: [SplitDNSConfiguration.Domain],
+        exclusions: [SplitDNSConfiguration.Exclusion] = [],
         completion: ((Bool) -> Void)? = nil
     ) {
         guard let tunnel = tunnel(for: tunnelID),
@@ -166,11 +169,22 @@ extension TunnelStore {
             completion?(false)
             return
         }
-        let splitDNS = SplitDNSConfiguration(mode: .onlyDomains, domains: domains)
+        var resolvedExclusions = exclusions
+        let endpointHostnames = Set(
+            configuration.peers.compactMap { $0.endpoint?.hostname() }
+                .map(SplitDNSConfiguration.normalizeDomain)
+        )
+        for domain in domains where endpointHostnames.contains(domain.name) {
+            if !resolvedExclusions.contains(where: { $0.name == domain.name }) {
+                resolvedExclusions.append(.init(name: domain.name, includesSubdomains: false))
+            }
+        }
+        let splitDNS = SplitDNSConfiguration(mode: .onlyDomains, domains: domains, exclusions: resolvedExclusions)
         saveTunnel(
             existing: tunnel,
             configuration: configuration,
             splitDNSConfiguration: splitDNS,
+            tunnelOptions: tunnel.tunnelOptions,
             onDemandOption: tunnel.onDemandOption
         ) { [weak self] result in
             guard let self else { return }

@@ -33,14 +33,20 @@ final class TunnelEditorViewModel {
 
     var splitDNSMode: SplitDNSConfiguration.Mode = .allDomains
     var splitDNSDomains: [SplitDNSConfiguration.Domain] = []
+    var splitDNSExclusions: [SplitDNSConfiguration.Exclusion] = []
     var newSplitDNSDomain = ""
     var splitDNSInputError: String?
+    var newSplitDNSExclusion = ""
+    var splitDNSExclusionInputError: String?
+
+    var isKillSwitchEnabled = false
+    var allowLocalNetworkWithKillSwitch = false
 
     var validationAlert: AlertItem?
     var isSaving = false
 
     let tunnelViewModel: TunnelViewModel
-    private let onDemandViewModel: ActivateOnDemandViewModel
+    let onDemandViewModel: ActivateOnDemandViewModel
     private var previousDNSValue = ""
 
     init(tunnel: TunnelContainer? = nil) {
@@ -62,11 +68,6 @@ final class TunnelEditorViewModel {
     var shouldStronglyRecommendDNS: Bool {
         _ = peerRevision
         return tunnelViewModel.peersData.contains { $0.shouldStronglyRecommendDNS }
-    }
-
-    var onDemandSSIDSummary: String {
-        syncOnDemandToModel()
-        return onDemandViewModel.localizedSSIDDescription
     }
 
     func updateName(_ value: String) {
@@ -169,17 +170,12 @@ final class TunnelEditorViewModel {
         peerRevision += 1
     }
 
-    func normalizeSSIDSettings() {
-        syncOnDemandToModel()
-        onDemandViewModel.fixSSIDOption()
-        ssidOption = onDemandViewModel.ssidOption
-        selectedSSIDs = onDemandViewModel.selectedSSIDs
-    }
-
     struct ValidatedPayload {
         let configuration: TunnelConfiguration
         let splitDNSConfiguration: SplitDNSConfiguration
+        let tunnelOptions: TunnelOptions
         let onDemandOption: ActivateOnDemandOption
+        let postSaveNotice: AlertItem?
     }
 
     func buildValidatedPayload() -> Result<ValidatedPayload, AlertItem> {
@@ -203,10 +199,13 @@ final class TunnelEditorViewModel {
         case .saved(let configuration):
             normalizeSSIDSettings()
             let onDemandOption = onDemandViewModel.toOnDemandOption()
+            let (finalOptions, postSaveNotice) = resolvedKillSwitchOptions(for: configuration)
             return .success(ValidatedPayload(
                 configuration: configuration,
                 splitDNSConfiguration: validatedSplitDNS,
-                onDemandOption: onDemandOption
+                tunnelOptions: finalOptions,
+                onDemandOption: onDemandOption,
+                postSaveNotice: postSaveNotice
             ))
         }
     }
@@ -221,12 +220,16 @@ final class TunnelEditorViewModel {
                 existing: existingTunnel,
                 configuration: payload.configuration,
                 splitDNSConfiguration: payload.splitDNSConfiguration,
+                tunnelOptions: payload.tunnelOptions,
                 onDemandOption: payload.onDemandOption
             ) { [weak self] result in
                 guard let self else { return }
                 self.isSaving = false
                 switch result {
                 case .success(let savedTunnel):
+                    if let notice = payload.postSaveNotice {
+                        store.presentAlert(title: notice.title, message: notice.message)
+                    }
                     onSuccess(savedTunnel)
                 case .failure(let error):
                     let alert = error.alertText
@@ -259,8 +262,15 @@ final class TunnelEditorViewModel {
         let existingSplitDNS = existingTunnel?.splitDNSConfiguration ?? .allDomains
         splitDNSMode = existingSplitDNS.mode
         splitDNSDomains = existingSplitDNS.domains
+        splitDNSExclusions = existingSplitDNS.exclusions
         newSplitDNSDomain = ""
         splitDNSInputError = nil
+        newSplitDNSExclusion = ""
+        splitDNSExclusionInputError = nil
+
+        let existingOptions = existingTunnel?.tunnelOptions ?? .default
+        isKillSwitchEnabled = existingOptions.killSwitch.isEnabled
+        allowLocalNetworkWithKillSwitch = existingOptions.killSwitch.allowLocalNetwork
     }
 
     private func peerData(for peerID: UUID) -> TunnelViewModel.PeerData? {
@@ -270,13 +280,6 @@ final class TunnelEditorViewModel {
             return nil
         }
         return tunnelViewModel.peersData[item.index]
-    }
-
-    private func syncOnDemandToModel() {
-        onDemandViewModel.isNonWiFiInterfaceEnabled = isCellularOnDemandEnabled
-        onDemandViewModel.isWiFiInterfaceEnabled = isWiFiOnDemandEnabled
-        onDemandViewModel.ssidOption = ssidOption
-        onDemandViewModel.selectedSSIDs = selectedSSIDs
     }
 
     private func syncValidationErrors() {
@@ -294,6 +297,68 @@ final class TunnelEditorViewModel {
 }
 
 extension TunnelEditorViewModel {
+    var onDemandSSIDSummary: String {
+        syncOnDemandToModel()
+        return onDemandViewModel.localizedSSIDDescription
+    }
+
+    func normalizeSSIDSettings() {
+        syncOnDemandToModel()
+        onDemandViewModel.fixSSIDOption()
+        ssidOption = onDemandViewModel.ssidOption
+        selectedSSIDs = onDemandViewModel.selectedSSIDs
+    }
+
+    func syncOnDemandToModel() {
+        onDemandViewModel.isNonWiFiInterfaceEnabled = isCellularOnDemandEnabled
+        onDemandViewModel.isWiFiInterfaceEnabled = isWiFiOnDemandEnabled
+        onDemandViewModel.ssidOption = ssidOption
+        onDemandViewModel.selectedSSIDs = selectedSSIDs
+    }
+
+    var isOnDemandConfigured: Bool {
+        isCellularOnDemandEnabled || isWiFiOnDemandEnabled
+    }
+
+    var routesAllIPv4Traffic: Bool {
+        TunnelConfiguration.routesAllIPv4Traffic(allowedIPs: currentAllowedIPs)
+    }
+
+    var routesAllIPv6Traffic: Bool {
+        TunnelConfiguration.routesAllIPv6Traffic(allowedIPs: currentAllowedIPs)
+    }
+
+    var tunnelOptions: TunnelOptions {
+        guard isKillSwitchEnabled, routesAllIPv4Traffic else {
+            return .default
+        }
+        return TunnelOptions(
+            killSwitch: TunnelOptions.KillSwitch(
+                isEnabled: true,
+                allowLocalNetwork: allowLocalNetworkWithKillSwitch
+            )
+        )
+    }
+
+    func resolvedKillSwitchOptions(for configuration: TunnelConfiguration) -> (TunnelOptions, AlertItem?) {
+        if isKillSwitchEnabled && !configuration.routesAllIPv4Traffic {
+            isKillSwitchEnabled = false
+            allowLocalNetworkWithKillSwitch = false
+            let notice = AlertItem(
+                title: "Kill Switch Turned Off",
+                message: "The kill switch was turned off because this tunnel no longer routes all IPv4 traffic (0.0.0.0/0)."
+            )
+            return (.default, notice)
+        }
+        let options = TunnelOptions(
+            killSwitch: TunnelOptions.KillSwitch(
+                isEnabled: isKillSwitchEnabled,
+                allowLocalNetwork: isKillSwitchEnabled ? allowLocalNetworkWithKillSwitch : false
+            )
+        )
+        return (options, nil)
+    }
+
     static func fetchConnectedSSID() async -> String? {
         #if targetEnvironment(simulator)
         return "Simulator Wi-Fi"

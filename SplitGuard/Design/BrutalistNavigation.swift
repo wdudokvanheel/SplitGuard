@@ -132,13 +132,14 @@ struct BrutalistFormToggleRow: View {
     var subtitle: String?
     @Binding var isOn: Bool
     var activeTint: Color = SGColor.popGreen
+    var isInteractive: Bool = true
 
     var body: some View {
         HStack(spacing: SGSpacing.small) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(SGTypography.bodyBold)
-                    .foregroundStyle(SGColor.textPrimary)
+                    .foregroundStyle(isInteractive ? SGColor.textPrimary : SGColor.textTertiary)
                 if let subtitle {
                     Text(subtitle)
                         .font(SGTypography.caption)
@@ -149,7 +150,7 @@ struct BrutalistFormToggleRow: View {
             BrutalistToggle(
                 isOn: isOn,
                 activeTint: activeTint,
-                isInteractive: true,
+                isInteractive: isInteractive,
                 accessibilityLabelText: title
             ) { newValue in
                 isOn = newValue

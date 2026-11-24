@@ -3,16 +3,38 @@ import WireGuardKit
 
 struct SplitDNSWarningRow: View {
     let warning: SplitDNSConfiguration.ValidationWarning
+    var fixTitle: String?
+    var onFixAction: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .top, spacing: SGSpacing.xSmall) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(SGColor.inkOnPop)
-                .padding(.top, 1)
-            Text(warning.message)
-                .font(SGTypography.caption)
-                .foregroundStyle(SGColor.inkOnPop)
+        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+            HStack(alignment: .top, spacing: SGSpacing.xSmall) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(SGColor.inkOnPop)
+                    .padding(.top, 1)
+                Text(warning.message)
+                    .font(SGTypography.caption)
+                    .foregroundStyle(SGColor.inkOnPop)
+            }
+            if let fixTitle, let onFixAction {
+                Button(action: onFixAction) {
+                    Text(fixTitle)
+                        .font(SGTypography.metricLabel)
+                        .tracking(0.6)
+                        .padding(.horizontal, SGSpacing.xSmall)
+                        .padding(.vertical, 5)
+                }
+                .buttonStyle(
+                    BrutalistButtonStyle(
+                        fill: SGColor.pureWhite,
+                        foreground: SGColor.inkOnPop,
+                        borderWidth: SGBorder.thin,
+                        shadowOffset: 2,
+                        shadowColor: SGColor.shadowInk
+                    )
+                )
+            }
         }
         .padding(SGSpacing.xSmall)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,6 +55,10 @@ struct SplitDNSRoutingPreviewView: View {
         return "VPN DNS (\(joined))"
     }
 
+    private var exactExclusionNames: Set<String> {
+        Set(splitDNS.exclusions.filter { !$0.includesSubdomains }.map(\.name))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xxSmall + 2) {
             Text("ROUTING PREVIEW")
@@ -42,8 +68,9 @@ struct SplitDNSRoutingPreviewView: View {
 
             switch splitDNS.mode {
             case .allDomains:
+                exclusionPreviewRows
                 previewRow(
-                    left: "All lookups",
+                    left: splitDNS.exclusions.isEmpty ? "All lookups" : "Everything else",
                     right: dnsServers.isEmpty ? "Normal DNS" : vpnDNSLabel,
                     usesTunnel: !dnsServers.isEmpty
                 )
@@ -53,8 +80,11 @@ struct SplitDNSRoutingPreviewView: View {
                     previewRow(left: "Everything", right: "Normal DNS", usesTunnel: false)
                 } else {
                     ForEach(domains.prefix(3), id: \.self) { domain in
+                        let label = exactExclusionNames.contains(domain)
+                            ? "*.\(domain)"
+                            : "\(domain), *.\(domain)"
                         previewRow(
-                            left: "\(domain), *.\(domain)",
+                            left: label,
                             right: vpnDNSLabel,
                             usesTunnel: !dnsServers.isEmpty
                         )
@@ -64,11 +94,28 @@ struct SplitDNSRoutingPreviewView: View {
                             .font(SGTypography.monoCompact)
                             .foregroundStyle(SGColor.textSecondary)
                     }
+                    exclusionPreviewRows
                     previewRow(left: "Everything else", right: "Normal DNS", usesTunnel: false)
                 }
             }
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var exclusionPreviewRows: some View {
+        let exclusions = splitDNS.exclusions
+        ForEach(exclusions.prefix(3)) { exclusion in
+            let label = exclusion.includesSubdomains
+                ? "\(exclusion.name), *.\(exclusion.name)"
+                : exclusion.name
+            previewRow(left: label, right: "Normal DNS", usesTunnel: false)
+        }
+        if exclusions.count > 3 {
+            Text("+\(exclusions.count - 3) more excluded → Normal DNS")
+                .font(SGTypography.monoCompact)
+                .foregroundStyle(SGColor.textSecondary)
+        }
     }
 
     private func previewRow(left: String, right: String, usesTunnel: Bool) -> some View {
@@ -205,6 +252,10 @@ struct SplitDNSNameTesterView: View {
                 detail = "No tunnel DNS server configured"
             case .notInMatchDomains:
                 detail = "Not in split DNS list"
+            case .excluded(let exclusion):
+                detail = exclusion.includesSubdomains
+                    ? "Excluded (\(exclusion.name) and subdomains)"
+                    : "Excluded (\(exclusion.name) only)"
             }
             fill = SGColor.surfaceElevated
             onPop = false

@@ -27,7 +27,7 @@ struct TunnelDetailView: View {
     }
 
     private var displayState: TunnelDisplayState {
-        store.displayState(for: tunnel)
+        store.displayState(for: tunnel, killSwitchBlockState: viewModel.killSwitchBlockState)
     }
 
     var body: some View {
@@ -96,6 +96,11 @@ struct TunnelDetailView: View {
                         interfaceSummary: viewModel.onDemandInterfaceSummary,
                         ssidSummary: viewModel.onDemandSSIDSummary,
                         selectedSSIDs: viewModel.onDemandSelectedSSIDs
+                    )
+
+                    TunnelDetailKillSwitchCard(
+                        isEnabled: viewModel.tunnelOptions.killSwitch.isEnabled,
+                        allowLocalNetwork: viewModel.tunnelOptions.killSwitch.allowLocalNetwork
                     )
 
                     deleteButton
