@@ -1,5 +1,5 @@
+import SplitGuardCore
 import SwiftUI
-import WireGuardKit
 
 struct SplitDNSEditorSection: View {
     @Bindable var viewModel: TunnelEditorViewModel

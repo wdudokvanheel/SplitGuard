@@ -1,5 +1,6 @@
+import SplitGuardCore
 import SwiftUI
-import WireGuardKit
+import WireGuardEngine
 
 struct SplitDNSExclusionListView: View {
     @Bindable var viewModel: TunnelEditorViewModel
@@ -182,7 +183,7 @@ struct SplitDNSExclusionListView: View {
 
 struct SplitDNSDetailCard: View {
     let splitDNS: SplitDNSConfiguration
-    let dnsServers: [DNSServer]
+    let dnsServers: [IPAddress]
     let warnings: [SplitDNSConfiguration.ValidationWarning]
     let isTunnelActive: Bool
 

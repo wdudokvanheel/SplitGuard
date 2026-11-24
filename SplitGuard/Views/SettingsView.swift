@@ -36,7 +36,7 @@ struct SettingsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $exportedZipFile) { item in
             ActivityShareSheet(activityItems: [item.url]) {
-                _ = FileManager.deleteFile(at: item.url)
+                try? FileManager.default.removeItem(at: item.url)
                 exportedZipFile = nil
             }
         }
@@ -199,16 +199,18 @@ struct SettingsView: View {
     }
 
     private func exportConfigurationsAsZip() {
-        PrivateDataConfirmation.confirmAccess(to: tr("iosExportPrivateData")) {
+        Task {
+            guard await PrivateDataConfirmation.confirmAccess(reason: tr("iosExportPrivateData")) else {
+                return
+            }
             isExportingZip = true
-            store.exportAllTunnelsZip { result in
-                isExportingZip = false
-                switch result {
-                case .success(let url):
-                    exportedZipFile = ExportFileItem(url: url)
-                case .failure(let alert):
-                    localAlert = alert
-                }
+            defer { isExportingZip = false }
+            do {
+                let url = try await store.exportAllTunnelsZip()
+                exportedZipFile = ExportFileItem(url: url)
+            } catch {
+                let tunnelError = store.wrapError(error, fallback: TunnelError.exportFailed)
+                localAlert = tunnelError.alertItem
             }
         }
     }

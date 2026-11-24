@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FeaturedTunnelHeroCardView: View {
-    let tunnel: TunnelContainer
+    let tunnel: Tunnel
     let displayState: TunnelDisplayState
     let isFavorite: Bool
     let rxText: String
@@ -15,9 +15,9 @@ struct FeaturedTunnelHeroCardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var endpoint: String? {
-        let endpoints = tunnel.tunnelConfiguration?.peers.compactMap(\.endpoint) ?? []
+        let endpoints = tunnel.profile.peers.compactMap(\.endpoint)
         if endpoints.count == 1 {
-            return endpoints[0].stringRepresentation
+            return endpoints[0].description
         }
         return endpoints.count > 1 ? "\(endpoints.count) peers" : nil
     }
@@ -28,14 +28,14 @@ struct FeaturedTunnelHeroCardView: View {
 
     private var featureTags: [String] {
         var tags: [String] = []
-        let splitDNS = tunnel.splitDNSConfiguration
+        let splitDNS = tunnel.splitDNS
         if splitDNS.mode == .onlyDomains {
             let count = splitDNS.normalizedDomainNames.count
             tags.append(count == 1 ? "SPLIT DNS: \(splitDNS.normalizedDomainNames[0])" : "SPLIT DNS (\(count))")
         } else {
             tags.append("ALL DOMAINS")
         }
-        if tunnel.tunnelOptions.killSwitch.isEnabled {
+        if tunnel.options.killSwitch.isEnabled {
             tags.append("KILL SWITCH")
         }
         if displayState.hasOnDemandRules {

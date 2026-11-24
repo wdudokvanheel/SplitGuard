@@ -1,5 +1,6 @@
+import SplitGuardCore
 import SwiftUI
-import WireGuardKit
+import WireGuardEngine
 
 struct SplitDNSWarningRow: View {
     let warning: SplitDNSConfiguration.ValidationWarning
@@ -45,13 +46,13 @@ struct SplitDNSWarningRow: View {
 
 struct SplitDNSRoutingPreviewView: View {
     let splitDNS: SplitDNSConfiguration
-    let dnsServers: [DNSServer]
+    let dnsServers: [IPAddress]
 
     private var vpnDNSLabel: String {
         if dnsServers.isEmpty {
             return "VPN DNS (none set)"
         }
-        let joined = dnsServers.map(\.stringRepresentation).joined(separator: ", ")
+        let joined = dnsServers.map(\.description).joined(separator: ", ")
         return "VPN DNS (\(joined))"
     }
 
@@ -145,7 +146,7 @@ struct SplitDNSRoutingPreviewView: View {
 
 struct SplitDNSNameTesterView: View {
     let splitDNS: SplitDNSConfiguration
-    let dnsServers: [DNSServer]
+    let dnsServers: [IPAddress]
     let isTunnelActive: Bool
 
     @State private var query = ""
@@ -240,7 +241,7 @@ struct SplitDNSNameTesterView: View {
 
         switch decision {
         case .tunnelDNS(let matchedDomain):
-            let serverText = dnsServers.map(\.stringRepresentation).joined(separator: ", ")
+            let serverText = dnsServers.map(\.description).joined(separator: ", ")
             label = "VPN DNS (\(serverText))"
             detail = matchedDomain.map { "Matched \($0)" } ?? "All domains routed through tunnel"
             fill = SGColor.popBlue

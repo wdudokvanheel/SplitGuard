@@ -4,7 +4,7 @@ import UIKit
 struct TunnelDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let store: TunnelStore
-    let tunnel: TunnelContainer
+    let tunnel: Tunnel
     let onEdit: () -> Void
     let onDeleted: () -> Void
 
@@ -15,7 +15,7 @@ struct TunnelDetailView: View {
 
     init(
         store: TunnelStore,
-        tunnel: TunnelContainer,
+        tunnel: Tunnel,
         onEdit: @escaping () -> Void,
         onDeleted: @escaping () -> Void
     ) {
@@ -23,7 +23,7 @@ struct TunnelDetailView: View {
         self.tunnel = tunnel
         self.onEdit = onEdit
         self.onDeleted = onDeleted
-        _viewModel = State(initialValue: TunnelDetailViewModel(tunnel: tunnel))
+        _viewModel = State(initialValue: TunnelDetailViewModel(tunnel: tunnel, store: store))
     }
 
     private var displayState: TunnelDisplayState {
@@ -47,8 +47,10 @@ struct TunnelDetailView: View {
                         fill: SGColor.popYellow,
                         foreground: SGColor.inkOnPop
                     ) {
-                        PrivateDataConfirmation.confirmAccess(to: tr("iosViewPrivateData")) {
-                            onEdit()
+                        Task {
+                            if await PrivateDataConfirmation.confirmAccess(reason: tr("iosViewPrivateData")) {
+                                onEdit()
+                            }
                         }
                     }
                 }
@@ -65,7 +67,9 @@ struct TunnelDetailView: View {
                         txText: viewModel.hasAnyLiveStats ? viewModel.totalTxFormatted : "0 B",
                         handshakeText: viewModel.latestHandshakeText ?? "Pending",
                         onToggle: { isOn in
-                            store.setTunnelActive(isOn, for: tunnel)
+                            Task {
+                                await store.setTunnelActive(isOn, for: tunnel)
+                            }
                         },
                         onToggleFavorite: {
                             withAnimation(.snappy(duration: 0.2)) {
@@ -134,7 +138,8 @@ struct TunnelDetailView: View {
             titleVisibility: .visible
         ) {
             Button(tr("deleteTunnelConfirmationAlertButtonTitle"), role: .destructive) {
-                store.delete(tunnel: tunnel) { succeeded in
+                Task {
+                    let succeeded = await store.delete(tunnel: tunnel)
                     if succeeded {
                         onDeleted()
                     }

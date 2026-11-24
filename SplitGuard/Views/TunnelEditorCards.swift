@@ -11,7 +11,7 @@ struct InterfaceEditorCard: View {
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 EditorTextRow(
-                    label: TunnelViewModel.InterfaceField.name.localizedUIString,
+                    label: InterfaceField.name.localizedTitle,
                     placeholder: tr("tunnelEditPlaceholderTextRequired"),
                     text: Binding(get: { viewModel.name }, set: { viewModel.updateName($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.name),
@@ -22,7 +22,7 @@ struct InterfaceEditorCard: View {
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 EditorTextRow(
-                    label: TunnelViewModel.InterfaceField.privateKey.localizedUIString,
+                    label: InterfaceField.privateKey.localizedTitle,
                     placeholder: tr("tunnelEditPlaceholderTextRequired"),
                     text: Binding(get: { viewModel.privateKey }, set: { viewModel.updatePrivateKey($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.privateKey),
@@ -58,7 +58,7 @@ struct InterfaceEditorCard: View {
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 EditorTextRow(
-                    label: TunnelViewModel.InterfaceField.addresses.localizedUIString,
+                    label: InterfaceField.addresses.localizedTitle,
                     placeholder: tr("tunnelEditPlaceholderTextStronglyRecommended"),
                     text: Binding(get: { viewModel.addresses }, set: { viewModel.updateAddresses($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.addresses),
@@ -67,7 +67,7 @@ struct InterfaceEditorCard: View {
                 )
 
                 EditorTextRow(
-                    label: TunnelViewModel.InterfaceField.listenPort.localizedUIString,
+                    label: InterfaceField.listenPort.localizedTitle,
                     placeholder: tr("tunnelEditPlaceholderTextAutomatic"),
                     text: Binding(get: { viewModel.listenPort }, set: { viewModel.updateListenPort($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.listenPort),
@@ -76,7 +76,7 @@ struct InterfaceEditorCard: View {
                 )
 
                 EditorTextRow(
-                    label: TunnelViewModel.InterfaceField.mtu.localizedUIString,
+                    label: InterfaceField.mtu.localizedTitle,
                     placeholder: tr("tunnelEditPlaceholderTextAutomatic"),
                     text: Binding(get: { viewModel.mtu }, set: { viewModel.updateMTU($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.mtu),
@@ -85,7 +85,7 @@ struct InterfaceEditorCard: View {
                 )
 
                 EditorTextRow(
-                    label: TunnelViewModel.InterfaceField.dns.localizedUIString,
+                    label: InterfaceField.dns.localizedTitle,
                     placeholder: viewModel.shouldStronglyRecommendDNS
                         ? tr("tunnelEditPlaceholderTextStronglyRecommended")
                         : tr("tunnelEditPlaceholderTextOptional"),
@@ -105,7 +105,7 @@ struct InterfaceEditorCard: View {
     private var publicKeyDisplayRow: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
             HStack {
-                Text(TunnelViewModel.InterfaceField.publicKey.localizedUIString.uppercased())
+                Text(InterfaceField.publicKey.localizedTitle.uppercased())
                     .font(SGTypography.metricLabel)
                     .tracking(0.6)
                     .foregroundStyle(SGColor.textSecondary)
@@ -158,12 +158,13 @@ struct InterfaceEditorCard: View {
 
 struct PeerEditorCard: View {
     let viewModel: TunnelEditorViewModel
-    let item: EditablePeerItem
+    let peerID: UUID
+    let peerIndex: Int
     let peerCount: Int
     let onRequestDelete: () -> Void
 
     private var sectionTitle: String {
-        peerCount > 1 ? "\(tr("tunnelSectionTitlePeer")) \(item.index + 1)" : tr("tunnelSectionTitlePeer")
+        peerCount > 1 ? "\(tr("tunnelSectionTitlePeer")) \(peerIndex + 1)" : tr("tunnelSectionTitlePeer")
     }
 
     var body: some View {
@@ -172,22 +173,22 @@ struct PeerEditorCard: View {
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 peerFieldRow(.publicKey, placeholder: tr("tunnelEditPlaceholderTextRequired"), keyboard: .asciiCapable)
-                peerFieldRow(.preSharedKey, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .asciiCapable)
+                peerFieldRow(.presharedKey, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .asciiCapable)
                 peerFieldRow(.endpoint, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .asciiCapable)
                 peerFieldRow(.allowedIPs, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .numbersAndPunctuation)
 
-                if viewModel.shouldAllowExcludePrivateIPs(for: item.id) {
+                if viewModel.shouldAllowExcludePrivateIPs(for: peerID) {
                     BrutalistFormToggleRow(
                         title: tr("tunnelPeerExcludePrivateIPs"),
                         isOn: Binding(
-                            get: { viewModel.excludePrivateIPsValue(for: item.id) },
-                            set: { viewModel.setExcludePrivateIPs($0, for: item.id) }
+                            get: { viewModel.excludePrivateIPsValue(for: peerID) },
+                            set: { viewModel.setExcludePrivateIPs($0, for: peerID) }
                         ),
                         activeTint: SGColor.popGreen
                     )
                 }
 
-                peerFieldRow(.persistentKeepAlive, placeholder: tr("tunnelEditPlaceholderTextOff"), keyboard: .numberPad)
+                peerFieldRow(.persistentKeepalive, placeholder: tr("tunnelEditPlaceholderTextOff"), keyboard: .numberPad)
 
                 Button(action: onRequestDelete) {
                     HStack(spacing: SGSpacing.xSmall) {
@@ -218,18 +219,18 @@ struct PeerEditorCard: View {
     }
 
     private func peerFieldRow(
-        _ field: TunnelViewModel.PeerField,
+        _ field: PeerField,
         placeholder: String,
         keyboard: UIKeyboardType
     ) -> some View {
         EditorTextRow(
-            label: field.localizedUIString,
+            label: field.localizedTitle,
             placeholder: placeholder,
             text: Binding(
-                get: { viewModel.peerValue(for: item.id, field: field) },
-                set: { viewModel.updatePeerValue($0, for: item.id, field: field) }
+                get: { viewModel.peerValue(for: peerID, field: field) },
+                set: { viewModel.updatePeerValue($0, for: peerID, field: field) }
             ),
-            hasError: viewModel.hasPeerError(for: item.id, field: field),
+            hasError: viewModel.hasPeerError(for: peerID, field: field),
             isMonospaced: true,
             keyboardType: keyboard
         )

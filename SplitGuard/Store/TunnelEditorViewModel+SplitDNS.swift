@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: MIT
+
 import Foundation
-import WireGuardKit
+import SplitGuardCore
+import WireGuardEngine
 
 extension TunnelEditorViewModel {
     var splitDNSConfiguration: SplitDNSConfiguration {
@@ -10,28 +13,24 @@ extension TunnelEditorViewModel {
         )
     }
 
-    var currentDNSServers: [DNSServer] {
-        dns
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .compactMap { DNSServer(from: $0) }
+    var currentDNSServers: [IPAddress] {
+        AllowedIPHelpers.splitCommaSeparated(draft.interface.dns).compactMap { item in
+            guard let address = IPAddress(item), address.zoneID == nil else { return nil }
+            return address
+        }
     }
 
-    var currentAllowedIPs: [IPAddressRange] {
-        _ = peerRevision
-        return tunnelViewModel.peersData.flatMap { peerData in
-            peerData[.allowedIPs]
-                .split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .compactMap { IPAddressRange(from: $0) }
+    var currentAllowedIPs: [IPPrefix] {
+        draft.peers.flatMap { peer in
+            AllowedIPHelpers.splitCommaSeparated(peer.allowedIPs)
+                .compactMap { InterfaceAddress($0)?.network }
         }
     }
 
     var currentEndpointHostnames: Set<String> {
-        _ = peerRevision
-        let hostnames = tunnelViewModel.peersData.compactMap { peerData -> String? in
-            let raw = peerData[.endpoint].trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let endpoint = Endpoint(from: raw), let hostname = endpoint.hostname() else { return nil }
+        let hostnames = draft.peers.compactMap { peer -> String? in
+            let raw = peer.endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let endpoint = Endpoint(raw), let hostname = endpoint.hostname else { return nil }
             let normalized = SplitDNSConfiguration.normalizeDomain(hostname)
             return SplitDNSConfiguration.isValidDomainName(normalized) ? normalized : nil
         }
@@ -39,9 +38,8 @@ extension TunnelEditorViewModel {
     }
 
     var suggestedEndpointDomain: String? {
-        _ = peerRevision
-        let endpoints = tunnelViewModel.peersData.compactMap { peerData in
-            Endpoint(from: peerData[.endpoint].trimmingCharacters(in: .whitespacesAndNewlines))
+        let endpoints = draft.peers.compactMap { peer in
+            Endpoint(peer.endpoint.trimmingCharacters(in: .whitespacesAndNewlines))
         }
         guard let suggested = SplitDNSConfiguration.endpointDomainSuggestion(from: endpoints) else {
             return nil
@@ -53,9 +51,8 @@ extension TunnelEditorViewModel {
 
     var suggestedEndpointExclusion: String? {
         guard splitDNSMode == .allDomains else { return nil }
-        _ = peerRevision
-        let endpoints = tunnelViewModel.peersData.compactMap { peerData in
-            Endpoint(from: peerData[.endpoint].trimmingCharacters(in: .whitespacesAndNewlines))
+        let endpoints = draft.peers.compactMap { peer in
+            Endpoint(peer.endpoint.trimmingCharacters(in: .whitespacesAndNewlines))
         }
         guard let suggested = SplitDNSConfiguration.endpointDomainSuggestion(from: endpoints) else {
             return nil

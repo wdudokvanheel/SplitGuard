@@ -1,5 +1,6 @@
+import SplitGuardCore
 import SwiftUI
-import WireGuardKit
+import WireGuardEngine
 
 struct FirstRunSplitDNSSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -21,8 +22,8 @@ struct FirstRunSplitDNSSheet: View {
         SplitDNSConfiguration(mode: .onlyDomains, domains: domains)
     }
 
-    private var parsedDNSServers: [DNSServer] {
-        prompt.dnsServers.compactMap { DNSServer(from: $0) }
+    private var parsedDNSServers: [IPAddress] {
+        prompt.dnsServers.compactMap { IPAddress($0) }
     }
 
     var body: some View {
@@ -261,7 +262,8 @@ struct FirstRunSplitDNSSheet: View {
             if inputError != nil { return }
         }
         isSaving = true
-        store.applySplitDNSSuggestion(for: prompt.tunnelID, domains: domains) { succeeded in
+        Task {
+            let succeeded = await store.applySplitDNSSuggestion(for: prompt.tunnelID, domains: domains)
             isSaving = false
             if succeeded {
                 dismiss()

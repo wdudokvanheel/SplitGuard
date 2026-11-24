@@ -34,7 +34,8 @@ struct PasteConfigSheet: View {
                         foreground: SGColor.inkOnPop,
                         showGrain: true
                     ) {
-                        store.importConfigText(configText, named: tunnelName) { succeeded in
+                        Task {
+                            let succeeded = await store.importConfigText(configText, named: tunnelName)
                             if succeeded {
                                 if let onImported {
                                     onImported()

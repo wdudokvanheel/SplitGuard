@@ -1,34 +1,23 @@
+// SPDX-License-Identifier: MIT
+
 import Foundation
 import NetworkExtension
 import Observation
-import WireGuardKit
-
-struct EditablePeerItem: Identifiable, Equatable {
-    let id: UUID
-    var index: Int
-}
+import SplitGuardCore
+import WireGuardEngine
 
 @MainActor
 @Observable
 final class TunnelEditorViewModel {
-    let existingTunnel: TunnelContainer?
+    let existingTunnel: Tunnel?
 
-    var name = ""
-    var privateKey = ""
-    var publicKey = ""
-    var addresses = ""
-    var listenPort = ""
-    var mtu = ""
-    var dns = ""
-
-    private(set) var peerItems: [EditablePeerItem] = []
-    private(set) var interfaceErrorFields: Set<TunnelViewModel.InterfaceField> = []
-    private(set) var peerErrorFieldsByID: [UUID: Set<TunnelViewModel.PeerField>] = [:]
-    private(set) var peerRevision = 0
+    var draft: TunnelDraft
+    private(set) var interfaceErrorFields: Set<InterfaceField> = []
+    private(set) var peerErrorFieldsByID: [UUID: Set<PeerField>] = [:]
 
     var isCellularOnDemandEnabled = false
     var isWiFiOnDemandEnabled = false
-    var ssidOption: ActivateOnDemandViewModel.OnDemandSSIDOption = .anySSID
+    var ssidOption: OnDemandPolicy.SSIDOptionKind = .any
     var selectedSSIDs: [String] = []
 
     var splitDNSMode: SplitDNSConfiguration.Mode = .allDomains
@@ -45,14 +34,11 @@ final class TunnelEditorViewModel {
     var validationAlert: AlertItem?
     var isSaving = false
 
-    let tunnelViewModel: TunnelViewModel
-    let onDemandViewModel: ActivateOnDemandViewModel
     private var previousDNSValue = ""
 
-    init(tunnel: TunnelContainer? = nil) {
+    init(tunnel: Tunnel? = nil) {
         self.existingTunnel = tunnel
-        self.tunnelViewModel = TunnelViewModel(tunnelConfiguration: tunnel?.tunnelConfiguration)
-        self.onDemandViewModel = tunnel.map(ActivateOnDemandViewModel.init(tunnel:)) ?? ActivateOnDemandViewModel()
+        self.draft = tunnel.map { TunnelDraft(profile: $0.profile) } ?? TunnelDraft()
 
         loadInitialState()
     }
@@ -65,116 +51,144 @@ final class TunnelEditorViewModel {
         isEditing ? tr("editTunnelViewTitle") : tr("newTunnelViewTitle")
     }
 
+    var name: String {
+        draft.interface.name
+    }
+
+    var privateKey: String {
+        draft.interface.privateKey
+    }
+
+    var publicKey: String {
+        draft.interface.derivedPublicKey
+    }
+
+    var addresses: String {
+        draft.interface.addresses
+    }
+
+    var listenPort: String {
+        draft.interface.listenPort
+    }
+
+    var mtu: String {
+        draft.interface.mtu
+    }
+
+    var dns: String {
+        draft.interface.dns
+    }
+
+    var peers: [PeerDraft] {
+        draft.peers
+    }
+
     var shouldStronglyRecommendDNS: Bool {
-        _ = peerRevision
-        return tunnelViewModel.peersData.contains { $0.shouldStronglyRecommendDNS }
+        draft.peers.contains { AllowedIPHelpers.shouldStronglyRecommendDNS(allowedIPsText: $0.allowedIPs) }
     }
 
     func updateName(_ value: String) {
-        name = value
-        tunnelViewModel.interfaceData[.name] = value
+        draft.interface.name = value
         interfaceErrorFields.remove(.name)
     }
 
     func updatePrivateKey(_ value: String) {
-        privateKey = value
-        tunnelViewModel.interfaceData[.privateKey] = value
-        publicKey = tunnelViewModel.interfaceData[.publicKey]
+        draft.interface.privateKey = value
         interfaceErrorFields.remove(.privateKey)
     }
 
     func generateKeyPair() {
-        let newKey = PrivateKey().base64Key
-        updatePrivateKey(newKey)
+        updatePrivateKey(WireGuardPrivateKey.generate().base64)
     }
 
     func updateAddresses(_ value: String) {
-        addresses = value
-        tunnelViewModel.interfaceData[.addresses] = value
+        draft.interface.addresses = value
         interfaceErrorFields.remove(.addresses)
     }
 
     func updateListenPort(_ value: String) {
-        listenPort = value
-        tunnelViewModel.interfaceData[.listenPort] = value
+        draft.interface.listenPort = value
         interfaceErrorFields.remove(.listenPort)
     }
 
     func updateMTU(_ value: String) {
-        mtu = value
-        tunnelViewModel.interfaceData[.mtu] = value
+        draft.interface.mtu = value
         interfaceErrorFields.remove(.mtu)
     }
 
     func updateDNS(_ value: String) {
         let oldValue = previousDNSValue
-        dns = value
-        tunnelViewModel.interfaceData[.dns] = value
+        draft.interface.dns = value
         interfaceErrorFields.remove(.dns)
-        if tunnelViewModel.updateDNSServersInAllowedIPsIfRequired(oldDNSServers: oldValue, newDNSServers: value) {
-            peerRevision += 1
+
+        if draft.peers.count == 1 {
+            let currentAllowed = draft.peers[0].allowedIPs
+            let isExcluding = AllowedIPHelpers.isExcludingPrivateIPs(allowedIPs: currentAllowed)
+            if let updated = AllowedIPHelpers.updatingDNSServersInAllowedIPs(
+                allowedIPsText: currentAllowed,
+                oldDNSText: oldValue,
+                newDNSText: value,
+                isExcludingPrivateIPs: isExcluding
+            ) {
+                draft.peers[0].allowedIPs = updated
+            }
         }
         previousDNSValue = value
     }
 
-    func peerValue(for peerID: UUID, field: TunnelViewModel.PeerField) -> String {
-        _ = peerRevision
-        guard let peerData = peerData(for: peerID) else { return "" }
-        return peerData[field]
+    func peerValue(for peerID: UUID, field: PeerField) -> String {
+        guard let peer = draft.peers.first(where: { $0.id == peerID }) else { return "" }
+        return peer[field]
     }
 
-    func updatePeerValue(_ value: String, for peerID: UUID, field: TunnelViewModel.PeerField) {
-        guard let peerData = peerData(for: peerID) else { return }
-        peerData[field] = value
+    func updatePeerValue(_ value: String, for peerID: UUID, field: PeerField) {
+        guard let index = draft.peers.firstIndex(where: { $0.id == peerID }) else { return }
+        draft.peers[index][field] = value
         peerErrorFieldsByID[peerID]?.remove(field)
-        peerRevision += 1
     }
 
     func shouldAllowExcludePrivateIPs(for peerID: UUID) -> Bool {
-        _ = peerRevision
-        return peerData(for: peerID)?.shouldAllowExcludePrivateIPsControl ?? false
+        guard let peer = draft.peers.first(where: { $0.id == peerID }) else { return false }
+        return AllowedIPHelpers.canToggleExcludePrivateIPs(
+            peerAllowedIPs: peer.allowedIPs,
+            peerCount: draft.peers.count
+        )
     }
 
     func excludePrivateIPsValue(for peerID: UUID) -> Bool {
-        _ = peerRevision
-        return peerData(for: peerID)?.excludePrivateIPsValue ?? false
+        guard draft.peers.count == 1,
+              let peer = draft.peers.first(where: { $0.id == peerID }) else {
+            return false
+        }
+        return AllowedIPHelpers.isExcludingPrivateIPs(allowedIPs: peer.allowedIPs)
     }
 
     func setExcludePrivateIPs(_ isOn: Bool, for peerID: UUID) {
-        guard let peerData = peerData(for: peerID) else { return }
-        peerData.excludePrivateIPsValueChanged(isOn: isOn, dnsServers: tunnelViewModel.interfaceData[.dns])
-        peerRevision += 1
+        guard let index = draft.peers.firstIndex(where: { $0.id == peerID }) else { return }
+        draft.peers[index].allowedIPs = AllowedIPHelpers.applyingExcludePrivateIPs(
+            isOn,
+            to: draft.peers[index].allowedIPs,
+            dnsText: draft.interface.dns
+        )
+        peerErrorFieldsByID[peerID]?.remove(.allowedIPs)
     }
 
-    func hasPeerError(for peerID: UUID, field: TunnelViewModel.PeerField) -> Bool {
+    func hasPeerError(for peerID: UUID, field: PeerField) -> Bool {
         peerErrorFieldsByID[peerID]?.contains(field) ?? false
     }
 
     func addPeer() {
-        tunnelViewModel.appendEmptyPeer()
-        let newIndex = tunnelViewModel.peersData.count - 1
-        peerItems.append(EditablePeerItem(id: UUID(), index: newIndex))
-        peerRevision += 1
+        draft.peers.append(PeerDraft())
     }
 
     func deletePeer(id peerID: UUID) {
-        guard let itemIndex = peerItems.firstIndex(where: { $0.id == peerID }),
-              itemIndex < tunnelViewModel.peersData.count else { return }
-        let peerData = tunnelViewModel.peersData[itemIndex]
-        tunnelViewModel.deletePeer(peer: peerData)
-        peerItems.remove(at: itemIndex)
+        draft.peers.removeAll { $0.id == peerID }
         peerErrorFieldsByID.removeValue(forKey: peerID)
-        for idx in peerItems.indices {
-            peerItems[idx].index = idx
-        }
-        peerRevision += 1
     }
 
-    struct ValidatedPayload {
-        let configuration: TunnelConfiguration
-        let splitDNSConfiguration: SplitDNSConfiguration
-        let tunnelOptions: TunnelOptions
-        let onDemandOption: ActivateOnDemandOption
+    struct ValidatedPayload: Equatable, Sendable {
+        let profile: TunnelProfile
+        let onDemandPolicy: OnDemandPolicy
         let postSaveNotice: AlertItem?
     }
 
@@ -187,79 +201,62 @@ final class TunnelEditorViewModel {
             validatedSplitDNS = config
         }
 
-        let saveResult = tunnelViewModel.save()
-        syncValidationErrors()
-
-        switch saveResult {
-        case .error(let errorMessage):
-            let isInterfaceInvalid = tunnelViewModel.interfaceData.validatedConfiguration == nil ||
-                tunnelViewModel.interfaceData.validatedName == nil
-            let title = isInterfaceInvalid ? tr("alertInvalidInterfaceTitle") : tr("alertInvalidPeerTitle")
-            return .failure(AlertItem(title: title, message: errorMessage))
-        case .saved(let configuration):
+        switch draft.validate(splitDNS: validatedSplitDNS, options: .default) {
+        case .failure(let error):
+            interfaceErrorFields = error.interfaceFields
+            peerErrorFieldsByID = error.peerFieldsByID
+            return .failure(AlertItem(title: error.title, message: error.message))
+        case .success(var profile):
+            interfaceErrorFields = []
+            peerErrorFieldsByID = [:]
             normalizeSSIDSettings()
-            let onDemandOption = onDemandViewModel.toOnDemandOption()
-            let (finalOptions, postSaveNotice) = resolvedKillSwitchOptions(for: configuration)
+            let (finalOptions, postSaveNotice) = resolvedKillSwitchOptions(for: profile)
+            profile.options = finalOptions
             return .success(ValidatedPayload(
-                configuration: configuration,
-                splitDNSConfiguration: validatedSplitDNS,
-                tunnelOptions: finalOptions,
-                onDemandOption: onDemandOption,
+                profile: profile,
+                onDemandPolicy: onDemandPolicy.normalized(),
                 postSaveNotice: postSaveNotice
             ))
         }
     }
 
-    func save(into store: TunnelStore, onSuccess: @escaping (TunnelContainer) -> Void) {
+    @discardableResult
+    func save(into store: TunnelStore) async -> Tunnel? {
         switch buildValidatedPayload() {
         case .failure(let alert):
             validationAlert = alert
+            return nil
         case .success(let payload):
             isSaving = true
-            store.saveTunnel(
-                existing: existingTunnel,
-                configuration: payload.configuration,
-                splitDNSConfiguration: payload.splitDNSConfiguration,
-                tunnelOptions: payload.tunnelOptions,
-                onDemandOption: payload.onDemandOption
-            ) { [weak self] result in
-                guard let self else { return }
-                self.isSaving = false
-                switch result {
-                case .success(let savedTunnel):
-                    if let notice = payload.postSaveNotice {
-                        store.presentAlert(title: notice.title, message: notice.message)
-                    }
-                    onSuccess(savedTunnel)
-                case .failure(let error):
-                    let alert = error.alertText
-                    self.validationAlert = AlertItem(title: alert.title, message: alert.message)
+            defer { isSaving = false }
+            do {
+                let savedTunnel = try await store.saveTunnel(
+                    existing: existingTunnel,
+                    profile: payload.profile,
+                    onDemandPolicy: payload.onDemandPolicy
+                )
+                if let notice = payload.postSaveNotice {
+                    store.presentAlert(title: notice.title, message: notice.message)
                 }
+                return savedTunnel
+            } catch {
+                let tunnelError = store.wrapError(error, fallback: TunnelError.saveFailed)
+                validationAlert = tunnelError.alertItem
+                return nil
             }
         }
     }
 
     private func loadInitialState() {
-        let interfaceData = tunnelViewModel.interfaceData
-        name = interfaceData[.name]
-        privateKey = interfaceData[.privateKey]
-        publicKey = interfaceData[.publicKey]
-        addresses = interfaceData[.addresses]
-        listenPort = interfaceData[.listenPort]
-        mtu = interfaceData[.mtu]
-        dns = interfaceData[.dns]
-        previousDNSValue = dns
+        previousDNSValue = draft.interface.dns
 
-        peerItems = tunnelViewModel.peersData.indices.map { index in
-            EditablePeerItem(id: UUID(), index: index)
-        }
+        let policy = existingTunnel?.onDemandPolicy ?? .off
+        isCellularOnDemandEnabled = policy.cellular
+        isWiFiOnDemandEnabled = policy.wifi
+        ssidOption = policy.ssidOptionKind
+        selectedSSIDs = policy.selectedSSIDs
 
-        isCellularOnDemandEnabled = onDemandViewModel.isNonWiFiInterfaceEnabled
-        isWiFiOnDemandEnabled = onDemandViewModel.isWiFiInterfaceEnabled
-        ssidOption = onDemandViewModel.ssidOption
-        selectedSSIDs = onDemandViewModel.selectedSSIDs
-
-        let existingSplitDNS = existingTunnel?.splitDNSConfiguration ?? .allDomains
+        let existingSplitDNS = existingTunnel?.splitDNS ?? .allDomains
         splitDNSMode = existingSplitDNS.mode
         splitDNSDomains = existingSplitDNS.domains
         splitDNSExclusions = existingSplitDNS.exclusions
@@ -268,52 +265,44 @@ final class TunnelEditorViewModel {
         newSplitDNSExclusion = ""
         splitDNSExclusionInputError = nil
 
-        let existingOptions = existingTunnel?.tunnelOptions ?? .default
+        let existingOptions = existingTunnel?.options ?? .default
         isKillSwitchEnabled = existingOptions.killSwitch.isEnabled
         allowLocalNetworkWithKillSwitch = existingOptions.killSwitch.allowLocalNetwork
-    }
-
-    private func peerData(for peerID: UUID) -> TunnelViewModel.PeerData? {
-        guard let item = peerItems.first(where: { $0.id == peerID }),
-              item.index >= 0,
-              item.index < tunnelViewModel.peersData.count else {
-            return nil
-        }
-        return tunnelViewModel.peersData[item.index]
-    }
-
-    private func syncValidationErrors() {
-        interfaceErrorFields = tunnelViewModel.interfaceData.fieldsWithError
-        var updatedPeerErrors: [UUID: Set<TunnelViewModel.PeerField>] = [:]
-        for item in peerItems where item.index < tunnelViewModel.peersData.count {
-            let errors = tunnelViewModel.peersData[item.index].fieldsWithError
-            if !errors.isEmpty {
-                updatedPeerErrors[item.id] = errors
-            }
-        }
-        peerErrorFieldsByID = updatedPeerErrors
-        peerRevision += 1
     }
 }
 
 extension TunnelEditorViewModel {
+    var onDemandPolicy: OnDemandPolicy {
+        let filter: OnDemandPolicy.SSIDFilter
+        if isWiFiOnDemandEnabled {
+            switch ssidOption {
+            case .any:
+                filter = .any
+            case .only:
+                filter = .only(selectedSSIDs)
+            case .except:
+                filter = .except(selectedSSIDs)
+            }
+        } else {
+            filter = .any
+        }
+        return OnDemandPolicy(
+            cellular: isCellularOnDemandEnabled,
+            wifi: isWiFiOnDemandEnabled,
+            ssidFilter: filter
+        )
+    }
+
     var onDemandSSIDSummary: String {
-        syncOnDemandToModel()
-        return onDemandViewModel.localizedSSIDDescription
+        onDemandPolicy.ssidDescription
     }
 
     func normalizeSSIDSettings() {
-        syncOnDemandToModel()
-        onDemandViewModel.fixSSIDOption()
-        ssidOption = onDemandViewModel.ssidOption
-        selectedSSIDs = onDemandViewModel.selectedSSIDs
-    }
-
-    func syncOnDemandToModel() {
-        onDemandViewModel.isNonWiFiInterfaceEnabled = isCellularOnDemandEnabled
-        onDemandViewModel.isWiFiInterfaceEnabled = isWiFiOnDemandEnabled
-        onDemandViewModel.ssidOption = ssidOption
-        onDemandViewModel.selectedSSIDs = selectedSSIDs
+        let normalized = onDemandPolicy.normalized()
+        isCellularOnDemandEnabled = normalized.cellular
+        isWiFiOnDemandEnabled = normalized.wifi
+        ssidOption = normalized.ssidOptionKind
+        selectedSSIDs = normalized.selectedSSIDs
     }
 
     var isOnDemandConfigured: Bool {
@@ -321,11 +310,11 @@ extension TunnelEditorViewModel {
     }
 
     var routesAllIPv4Traffic: Bool {
-        TunnelConfiguration.routesAllIPv4Traffic(allowedIPs: currentAllowedIPs)
+        TunnelProfile.routesAllIPv4Traffic(allowedIPs: currentAllowedIPs)
     }
 
     var routesAllIPv6Traffic: Bool {
-        TunnelConfiguration.routesAllIPv6Traffic(allowedIPs: currentAllowedIPs)
+        TunnelProfile.routesAllIPv6Traffic(allowedIPs: currentAllowedIPs)
     }
 
     var tunnelOptions: TunnelOptions {
@@ -340,8 +329,8 @@ extension TunnelEditorViewModel {
         )
     }
 
-    func resolvedKillSwitchOptions(for configuration: TunnelConfiguration) -> (TunnelOptions, AlertItem?) {
-        if isKillSwitchEnabled && !configuration.routesAllIPv4Traffic {
+    func resolvedKillSwitchOptions(for profile: TunnelProfile) -> (TunnelOptions, AlertItem?) {
+        if isKillSwitchEnabled && !profile.routesAllIPv4Traffic {
             isKillSwitchEnabled = false
             allowLocalNetworkWithKillSwitch = false
             let notice = AlertItem(

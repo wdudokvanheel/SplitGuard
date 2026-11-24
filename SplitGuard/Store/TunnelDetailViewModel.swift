@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: MIT
+
 import Foundation
 import Observation
+import SplitGuardCore
 import WireGuardEngine
-import WireGuardKit
 
 struct DetailFieldRow: Identifiable, Equatable {
     let id: String
@@ -27,15 +29,8 @@ struct PeerDisplaySnapshot: Identifiable, Equatable {
 @MainActor
 @Observable
 final class TunnelDetailViewModel {
-    private static let interfaceFields: [TunnelViewModel.InterfaceField] = [
-        .publicKey, .addresses, .listenPort, .mtu, .dns
-    ]
-
-    private static let peerConfigFields: [TunnelViewModel.PeerField] = [
-        .publicKey, .preSharedKey, .endpoint, .allowedIPs, .persistentKeepAlive
-    ]
-
-    let tunnel: TunnelContainer
+    let tunnel: Tunnel
+    private weak var store: TunnelStore?
 
     private(set) var interfaceRows: [DetailFieldRow] = []
     private(set) var peers: [PeerDisplaySnapshot] = []
@@ -45,12 +40,14 @@ final class TunnelDetailViewModel {
     private(set) var splitDNSConfiguration: SplitDNSConfiguration = .allDomains
     private(set) var tunnelOptions: TunnelOptions = .default
     private(set) var deviceStatus: DeviceStatus?
-    private(set) var dnsServers: [DNSServer] = []
+    private(set) var dnsServers: [IPAddress] = []
     private(set) var splitDNSWarnings: [SplitDNSConfiguration.ValidationWarning] = []
     private(set) var totalRxBytes: UInt64 = 0
     private(set) var totalTxBytes: UInt64 = 0
     private(set) var latestHandshakeText: String?
     private(set) var hasAnyLiveStats = false
+
+    private var pollingTask: Task<Void, Never>?
 
     var killSwitchBlockState: KillSwitchBlockState? {
         KillSwitchBlockState.evaluate(
@@ -59,26 +56,14 @@ final class TunnelDetailViewModel {
         )
     }
 
-    private var tunnelViewModel: TunnelViewModel
-    private var onDemandViewModel: ActivateOnDemandViewModel
-    private var pollingTask: Task<Void, Never>?
-
-    init(tunnel: TunnelContainer) {
+    init(tunnel: Tunnel, store: TunnelStore) {
         self.tunnel = tunnel
-        self.tunnelViewModel = TunnelViewModel(tunnelConfiguration: tunnel.tunnelConfiguration)
-        self.onDemandViewModel = ActivateOnDemandViewModel(tunnel: tunnel)
-        rebuildSnapshots(from: tunnel.tunnelConfiguration)
+        self.store = store
+        rebuildSnapshots(now: Date())
     }
 
     var primaryEndpoint: String? {
-        let endpoints = tunnel.tunnelConfiguration?.peers.compactMap(\.endpoint) ?? []
-        if endpoints.count == 1 {
-            return endpoints[0].stringRepresentation
-        }
-        if endpoints.count > 1 {
-            return "\(endpoints.count) endpoints"
-        }
-        return nil
+        tunnel.primaryEndpoint
     }
 
     var totalRxFormatted: String {
@@ -90,9 +75,12 @@ final class TunnelDetailViewModel {
     }
 
     func refreshStaticConfiguration() {
-        tunnelViewModel = TunnelViewModel(tunnelConfiguration: tunnel.tunnelConfiguration)
-        onDemandViewModel = ActivateOnDemandViewModel(tunnel: tunnel)
-        rebuildSnapshots(from: tunnel.tunnelConfiguration)
+        rebuildSnapshots(now: Date())
+    }
+
+    func apply(deviceStatus: DeviceStatus?, now: Date = Date()) {
+        self.deviceStatus = deviceStatus
+        rebuildSnapshots(now: now)
     }
 
     func updatePolling(for status: TunnelStatus, isVisible: Bool) {
@@ -114,94 +102,159 @@ final class TunnelDetailViewModel {
         pollingTask = nil
     }
 
+    func pollRuntimeStatusOnce(now: Date? = nil) async {
+        guard let store else { return }
+        let fetchedStatus = await store.fetchDeviceStatus(for: tunnel)
+        guard !Task.isCancelled else { return }
+        apply(deviceStatus: fetchedStatus, now: now ?? Date())
+    }
+
     private func startPollingIfNeeded() {
         guard pollingTask == nil else { return }
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                await self.pollRuntimeConfigurationOnce()
+                await self.pollRuntimeStatusOnce()
                 try? await Task.sleep(for: .seconds(1))
             }
         }
     }
 
-    private func pollRuntimeConfigurationOnce() async {
-        let fetchedStatus: DeviceStatus? = await withCheckedContinuation { continuation in
-            tunnel.getRuntimeDeviceStatus { status in
-                continuation.resume(returning: status)
-            }
+    private func rebuildSnapshots(now: Date) {
+        let profile = tunnel.profile
+        interfaceRows = buildInterfaceRows(from: profile.interface, deviceStatus: deviceStatus)
+        peers = buildPeerSnapshots(from: profile.peers, deviceStatus: deviceStatus, now: now)
+        updateLiveSummary(from: deviceStatus, now: now)
+        updateOnDemandSummary(from: tunnel.onDemandPolicy)
+        updateSplitDNSSummary(from: profile)
+        tunnelOptions = profile.options
+    }
+
+    private func updateLiveSummary(from status: DeviceStatus?, now: Date) {
+        guard let status else {
+            totalRxBytes = 0
+            totalTxBytes = 0
+            hasAnyLiveStats = false
+            latestHandshakeText = nil
+            return
         }
-        guard !Task.isCancelled else { return }
-        deviceStatus = fetchedStatus
-        guard let runtimeConfig = tunnel.mergedRuntimeConfiguration(with: fetchedStatus) else { return }
-        tunnelViewModel.applyConfiguration(other: runtimeConfig)
-        onDemandViewModel = ActivateOnDemandViewModel(tunnel: tunnel)
-        rebuildSnapshots(from: runtimeConfig)
-    }
 
-    private func rebuildSnapshots(from configuration: TunnelConfiguration?) {
-        interfaceRows = buildInterfaceRows()
-        peers = buildPeerSnapshots()
-        updateLiveSummary(from: configuration)
-        updateOnDemandSummary()
-        updateSplitDNSSummary(from: configuration)
-        tunnelOptions = tunnel.tunnelOptions
-    }
-
-    private func updateSplitDNSSummary(from configuration: TunnelConfiguration?) {
-        let splitDNS = tunnel.splitDNSConfiguration
-        splitDNSConfiguration = splitDNS
-        dnsServers = configuration?.interface.dns ?? []
-        let allowedIPs = configuration?.peers.flatMap(\.allowedIPs) ?? []
-        splitDNSWarnings = splitDNS.validationWarnings(dnsServers: dnsServers, allowedIPs: allowedIPs)
-    }
-
-    private func buildInterfaceRows() -> [DetailFieldRow] {
-        Self.interfaceFields.compactMap { field in
-            let value = tunnelViewModel.interfaceData[field]
-            guard !value.isEmpty else { return nil }
-            let isMonospaced = field == .publicKey || field == .addresses || field == .dns ||
-                field == .listenPort || field == .mtu
-            return DetailFieldRow(
-                id: "iface-\(field.localizedUIString)",
-                label: field.localizedUIString,
-                value: value,
-                isMonospaced: isMonospaced,
-                isCopyable: true
-            )
+        totalRxBytes = status.peers.reduce(0) { $0 &+ $1.rxBytes }
+        totalTxBytes = status.peers.reduce(0) { $0 &+ $1.txBytes }
+        hasAnyLiveStats = status.peers.contains {
+            $0.rxBytes > 0 || $0.txBytes > 0 || $0.lastHandshake != nil
         }
+        latestHandshakeText = status.peers
+            .compactMap(\.lastHandshake)
+            .max()
+            .map { Self.formatHandshake($0, relativeTo: now) }
     }
 
-    private func buildPeerSnapshots() -> [PeerDisplaySnapshot] {
-        tunnelViewModel.peersData.enumerated().map { index, peerData in
-            let rows: [DetailFieldRow] = Self.peerConfigFields.compactMap { field in
-                let rawValue = peerData[field]
-                guard !rawValue.isEmpty else { return nil }
+    private func updateOnDemandSummary(from policy: OnDemandPolicy) {
+        onDemandInterfaceSummary = policy.interfaceDescription
+        let ssidDescription = policy.ssidDescription
+        onDemandSSIDSummary = ssidDescription.isEmpty ? nil : ssidDescription
+        onDemandSelectedSSIDs = policy.selectedSSIDs
+    }
 
-                let formattedValue: String
-                if field == .persistentKeepAlive {
-                    formattedValue = tr(format: "tunnelPeerPersistentKeepaliveValue (%@)", rawValue)
-                } else if field == .preSharedKey {
-                    formattedValue = tr("tunnelPeerPresharedKeyEnabled")
-                } else {
-                    formattedValue = rawValue
-                }
+    private func updateSplitDNSSummary(from profile: TunnelProfile) {
+        splitDNSConfiguration = profile.splitDNS
+        dnsServers = profile.interface.dnsServers
+        splitDNSWarnings = profile.splitDNS.validationWarnings(for: profile)
+    }
+}
 
-                let isMonospaced = field == .publicKey || field == .endpoint || field == .allowedIPs
-                return DetailFieldRow(
-                    id: "peer-\(index)-\(field.localizedUIString)",
-                    label: field.localizedUIString,
-                    value: formattedValue,
-                    isMonospaced: isMonospaced,
-                    isCopyable: field != .preSharedKey
-                )
+extension TunnelDetailViewModel {
+    static func formatBytes(_ bytes: UInt64) -> String {
+        Int64(clamping: bytes).formatted(.byteCount(style: .binary))
+    }
+
+    static func formatHandshake(_ date: Date, relativeTo now: Date = Date()) -> String {
+        let elapsed = now.timeIntervalSince(date)
+        if elapsed < 0 {
+            return tr("tunnelHandshakeTimestampSystemClockBackward")
+        }
+        if elapsed < 1 {
+            return tr("tunnelHandshakeTimestampNow")
+        }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
+    }
+}
+
+private extension TunnelDetailViewModel {
+    func buildInterfaceRows(
+        from interface: InterfaceConfiguration,
+        deviceStatus: DeviceStatus?
+    ) -> [DetailFieldRow] {
+        var rows: [DetailFieldRow] = []
+
+        if let publicKey = (try? interface.privateKey.publicKey())?.base64, !publicKey.isEmpty {
+            rows.append(makeInterfaceRow(.publicKey, value: publicKey))
+        }
+        if !interface.addresses.isEmpty {
+            rows.append(makeInterfaceRow(
+                .addresses,
+                value: interface.addresses.map(\.description).joined(separator: ", ")
+            ))
+        }
+        let livePort = deviceStatus.flatMap { $0.listenPort > 0 ? $0.listenPort : nil }
+        if let listenPort = livePort ?? interface.listenPort {
+            rows.append(makeInterfaceRow(.listenPort, value: String(listenPort)))
+        }
+        if let mtu = interface.mtu {
+            rows.append(makeInterfaceRow(.mtu, value: String(mtu)))
+        }
+
+        var dnsEntries = interface.dnsServers.map(\.description)
+        dnsEntries.append(contentsOf: interface.dnsSearch)
+        if !dnsEntries.isEmpty {
+            rows.append(makeInterfaceRow(.dns, value: dnsEntries.joined(separator: ", ")))
+        }
+
+        return rows
+    }
+
+    func makeInterfaceRow(_ field: InterfaceField, value: String) -> DetailFieldRow {
+        DetailFieldRow(
+            id: "iface-\(field.localizedTitle)",
+            label: field.localizedTitle,
+            value: value,
+            isMonospaced: true,
+            isCopyable: true
+        )
+    }
+
+    func buildPeerSnapshots(
+        from configuredPeers: [PeerConfiguration],
+        deviceStatus: DeviceStatus?,
+        now: Date
+    ) -> [PeerDisplaySnapshot] {
+        let livePeersByKey = Dictionary(
+            uniqueKeysWithValues: (deviceStatus?.peers ?? []).map { ($0.publicKey, $0) }
+        )
+
+        return configuredPeers.enumerated().map { index, peer in
+            let livePeer = livePeersByKey[peer.publicKey]
+            let rows = buildPeerConfigRows(for: peer, index: index, liveEndpoint: livePeer?.endpoint)
+
+            let rxText: String?
+            let txText: String?
+            let handshakeText: String?
+            if let livePeer {
+                let hasActivity = livePeer.rxBytes > 0 || livePeer.txBytes > 0 || livePeer.lastHandshake != nil
+                rxText = hasActivity ? Self.formatBytes(livePeer.rxBytes) : nil
+                txText = hasActivity ? Self.formatBytes(livePeer.txBytes) : nil
+                handshakeText = livePeer.lastHandshake.map { Self.formatHandshake($0, relativeTo: now) }
+            } else {
+                rxText = nil
+                txText = nil
+                handshakeText = nil
             }
 
-            let rxText = peerData[.rxBytes].isEmpty ? nil : peerData[.rxBytes]
-            let txText = peerData[.txBytes].isEmpty ? nil : peerData[.txBytes]
-            let handshakeText = peerData[.lastHandshakeTime].isEmpty ? nil : peerData[.lastHandshakeTime]
             return PeerDisplaySnapshot(
-                id: peerData.publicKey?.base64Key ?? "peer-\(index)",
+                id: peer.publicKey.base64,
                 index: index,
                 configRows: rows,
                 rxBytesText: rxText,
@@ -211,35 +264,62 @@ final class TunnelDetailViewModel {
         }
     }
 
-    private func updateLiveSummary(from configuration: TunnelConfiguration?) {
-        let rawPeers = configuration?.peers ?? []
-        totalRxBytes = rawPeers.compactMap(\.rxBytes).reduce(0, +)
-        totalTxBytes = rawPeers.compactMap(\.txBytes).reduce(0, +)
-        hasAnyLiveStats = rawPeers.contains {
-            $0.rxBytes != nil || $0.txBytes != nil || $0.lastHandshakeTime != nil
+    func buildPeerConfigRows(
+        for peer: PeerConfiguration,
+        index: Int,
+        liveEndpoint: IPEndpoint?
+    ) -> [DetailFieldRow] {
+        var rows: [DetailFieldRow] = [
+            makePeerRow(.publicKey, index: index, value: peer.publicKey.base64, monospaced: true, copyable: true)
+        ]
+
+        if peer.presharedKey != nil {
+            rows.append(makePeerRow(
+                .presharedKey,
+                index: index,
+                value: tr("tunnelPeerPresharedKeyEnabled"),
+                monospaced: false,
+                copyable: false
+            ))
         }
-        latestHandshakeText = peers.first(where: { $0.lastHandshakeText != nil })?.lastHandshakeText
+        if let endpointText = liveEndpoint?.description ?? peer.endpoint?.description {
+            rows.append(makePeerRow(.endpoint, index: index, value: endpointText, monospaced: true, copyable: true))
+        }
+        if !peer.allowedIPs.isEmpty {
+            rows.append(makePeerRow(
+                .allowedIPs,
+                index: index,
+                value: peer.allowedIPs.map(\.description).joined(separator: ", "),
+                monospaced: true,
+                copyable: true
+            ))
+        }
+        if let keepalive = peer.persistentKeepalive {
+            rows.append(makePeerRow(
+                .persistentKeepalive,
+                index: index,
+                value: tr(format: "tunnelPeerPersistentKeepaliveValue (%@)", String(keepalive)),
+                monospaced: false,
+                copyable: true
+            ))
+        }
+
+        return rows
     }
 
-    private func updateOnDemandSummary() {
-        onDemandInterfaceSummary = onDemandViewModel.localizedInterfaceDescription
-        let ssidDescription = onDemandViewModel.localizedSSIDDescription
-        onDemandSSIDSummary = ssidDescription.isEmpty ? nil : ssidDescription
-        onDemandSelectedSSIDs = onDemandViewModel.selectedSSIDs
-    }
-
-    static func formatBytes(_ bytes: UInt64) -> String {
-        switch bytes {
-        case 0 ..< 1024:
-            return "\(bytes) B"
-        case 1024 ..< (1024 * 1024):
-            return String(format: "%.2f KiB", Double(bytes) / 1024)
-        case (1024 * 1024) ..< (1024 * 1024 * 1024):
-            return String(format: "%.2f MiB", Double(bytes) / (1024 * 1024))
-        case (1024 * 1024 * 1024) ..< (1024 * 1024 * 1024 * 1024):
-            return String(format: "%.2f GiB", Double(bytes) / (1024 * 1024 * 1024))
-        default:
-            return String(format: "%.2f TiB", Double(bytes) / (1024 * 1024 * 1024 * 1024))
-        }
+    func makePeerRow(
+        _ field: PeerField,
+        index: Int,
+        value: String,
+        monospaced: Bool,
+        copyable: Bool
+    ) -> DetailFieldRow {
+        DetailFieldRow(
+            id: "peer-\(index)-\(field.localizedTitle)",
+            label: field.localizedTitle,
+            value: value,
+            isMonospaced: monospaced,
+            isCopyable: copyable
+        )
     }
 }

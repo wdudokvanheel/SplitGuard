@@ -1,7 +1,7 @@
 import AVFoundation
+import SplitGuardCore
 import SwiftUI
 import UIKit
-import WireGuardKit
 
 struct QRScannerView: View {
     @Environment(\.dismiss) private var dismiss
@@ -12,9 +12,7 @@ struct QRScannerView: View {
 
     @State private var cameraState: CameraAuthorizationState = .checking
     @State private var isScanningPaused = false
-    @State private var scannedConfiguration: TunnelConfiguration?
-    @State private var scannedSplitDNS: SplitDNSConfiguration = .allDomains
-    @State private var scannedTunnelOptions: TunnelOptions = .default
+    @State private var scannedProfile: TunnelProfile?
     @State private var tunnelName = ""
     @State private var scanError: AlertItem?
 
@@ -30,7 +28,7 @@ struct QRScannerView: View {
             VStack(spacing: 0) {
                 BrutalistHeaderBar(
                     title: tr("scanQRCodeViewTitle"),
-                    enableSwipeBack: scannedConfiguration == nil,
+                    enableSwipeBack: scannedProfile == nil,
                     leading: {
                         BrutalistBackButton {
                             dismiss()
@@ -56,14 +54,13 @@ struct QRScannerView: View {
             }
             .background(SGColor.surfacePrimary.ignoresSafeArea())
 
-            if scannedConfiguration != nil {
+            if let scannedProfile {
                 QRNameScannedTunnelSheet(
                     tunnelName: $tunnelName,
-                    scannedConfiguration: scannedConfiguration,
-                    scannedSplitDNS: scannedSplitDNS,
+                    scannedProfile: scannedProfile,
                     onCancel: {
                         withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
-                            scannedConfiguration = nil
+                            self.scannedProfile = nil
                             tunnelName = ""
                             isScanningPaused = false
                         }
@@ -74,7 +71,7 @@ struct QRScannerView: View {
                 .zIndex(1)
             }
         }
-        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: scannedConfiguration != nil)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: scannedProfile != nil)
         .toolbar(.hidden, for: .navigationBar)
         .task {
             await checkCameraAvailability()
@@ -166,7 +163,7 @@ struct QRScannerView: View {
         guard !isScanningPaused else { return }
         isScanningPaused = true
 
-        guard let config = try? TunnelConfiguration(fromWgQuickConfig: payload, called: "Scanned") else {
+        guard let profile = try? TunnelProfileCodec.parse(payload, name: "Scanned") else {
             scanError = AlertItem(
                 title: tr("alertScanQRCodeInvalidQRCodeTitle"),
                 message: tr("alertScanQRCodeInvalidQRCodeMessage")
@@ -175,27 +172,17 @@ struct QRScannerView: View {
         }
 
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        scannedSplitDNS = SplitDNSConfigCodec.extract(from: payload)
-        scannedTunnelOptions = TunnelOptionsCodec.extract(from: payload, for: config)
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
-            scannedConfiguration = config
+            scannedProfile = profile
         }
     }
 
     private func saveScannedTunnel() {
-        guard let config = scannedConfiguration else { return }
+        guard let profile = scannedProfile else { return }
         let name = tunnelName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let splitDNS = scannedSplitDNS
-        let options = scannedTunnelOptions
-        store.addConfiguration(
-            config,
-            splitDNSConfiguration: splitDNS,
-            tunnelOptions: options,
-            named: name
-        ) { succeeded in
-            scannedConfiguration = nil
-            scannedSplitDNS = .allDomains
-            scannedTunnelOptions = .default
+        Task {
+            let succeeded = await store.addProfile(profile, named: name)
+            scannedProfile = nil
             if succeeded {
                 if let onCompleted {
                     onCompleted()
@@ -212,8 +199,7 @@ struct QRScannerView: View {
 
 private struct QRNameScannedTunnelSheet: View {
     @Binding var tunnelName: String
-    let scannedConfiguration: TunnelConfiguration?
-    let scannedSplitDNS: SplitDNSConfiguration
+    let scannedProfile: TunnelProfile
     let onCancel: () -> Void
     let onSave: () -> Void
 
@@ -259,33 +245,32 @@ private struct QRNameScannedTunnelSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
                     .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
 
-                    if let config = scannedConfiguration {
-                        VStack(spacing: 0) {
-                            BrutalistSectionBar(title: "Detected Configuration")
-                            VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-                                if let endpoint = config.peers.first?.endpoint?.stringRepresentation {
-                                    detectedInfoRow(label: "ENDPOINT", value: endpoint)
-                                }
-                                if !config.interface.dns.isEmpty {
-                                    detectedInfoRow(
-                                        label: "DNS",
-                                        value: config.interface.dns.map(\.stringRepresentation).joined(separator: ", ")
-                                    )
-                                }
-                                if scannedSplitDNS.mode == .onlyDomains && !scannedSplitDNS.normalizedDomainNames.isEmpty {
-                                    detectedInfoRow(
-                                        label: "SPLIT DNS",
-                                        value: scannedSplitDNS.normalizedDomainNames.joined(separator: ", ")
-                                    )
-                                }
+                    VStack(spacing: 0) {
+                        BrutalistSectionBar(title: "Detected Configuration")
+                        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+                            if let endpoint = scannedProfile.peers.first?.endpoint?.description {
+                                detectedInfoRow(label: "ENDPOINT", value: endpoint)
                             }
-                            .padding(SGSpacing.medium)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(SGColor.surfaceCard)
+                            if !scannedProfile.interface.dnsServers.isEmpty {
+                                detectedInfoRow(
+                                    label: "DNS",
+                                    value: scannedProfile.interface.dnsServers.map(\.description).joined(separator: ", ")
+                                )
+                            }
+                            if scannedProfile.splitDNS.mode == .onlyDomains,
+                               !scannedProfile.splitDNS.normalizedDomainNames.isEmpty {
+                                detectedInfoRow(
+                                    label: "SPLIT DNS",
+                                    value: scannedProfile.splitDNS.normalizedDomainNames.joined(separator: ", ")
+                                )
+                            }
                         }
-                        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
-                        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+                        .padding(SGSpacing.medium)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(SGColor.surfaceCard)
                     }
+                    .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+                    .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
                 }
                 .padding(SGSpacing.medium)
             }

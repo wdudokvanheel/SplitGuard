@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TunnelListView: View {
     let store: TunnelStore
-    let onSelectTunnel: (TunnelContainer) -> Void
+    let onSelectTunnel: (Tunnel) -> Void
     let onAddTunnel: () -> Void
     let onImportFiles: () -> Void
     let onScanQRCode: () -> Void
@@ -12,18 +12,18 @@ struct TunnelListView: View {
 
     @State private var liveMetrics = TunnelLiveMetricsMonitor()
     @State private var isVisible = false
-    @State private var tunnelPendingDelete: TunnelContainer?
+    @State private var tunnelPendingDelete: Tunnel?
     @State private var isSelecting = false
-    @State private var selectedTunnelIDs: Set<ObjectIdentifier> = []
+    @State private var selectedTunnelIDs: Set<Tunnel.ID> = []
     @State private var showMultiDeleteConfirmation = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var selectedTunnels: [TunnelContainer] {
-        store.tunnels.filter { selectedTunnelIDs.contains(ObjectIdentifier($0)) }
+    private var selectedTunnels: [Tunnel] {
+        store.tunnels.filter { selectedTunnelIDs.contains($0.id) }
     }
 
-    private var featuredTunnel: TunnelContainer? {
+    private var featuredTunnel: Tunnel? {
         store.featuredTunnel
     }
 
@@ -65,14 +65,14 @@ struct TunnelListView: View {
             liveMetrics.stop()
         }
         .onChange(of: store.revision) { _, _ in
-            let validIDs = Set(store.tunnels.map(ObjectIdentifier.init))
+            let validIDs = Set(store.tunnels.map(\.id))
             selectedTunnelIDs.formIntersection(validIDs)
             if store.tunnels.isEmpty {
                 isSelecting = false
             }
             syncLiveMetrics()
         }
-        .onChange(of: featuredTunnel.map(ObjectIdentifier.init)) { _, _ in
+        .onChange(of: featuredTunnel?.id) { _, _ in
             syncLiveMetrics()
         }
         .onChange(of: featuredStatus) { _, _ in
@@ -88,7 +88,9 @@ struct TunnelListView: View {
         ) {
             if let tunnel = tunnelPendingDelete {
                 Button(tr("deleteTunnelConfirmationAlertButtonTitle"), role: .destructive) {
-                    store.delete(tunnel: tunnel)
+                    Task {
+                        _ = await store.delete(tunnel: tunnel)
+                    }
                     tunnelPendingDelete = nil
                 }
             }
@@ -107,7 +109,8 @@ struct TunnelListView: View {
         ) {
             Button(tr("deleteTunnelsConfirmationAlertButtonTitle"), role: .destructive) {
                 let targets = selectedTunnels
-                store.deleteMultiple(tunnels: targets) { succeeded in
+                Task {
+                    let succeeded = await store.deleteMultiple(tunnels: targets)
                     if succeeded {
                         exitSelectionMode()
                     }
@@ -161,7 +164,9 @@ private extension TunnelListView {
                             handshakeText: liveMetrics.handshakeAgeText ?? "Pending",
                             onOpenDetail: { onSelectTunnel(featured) },
                             onToggleConnection: { isOn in
-                                store.setTunnelActive(isOn, for: featured)
+                                Task {
+                                    await store.setTunnelActive(isOn, for: featured)
+                                }
                             },
                             onToggleFavorite: {
                                 withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
@@ -177,8 +182,8 @@ private extension TunnelListView {
                     )
 
                     LazyVStack(spacing: SGSpacing.small) {
-                        ForEach(Array(store.tunnels.enumerated()), id: \.element) { index, tunnel in
-                            let tunnelID = ObjectIdentifier(tunnel)
+                        ForEach(Array(store.tunnels.enumerated()), id: \.element.id) { index, tunnel in
+                            let tunnelID = tunnel.id
                             TunnelRowView(
                                 tunnel: tunnel,
                                 displayState: store.displayState(
@@ -197,7 +202,9 @@ private extension TunnelListView {
                                     }
                                 },
                                 onToggle: { isOn in
-                                    store.setTunnelActive(isOn, for: tunnel)
+                                    Task {
+                                        await store.setTunnelActive(isOn, for: tunnel)
+                                    }
                                 },
                                 onToggleFavorite: {
                                     withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
@@ -227,7 +234,7 @@ private extension TunnelListView {
             }
         }
         .background(SGColor.surfacePrimary.ignoresSafeArea())
-        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: featuredTunnel.map(ObjectIdentifier.init))
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: featuredTunnel?.id)
     }
 
     var topBar: some View {
@@ -287,7 +294,7 @@ private extension TunnelListView {
     var selectionHeaderControls: some View {
         let allSelected = selectedTunnels.count == store.tunnels.count
         Button {
-            selectedTunnelIDs = allSelected ? [] : Set(store.tunnels.map(ObjectIdentifier.init))
+            selectedTunnelIDs = allSelected ? [] : Set(store.tunnels.map(\.id))
         } label: {
             Text(allSelected ? "NONE" : "ALL")
                 .font(SGTypography.displayCompact)
@@ -361,10 +368,10 @@ private extension TunnelListView {
     }
 
     func syncLiveMetrics() {
-        liveMetrics.update(tunnel: featuredTunnel, status: featuredStatus, isVisible: isVisible)
+        liveMetrics.update(tunnel: featuredTunnel, status: featuredStatus, store: store, isVisible: isVisible)
     }
 
-    func toggleSelection(for tunnelID: ObjectIdentifier) {
+    func toggleSelection(for tunnelID: Tunnel.ID) {
         if selectedTunnelIDs.contains(tunnelID) {
             selectedTunnelIDs.remove(tunnelID)
         } else {

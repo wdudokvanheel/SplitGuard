@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct TunnelRowView: View {
-    let tunnel: TunnelContainer
+    let tunnel: Tunnel
     let displayState: TunnelDisplayState
     var rowIndex: Int = 0
     var isFavorite: Bool = false
@@ -17,9 +17,9 @@ struct TunnelRowView: View {
     }
 
     private var endpointText: String? {
-        let endpoints = tunnel.tunnelConfiguration?.peers.compactMap(\.endpoint) ?? []
+        let endpoints = tunnel.profile.peers.compactMap(\.endpoint)
         if endpoints.count == 1 {
-            return endpoints[0].stringRepresentation
+            return endpoints[0].description
         }
         if endpoints.count > 1 {
             return "\(endpoints.count) peers"
@@ -32,11 +32,11 @@ struct TunnelRowView: View {
         if displayState.status != .inactive {
             result.append(displayState.statusText)
         }
-        if tunnel.splitDNSConfiguration.mode == .onlyDomains {
-            let count = tunnel.splitDNSConfiguration.normalizedDomainNames.count
+        if tunnel.splitDNS.mode == .onlyDomains {
+            let count = tunnel.splitDNS.normalizedDomainNames.count
             result.append(count == 1 ? "SPLIT DNS" : "SPLIT DNS (\(count))")
         }
-        if tunnel.tunnelOptions.killSwitch.isEnabled {
+        if tunnel.options.killSwitch.isEnabled {
             result.append("KILL SWITCH")
         }
         if displayState.hasOnDemandRules {

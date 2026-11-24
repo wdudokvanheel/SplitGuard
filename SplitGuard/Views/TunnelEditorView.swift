@@ -4,13 +4,13 @@ import UIKit
 struct TunnelEditorView: View {
     @Environment(\.dismiss) private var dismiss
     let store: TunnelStore
-    let onSaved: ((TunnelContainer) -> Void)?
+    let onSaved: ((Tunnel) -> Void)?
 
     @State private var viewModel: TunnelEditorViewModel
     @State private var peerPendingDeleteID: UUID?
     @State private var showSSIDEditor = false
 
-    init(store: TunnelStore, tunnel: TunnelContainer? = nil, onSaved: ((TunnelContainer) -> Void)? = nil) {
+    init(store: TunnelStore, tunnel: Tunnel? = nil, onSaved: ((Tunnel) -> Void)? = nil) {
         self.store = store
         self.onSaved = onSaved
         _viewModel = State(initialValue: TunnelEditorViewModel(tunnel: tunnel))
@@ -27,12 +27,13 @@ struct TunnelEditorView: View {
                         viewModel: viewModel,
                         isTunnelActive: viewModel.existingTunnel.map { store.status(for: $0) == .active } ?? false
                     )
-                    ForEach(viewModel.peerItems) { item in
+                    ForEach(Array(viewModel.peers.enumerated()), id: \.element.id) { index, peer in
                         PeerEditorCard(
                             viewModel: viewModel,
-                            item: item,
-                            peerCount: viewModel.peerItems.count,
-                            onRequestDelete: { peerPendingDeleteID = item.id }
+                            peerID: peer.id,
+                            peerIndex: index,
+                            peerCount: viewModel.peers.count,
+                            onRequestDelete: { peerPendingDeleteID = peer.id }
                         )
                     }
                     addPeerButton
@@ -108,11 +109,13 @@ struct TunnelEditorView: View {
                     foreground: SGColor.inkOnPop,
                     showGrain: true
                 ) {
-                    viewModel.save(into: store) { savedTunnel in
-                        if let onSaved {
-                            onSaved(savedTunnel)
-                        } else {
-                            dismiss()
+                    Task {
+                        if let savedTunnel = await viewModel.save(into: store) {
+                            if let onSaved {
+                                onSaved(savedTunnel)
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
                 }

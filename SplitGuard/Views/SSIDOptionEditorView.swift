@@ -7,10 +7,10 @@ struct SSIDOptionEditorView: View {
     @State private var connectedSSID: String?
     @State private var newSSIDText = ""
 
-    private let options: [ActivateOnDemandViewModel.OnDemandSSIDOption] = [
-        .anySSID,
-        .onlySpecificSSIDs,
-        .exceptSpecificSSIDs
+    private let options: [OnDemandPolicy.SSIDOptionKind] = [
+        .any,
+        .only,
+        .except
     ]
 
     private var canAddConnectedSSID: Bool {
@@ -34,7 +34,7 @@ struct SSIDOptionEditorView: View {
                 VStack(spacing: SGSpacing.medium) {
                     modeOptionsCard
 
-                    if viewModel.ssidOption != .anySSID {
+                    if viewModel.ssidOption != .any {
                         selectedSSIDsCard
                         addSSIDsCard
                     }
@@ -59,7 +59,7 @@ struct SSIDOptionEditorView: View {
             BrutalistSectionBar(title: "Wi-Fi Matching")
 
             VStack(spacing: 0) {
-                ForEach(Array(options.enumerated()), id: \.element.localizedUIString) { index, option in
+                ForEach(Array(options.enumerated()), id: \.element.title) { index, option in
                     let isSelected = viewModel.ssidOption == option
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -68,7 +68,7 @@ struct SSIDOptionEditorView: View {
                         }
                     } label: {
                         HStack(spacing: SGSpacing.small) {
-                            Text(option.localizedUIString)
+                            Text(option.title)
                                 .font(SGTypography.bodyBold)
                                 .foregroundStyle(SGColor.textPrimary)
                             Spacer()

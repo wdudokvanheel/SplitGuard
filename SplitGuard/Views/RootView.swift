@@ -2,11 +2,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum AppRoute: Hashable {
-    case tunnelDetail(ObjectIdentifier)
+    case tunnelDetail(Tunnel.ID)
     case addTunnel
     case qrScanner
     case createTunnel
-    case editTunnel(ObjectIdentifier)
+    case editTunnel(Tunnel.ID)
     case pasteConfig
     case settings
     case about
@@ -38,7 +38,7 @@ struct RootView: View {
             TunnelListView(
                 store: store,
                 onSelectTunnel: { tunnel in
-                    navigationPath.append(.tunnelDetail(ObjectIdentifier(tunnel)))
+                    navigationPath.append(.tunnelDetail(tunnel.id))
                 },
                 onAddTunnel: {
                     navigationPath.append(.addTunnel)
@@ -78,7 +78,9 @@ struct RootView: View {
             switch result {
             case .success(let urls):
                 navigationPath.removeAll { $0 == .addTunnel }
-                store.importFiles(from: urls)
+                Task {
+                    await store.importFiles(from: urls)
+                }
             case .failure(let error):
                 store.presentAlert(
                     title: tr("alertCantOpenInputConfFileTitle"),
@@ -104,12 +106,16 @@ struct RootView: View {
             Text(store.activeAlert?.message ?? "")
         }
         .onOpenURL { url in
-            store.importFromOpenedURL(url)
+            Task {
+                await store.importFromOpenedURL(url)
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
-                store.refreshStatuses()
+                Task {
+                    await store.refreshStatuses()
+                }
             case .inactive, .background:
                 store.updateQuickActions()
             @unknown default:
@@ -117,7 +123,7 @@ struct RootView: View {
             }
         }
         .onChange(of: store.revision) { _, _ in
-            let validIDs = Set(store.tunnels.map(ObjectIdentifier.init))
+            let validIDs = Set(store.tunnels.map(\.id))
             navigationPath.removeAll { route in
                 switch route {
                 case .tunnelDetail(let tunnelID), .editTunnel(let tunnelID):
@@ -186,7 +192,7 @@ struct RootView: View {
     }
 
     @ViewBuilder
-    private func tunnelDetailDestination(for tunnelID: ObjectIdentifier) -> some View {
+    private func tunnelDetailDestination(for tunnelID: Tunnel.ID) -> some View {
         if let tunnel = store.tunnel(for: tunnelID) {
             TunnelDetailView(
                 store: store,
@@ -200,7 +206,7 @@ struct RootView: View {
     }
 
     @ViewBuilder
-    private func editTunnelDestination(for tunnelID: ObjectIdentifier) -> some View {
+    private func editTunnelDestination(for tunnelID: Tunnel.ID) -> some View {
         if let tunnel = store.tunnel(for: tunnelID) {
             TunnelEditorView(store: store, tunnel: tunnel)
         } else {
@@ -222,7 +228,7 @@ struct RootView: View {
         )
     }
 
-    private func tunnelRemovedView(for tunnelID: ObjectIdentifier) -> some View {
+    private func tunnelRemovedView(for tunnelID: Tunnel.ID) -> some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
                 title: "Tunnel Removed",
@@ -245,7 +251,7 @@ struct RootView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func removeTunnelRoutes(for tunnelID: ObjectIdentifier) {
+    private func removeTunnelRoutes(for tunnelID: Tunnel.ID) {
         navigationPath.removeAll { route in
             route == .tunnelDetail(tunnelID) || route == .editTunnel(tunnelID)
         }

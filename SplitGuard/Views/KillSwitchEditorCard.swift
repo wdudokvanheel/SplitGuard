@@ -1,5 +1,5 @@
+import SplitGuardCore
 import SwiftUI
-import WireGuardKit
 
 struct KillSwitchEditorCard: View {
     @Bindable var viewModel: TunnelEditorViewModel

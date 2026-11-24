@@ -79,7 +79,7 @@ struct LogViewerView: View {
         }
         .sheet(item: $exportedLogFile) { item in
             ActivityShareSheet(activityItems: [item.url]) {
-                _ = FileManager.deleteFile(at: item.url)
+                try? FileManager.default.removeItem(at: item.url)
                 exportedLogFile = nil
             }
         }
