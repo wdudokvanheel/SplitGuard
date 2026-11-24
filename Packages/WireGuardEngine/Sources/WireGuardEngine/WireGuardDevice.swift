@@ -16,6 +16,13 @@ final class WireGuardPeer {
         var rxBytes: UInt64 = 0
         var handshake = NoiseHandshakeState()
         var cookieGenerator: CookieGenerator
+        var running = false
+        var roamingDisabled = false
+        var lastSentHandshake: ProtocolInstant?
+        var handshakeAttempts = 0
+        var needAnotherKeepalive = false
+        var sentLastMinuteHandshake = false
+        var staged = PacketQueue<Data>(capacity: WireGuardDevice.stagedCapacity)
 
         init(publicKey: NoisePublicKey) {
             cookieGenerator = CookieGenerator(for: publicKey)
@@ -46,13 +53,13 @@ final class WireGuardPeer {
     }
 }
 
-enum UAPIError: Error, Equatable {
+public enum UAPIError: Error, Equatable {
     case inputTooLong
     case malformedLine
     case invalidValue(key: String)
     case portInUse
 
-    var code: Int64 {
+    public var code: Int64 {
         switch self {
         case .inputTooLong: return -Int64(EIO)
         case .malformedLine: return -Int64(EPROTO)
@@ -64,7 +71,7 @@ enum UAPIError: Error, Equatable {
 
 /// Owns the static identity, peer objects, allowed-IP routing and local session indices.
 /// UAPI applies directly to this state, one line at a time, including on errors.
-final class WireGuardDevice {
+public final class WireGuardDevice {
     struct StaticIdentity {
         fileprivate(set) var privateKey = NoisePrivateKey.zero
         fileprivate(set) var publicKey = NoisePublicKey.zero
@@ -73,32 +80,43 @@ final class WireGuardDevice {
     private struct PeerSelection {
         var peer: WireGuardPeer?
         let created: Bool
+        var keepaliveEnabled = false
     }
 
     private static let maxPeers = 1 << 16
     private static let maxScanTokenSize = 64 * 1024
 
-    private let lock = NSLock()
+    // Live transitions use the same lock as Noise and UAPI. The handshake pipeline
+    // can use the existing locked Noise methods as part of a larger atomic transition.
+    let lock = NSRecursiveLock()
+    let io: DeviceIO?
     private var identity = StaticIdentity()
     private var cookieChecker = CookieChecker(for: .zero)
-    private let protocolNow: () -> ProtocolInstant
+    let protocolNow: () -> ProtocolInstant
     private let timestampNow: () -> TAI64N
-    private var port: UInt16 = 0
-    private var mark: UInt32 = 0
-    private var peers: [NoisePublicKey: WireGuardPeer] = [:]
-    private let allowedIPs = AllowedIPs<WireGuardPeer>()
+    var port: UInt16 = 0
+    var mark: UInt32 = 0
+    var peers: [NoisePublicKey: WireGuardPeer] = [:]
+    let allowedIPs = AllowedIPs<WireGuardPeer>()
     let indices = SessionIndexTable<WireGuardPeer>()
 
     init(
         protocolNow: @escaping () -> ProtocolInstant = ProtocolInstant.now,
-        timestampNow: @escaping () -> TAI64N = TAI64N.now
+        timestampNow: @escaping () -> TAI64N = TAI64N.now,
+        io: DeviceIO? = nil
     ) {
         self.protocolNow = protocolNow
         self.timestampNow = timestampNow
+        self.io = io
+        io?.install(on: self)
+    }
+
+    public convenience init(tunnel: TunnelDevice, transport: UDPTransport) throws {
+        try self.init(io: DeviceIO(tunnel: tunnel, transport: transport))
     }
 
     var staticIdentity: StaticIdentity { lock.withLock { identity } }
-    var listenPort: UInt16 { lock.withLock { port } }
+    public var listenPort: UInt16 { lock.withLock { port } }
     var firewallMark: UInt32 { lock.withLock { mark } }
 
     func peer(for key: NoisePublicKey) -> WireGuardPeer? {
@@ -109,7 +127,15 @@ final class WireGuardDevice {
         allowedIPs.lookup(address)
     }
 
-    func ipcSet(_ config: String) throws {
+    public func ipcSet(_ config: String) throws {
+        if let io {
+            try io.withHandshakeLane { try applyConfiguration(config) }
+        } else {
+            try applyConfiguration(config)
+        }
+    }
+
+    private func applyConfiguration(_ config: String) throws {
         try lock.withLock {
             var selection: PeerSelection?
             var remaining = config.utf8[...]
@@ -119,18 +145,20 @@ final class WireGuardDevice {
                 let scan = remaining.prefix(Self.maxScanTokenSize)
                 let newline = scan.firstIndex(of: 10)
                 guard newline != nil || scan.count < Self.maxScanTokenSize else {
+                    finishConfig(selection)
                     throw UAPIError.inputTooLong
                 }
                 var line = remaining[..<(newline ?? remaining.endIndex)]
                 remaining = newline.map { remaining[remaining.index(after: $0)...] }
                     ?? remaining[remaining.endIndex...]
                 if line.last == 13 { line = line.dropLast() }
-                if line.isEmpty { return }
+                if line.isEmpty { break }
                 guard let equals = line.firstIndex(of: 61) else { throw UAPIError.malformedLine }
 
                 let key = String(decoding: line[..<equals], as: UTF8.self)
                 let value = String(decoding: line[line.index(after: equals)...], as: UTF8.self)
                 if key == "public_key" {
+                    finishConfig(selection)
                     selection = try selectPeer(value[...])
                 } else if let selected = selection {
                     selection = try setPeerField(key, value[...], selected)
@@ -138,10 +166,23 @@ final class WireGuardDevice {
                     try setDeviceField(key, value[...])
                 }
             }
+            finishConfig(selection)
         }
     }
 
-    func ipcGet() -> String {
+    private func finishConfig(_ selection: PeerSelection?) {
+        guard let io, let selection, let peer = selection.peer else { return }
+        if selection.created {
+            peer.withState { $0.roamingDisabled = io.brokenRoaming && $0.endpoint != nil }
+        }
+        if io.state == .up {
+            startPeer(peer)
+            if selection.keepaliveEnabled { sendKeepalive(peer) }
+            requestStagedDrain(peer)
+        }
+    }
+
+    public func ipcGet() -> String {
         lock.withLock {
             var result = ""
             if !identity.privateKey.isZero { result += "private_key=\(identity.privateKey.hex)\n" }
@@ -189,6 +230,7 @@ final class WireGuardDevice {
                 for peer in peers.values {
                     peer.withState { state in
                         clearHandshake(&state.handshake, for: peer)
+                        state.lastSentHandshake = nil
                         state.handshake.precompute(privateKey: privateKey, remote: peer.publicKey)
                         peer.keypairs.withSlots {
                             $0.current?.expireSending()
@@ -200,9 +242,19 @@ final class WireGuardDevice {
         case "listen_port":
             guard let port = parseUnsignedDecimal(value, as: UInt16.self) else { throw invalid }
             self.port = port
+            if let io {
+                do { try rebindLocked(io) } catch { throw UAPIError.portInUse }
+            }
         case "fwmark":
             guard let mark = parseUnsignedDecimal(value, as: UInt32.self) else { throw invalid }
+            guard self.mark != mark else { return }
             self.mark = mark
+            if let io {
+                if io.state == .up {
+                    do { try io.transport.setFirewallMark(mark) } catch { throw UAPIError.portInUse }
+                }
+                clearEndpointSources(io)
+            }
         case "replace_peers":
             guard value == "true" else { throw invalid }
             for publicKey in Array(peers.keys) {
@@ -218,7 +270,7 @@ final class WireGuardDevice {
         guard let key = NoisePublicKey(hex: value) else { throw invalid }
         if identity.publicKey.matches(key) { return PeerSelection(peer: nil, created: false) }
         if let peer = peers[key] { return PeerSelection(peer: peer, created: false) }
-        guard peers.count < Self.maxPeers else { throw invalid }
+        guard io?.state != .closed, peers.count < Self.maxPeers else { throw invalid }
         let peer = WireGuardPeer(publicKey: key)
         peer.withState { $0.handshake.precompute(privateKey: identity.privateKey, remote: key) }
         peers[key] = peer
@@ -227,6 +279,7 @@ final class WireGuardDevice {
 
     private func setPeerField(_ key: String, _ value: Substring, _ selected: PeerSelection) throws -> PeerSelection {
         let invalid = UAPIError.invalidValue(key: key)
+        var selected = selected
         let peer = selected.peer
         switch key {
         case "update_only", "remove":
@@ -246,7 +299,13 @@ final class WireGuardDevice {
             peer?.withState { $0.endpoint = endpoint }
         case "persistent_keepalive_interval":
             guard let interval = parseUnsignedDecimal(value, as: UInt16.self) else { throw invalid }
-            peer?.withState { $0.persistentKeepaliveInterval = interval }
+            if let peer {
+                selected.keepaliveEnabled = peer.withState {
+                    let wasDisabled = $0.persistentKeepaliveInterval == 0
+                    $0.persistentKeepaliveInterval = interval
+                    return wasDisabled && interval != 0
+                }
+            }
         case "replace_allowed_ips":
             guard value == "true" else { throw invalid }
             if let peer { allowedIPs.removeAll(for: peer) }
@@ -261,30 +320,24 @@ final class WireGuardDevice {
         return selected
     }
 
-    private func removePeer(_ publicKey: NoisePublicKey) {
+    func removePeer(_ publicKey: NoisePublicKey) {
         guard let peer = peers.removeValue(forKey: publicKey) else { return }
         allowedIPs.removeAll(for: peer)
+        stopPeer(peer)
         peer.withState { state in
-            clearHandshake(&state.handshake, for: peer)
             SecretBytes.zero(&state.handshake.staticSharedSecret)
             state.presharedKey.clear()
             state.cookieGenerator.clear()
-            peer.keypairs.withSlots {
-                for keypair in [$0.previous, $0.current, $0.next].compactMap({ $0 }) {
-                    indices.delete(keypair)
-                    keypair.expireSending()
-                }
-                $0 = SessionKeypairs.Slots()
-            }
         }
     }
 
-    private func clearHandshake(_ handshake: inout NoiseHandshakeState, for peer: WireGuardPeer) {
+    func clearHandshake(_ handshake: inout NoiseHandshakeState, for peer: WireGuardPeer) {
         if let index = handshake.localIndex { indices.deleteHandshake(index, for: peer) }
         handshake.clearExchange()
     }
 
     deinit {
+        close()
         identity.privateKey.clear()
         cookieChecker.clear()
     }

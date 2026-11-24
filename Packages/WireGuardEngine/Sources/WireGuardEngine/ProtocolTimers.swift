@@ -3,6 +3,7 @@
 
 import Darwin
 import Dispatch
+import Foundation
 
 extension ProtocolInstant {
     static let second: UInt64 = 1_000_000_000

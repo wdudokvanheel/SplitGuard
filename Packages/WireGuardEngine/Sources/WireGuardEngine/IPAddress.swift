@@ -5,15 +5,15 @@ import Darwin
 import Foundation
 
 /// Network-order address bits. IPv4-mapped IPv6 addresses retain their IPv6 family.
-struct IPAddress: Hashable, CustomStringConvertible {
-    let isIPv6: Bool
+public struct IPAddress: Hashable, CustomStringConvertible {
+    public let isIPv6: Bool
     private let high: UInt64
     private let low: UInt64
     private let zone: [UInt8]
 
     var bitCount: Int { isIPv6 ? 128 : 32 }
 
-    init?(bytes: some Collection<UInt8>) {
+    public init?(bytes: some Collection<UInt8>) {
         switch bytes.count {
         case 4:
             self.init(isIPv6: false, high: 0, low: Self.networkWord(bytes))
@@ -26,7 +26,7 @@ struct IPAddress: Hashable, CustomStringConvertible {
         }
     }
 
-    init?(_ text: Substring) {
+    public init?(_ text: Substring) {
         let ipv6 = text.utf8.contains(58)
         var host = text.utf8[...]
         var zone: [UInt8] = []
@@ -80,7 +80,7 @@ struct IPAddress: Hashable, CustomStringConvertible {
         return bytes
     }
 
-    var zoneID: String? { zone.isEmpty ? nil : String(decoding: zone, as: UTF8.self) }
+    public var zoneID: String? { zone.isEmpty ? nil : String(decoding: zone, as: UTF8.self) }
 
     private func withZone(_ zone: [UInt8]) -> IPAddress {
         IPAddress(isIPv6: isIPv6, high: high, low: low, zone: zone)
@@ -90,7 +90,7 @@ struct IPAddress: Hashable, CustomStringConvertible {
         bytes.reduce(0) { ($0 << 8) | UInt64($1) }
     }
 
-    var bytes: [UInt8] {
+    public var bytes: [UInt8] {
         if isIPv6 {
             return withUnsafeBytes(of: high.bigEndian) { Array($0) }
                 + withUnsafeBytes(of: low.bigEndian) { Array($0) }
@@ -128,7 +128,7 @@ struct IPAddress: Hashable, CustomStringConvertible {
         return IPAddress(isIPv6: true, high: high, low: (low >> (128 - length)) << (128 - length))
     }
 
-    var description: String {
+    public var description: String {
         let suffix = zoneID.map { "%" + $0 } ?? ""
         if !isIPv6 {
             return Self.dottedDecimal(bytes[...])
@@ -190,16 +190,16 @@ struct IPPrefix: Hashable, CustomStringConvertible {
     var description: String { "\(address)/\(length)" }
 }
 
-struct IPEndpoint: Hashable, CustomStringConvertible {
-    let address: IPAddress
-    let port: UInt16
+public struct IPEndpoint: Hashable, CustomStringConvertible {
+    public let address: IPAddress
+    public let port: UInt16
 
-    init(address: IPAddress, port: UInt16) {
+    public init(address: IPAddress, port: UInt16) {
         self.address = address
         self.port = port
     }
 
-    init?(_ text: Substring) {
+    public init?(_ text: Substring) {
         guard let colon = text.utf8.lastIndex(of: 58),
               let port = parseUnsignedDecimal(text[text.utf8.index(after: colon)...], as: UInt16.self)
         else { return nil }
@@ -224,7 +224,7 @@ struct IPEndpoint: Hashable, CustomStringConvertible {
         return result
     }
 
-    var description: String {
+    public var description: String {
         address.isIPv6 ? "[\(address)]:\(port)" : "\(address):\(port)"
     }
 }

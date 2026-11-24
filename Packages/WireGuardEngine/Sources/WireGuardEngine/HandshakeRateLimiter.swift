@@ -45,16 +45,23 @@ final class HandshakeRateLimiter {
 
     private let lock = NSLock()
     private let now: () -> ProtocolInstant
+    private let maximumEntries: Int
     private var table: [IPAddress: Entry] = [:]
 
-    init(now: @escaping () -> ProtocolInstant) {
+    init(now: @escaping () -> ProtocolInstant, maximumEntries: Int = Int.max) {
         self.now = now
+        self.maximumEntries = maximumEntries
+    }
+
+    func reset() {
+        lock.withLock { table.removeAll() }
     }
 
     func allow(_ address: IPAddress) -> Bool {
         lock.withLock {
             let instant = now()
             guard var entry = table[address] else {
+                guard table.count < maximumEntries else { return false }
                 table[address] = Entry(lastTime: instant, tokens: Self.maxTokens - Self.packetCost)
                 return true
             }

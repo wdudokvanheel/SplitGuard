@@ -16,6 +16,7 @@ final class SessionKeypair {
     private let sendLock = NSLock()
     private let receiveLock = NSLock()
     private var sendCounter: UInt64 = 0
+    private var sendingExpired = false
     private var replayFilter = ReplayFilter()
 
     init(
@@ -44,8 +45,13 @@ final class SessionKeypair {
         }
     }
 
+    var isSendingExpired: Bool { sendLock.withLock { sendingExpired } }
+
     func expireSending() {
-        sendLock.withLock { sendCounter = ReplayFilter.rejectAfterMessages }
+        sendLock.withLock {
+            sendingExpired = true
+            sendCounter = ReplayFilter.rejectAfterMessages
+        }
     }
 
     func validateReceivedCounter(_ counter: UInt64) -> Bool {
