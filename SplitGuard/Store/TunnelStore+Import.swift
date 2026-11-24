@@ -142,6 +142,7 @@ private extension TunnelStore {
         normalizedProfile.name = trimmedName
         normalizedProfile.options = normalizedProfile.options.sanitized(for: normalizedProfile)
 
+        markLocalMutation()
         do {
             let record = try await backend.save(
                 normalizedProfile,
@@ -149,8 +150,8 @@ private extension TunnelStore {
                 isOnDemandEnabled: false,
                 replacing: nil
             )
-            let created = Tunnel(record: record)
-            appendTunnel(created)
+            markLocalMutation()
+            let created = upsertTunnel(from: record)
             return .success(created)
         } catch {
             let tunnelError = wrapError(error, fallback: TunnelError.saveFailed)

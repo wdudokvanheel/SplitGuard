@@ -7,6 +7,12 @@ import WireGuardEngine
 
 extension SystemTunnelBackend {
     func start(id: UUID) async throws {
+        try await withSerializedPreferences {
+            try await performStart(id: id)
+        }
+    }
+
+    private func performStart(id: UUID) async throws {
         guard let manager = managersByID[id] else {
             throw TunnelError.tunnelNotFound
         }
@@ -156,5 +162,160 @@ extension SystemTunnelBackend {
             onDemandPolicy: OnDemandPolicy(from: manager.onDemandRules),
             isOnDemandEnabled: manager.isOnDemandEnabled && manager.isEnabled
         )
+    }
+
+    func withSerializedPreferences<T: Sendable>(
+        _ operation: () async throws -> T
+    ) async rethrows -> T {
+        await acquirePreferenceLock()
+        defer { releasePreferenceLock() }
+        return try await operation()
+    }
+
+    private func acquirePreferenceLock() async {
+        if !isPreferenceOperationActive {
+            isPreferenceOperationActive = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            preferenceWaiters.append(continuation)
+        }
+    }
+
+    private func releasePreferenceLock() {
+        if !preferenceWaiters.isEmpty {
+            let next = preferenceWaiters.removeFirst()
+            next.resume()
+        } else {
+            isPreferenceOperationActive = false
+        }
+    }
+
+    func loadManagersFromPreferences() async throws -> [NETunnelProviderManager] {
+        do {
+            return try await NETunnelProviderManager.loadAllFromPreferences()
+        } catch {
+            Log.error("Failed to load tunnel provider managers: \(error)")
+            throw TunnelError.loadFailed(TunnelError.describeSystemError(error))
+        }
+    }
+
+    func verifiedProfile(for manager: NETunnelProviderManager) async -> (Data, TunnelProfile)? {
+        guard let proto = manager.protocolConfiguration as? NETunnelProviderProtocol,
+              let passwordRef = proto.passwordReference,
+              profileStore.verify(reference: passwordRef) else {
+            await removeOrphanedManager(manager)
+            return nil
+        }
+
+        let managerName = manager.localizedDescription ?? ""
+        do {
+            let profile = try profileStore.loadProfile(from: proto, name: managerName)
+            return (passwordRef, profile)
+        } catch {
+            Log.error("Removing tunnel '\(managerName)' with unreadable profile: \(error)")
+            await removeOrphanedManager(manager)
+            return nil
+        }
+    }
+
+    func resolveManagerForSave(replacing id: UUID?) throws -> NETunnelProviderManager {
+        guard let id else { return NETunnelProviderManager() }
+        guard let existing = managersByID[id] else { throw TunnelError.tunnelNotFound }
+        return existing
+    }
+
+    func needsReloadAfterOnDemandChange(
+        manager: NETunnelProviderManager,
+        newPolicy: OnDemandPolicy,
+        effectiveOnDemand: Bool
+    ) -> Bool {
+        let wasEnabled = manager.isOnDemandEnabled
+        let previousPolicy = OnDemandPolicy(from: manager.onDemandRules)
+        return (effectiveOnDemand && !wasEnabled) || (effectiveOnDemand && newPolicy != previousPolicy)
+    }
+
+    func saveProfileToKeychain(_ profile: TunnelProfile) throws -> Data {
+        do {
+            return try profileStore.save(profile, replacing: nil)
+        } catch {
+            Log.error("Save: Failed to save profile to keychain: \(error)")
+            throw TunnelError.saveFailed(TunnelError.describeSystemError(error))
+        }
+    }
+
+    func configure(
+        manager: NETunnelProviderManager,
+        profile: TunnelProfile,
+        passwordReference: Data,
+        onDemandPolicy: OnDemandPolicy,
+        isOnDemandEnabled: Bool
+    ) {
+        let proto = NETunnelProviderProtocol()
+        proto.providerBundleIdentifier = providerBundleIdentifier
+        proto.passwordReference = passwordReference
+        proto.providerConfiguration = nil
+        proto.serverAddress = ProfileStore.serverAddress(for: profile)
+        proto.applyKillSwitch(profile.options.sanitized(for: profile))
+
+        manager.localizedDescription = profile.name
+        manager.protocolConfiguration = proto
+        manager.isEnabled = true
+        onDemandPolicy.apply(to: manager)
+        manager.isOnDemandEnabled = isOnDemandEnabled
+    }
+
+    func commitManagerPreferences(
+        _ manager: NETunnelProviderManager,
+        newReference: Data,
+        oldReference: Data?,
+        shouldReloadForOnDemand: Bool
+    ) async throws {
+        do {
+            try await manager.saveToPreferences()
+        } catch {
+            Log.error("Save: Saving configuration failed: \(error)")
+            profileStore.delete(reference: newReference)
+            throw TunnelError.saveFailed(TunnelError.describeSystemError(error))
+        }
+
+        if let oldReference, oldReference != newReference {
+            profileStore.delete(reference: oldReference)
+            idByPasswordReference.removeValue(forKey: oldReference)
+        }
+
+        if shouldReloadForOnDemand {
+            // Quirk #3: After enabling or modifying on-demand, reload from preferences
+            // or iOS stops delivering connection status updates.
+            do {
+                try await manager.loadFromPreferences()
+            } catch {
+                Log.error("Save: Reloading after enabling on-demand failed: \(error)")
+                throw TunnelError.saveFailed(TunnelError.describeSystemError(error))
+            }
+        }
+    }
+
+    func resolveStableID(
+        for manager: NETunnelProviderManager,
+        passwordReference: Data,
+        name: String,
+        claimedIDs: inout Set<UUID>
+    ) -> UUID {
+        if let existing = idByPasswordReference[passwordReference], claimedIDs.insert(existing).inserted {
+            return existing
+        }
+        if let existing = idByObjectID[ObjectIdentifier(manager)], claimedIDs.insert(existing).inserted {
+            return existing
+        }
+        if let matchingEntry = managersByID.first(where: {
+            $0.value.localizedDescription == name && !claimedIDs.contains($0.key)
+        }) {
+            claimedIDs.insert(matchingEntry.key)
+            return matchingEntry.key
+        }
+        let freshID = UUID()
+        claimedIDs.insert(freshID)
+        return freshID
     }
 }

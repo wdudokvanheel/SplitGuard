@@ -34,6 +34,9 @@ actor SystemTunnelBackend: TunnelBackend {
     var managersByID: [UUID: NETunnelProviderManager] = [:]
     var idByPasswordReference: [Data: UUID] = [:]
     var idByObjectID: [ObjectIdentifier: UUID] = [:]
+    private var pendingKeychainReferences: Set<Data> = []
+    var isPreferenceOperationActive = false
+    var preferenceWaiters: [CheckedContinuation<Void, Never>] = []
     private var isObservingNotifications = false
     private var configurationChangeObservationPaused = false
 
@@ -59,18 +62,20 @@ actor SystemTunnelBackend: TunnelBackend {
 
     func setConfigurationChangeObservationPaused(_ paused: Bool) async {
         configurationChangeObservationPaused = paused
+        if paused {
+            await withSerializedPreferences {}
+        }
     }
 
     func loadAll() async throws -> [TunnelRecord] {
-        installNotificationObserversIfNeeded()
-
-        let loadedManagers: [NETunnelProviderManager]
-        do {
-            loadedManagers = try await NETunnelProviderManager.loadAllFromPreferences()
-        } catch {
-            Log.error("Failed to load tunnel provider managers: \(error)")
-            throw TunnelError.loadFailed(TunnelError.describeSystemError(error))
+        try await withSerializedPreferences {
+            try await performLoadAll()
         }
+    }
+
+    private func performLoadAll() async throws -> [TunnelRecord] {
+        installNotificationObserversIfNeeded()
+        let loadedManagers = try await loadManagersFromPreferences()
 
         var nextManagersByID: [UUID: NETunnelProviderManager] = [:]
         var nextIDByRef: [Data: UUID] = [:]
@@ -80,23 +85,7 @@ actor SystemTunnelBackend: TunnelBackend {
         var records: [TunnelRecord] = []
 
         for manager in loadedManagers {
-            guard let proto = manager.protocolConfiguration as? NETunnelProviderProtocol,
-                  let passwordRef = proto.passwordReference,
-                  profileStore.verify(reference: passwordRef) else {
-                await removeOrphanedManager(manager)
-                continue
-            }
-
-            let managerName = manager.localizedDescription ?? ""
-            let profile: TunnelProfile
-            do {
-                profile = try profileStore.loadProfile(from: proto, name: managerName)
-            } catch {
-                Log.error("Removing tunnel '\(managerName)' with unreadable profile: \(error)")
-                await removeOrphanedManager(manager)
-                continue
-            }
-
+            guard let (passwordRef, profile) = await verifiedProfile(for: manager) else { continue }
             let id = resolveStableID(
                 for: manager,
                 passwordReference: passwordRef,
@@ -110,18 +99,34 @@ actor SystemTunnelBackend: TunnelBackend {
             records.append(makeRecord(id: id, profile: profile, manager: manager))
         }
 
-        profileStore.deleteOrphaned(keeping: activeReferences)
+        if !configurationChangeObservationPaused {
+            profileStore.deleteOrphaned(keeping: activeReferences.union(pendingKeychainReferences))
+        }
         managersByID = nextManagersByID
         idByPasswordReference = nextIDByRef
         idByObjectID = nextIDByObjID
 
-        records.sort {
-            $0.profile.name.localizedStandardCompare($1.profile.name) == .orderedAscending
-        }
+        records.sort { $0.profile.name.localizedStandardCompare($1.profile.name) == .orderedAscending }
         return records
     }
 
     func save(
+        _ profile: TunnelProfile,
+        onDemandPolicy: OnDemandPolicy,
+        isOnDemandEnabled: Bool,
+        replacing id: UUID?
+    ) async throws -> TunnelRecord {
+        try await withSerializedPreferences {
+            try await performSave(
+                profile,
+                onDemandPolicy: onDemandPolicy,
+                isOnDemandEnabled: isOnDemandEnabled,
+                replacing: id
+            )
+        }
+    }
+
+    private func performSave(
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
         isOnDemandEnabled: Bool,
@@ -140,6 +145,8 @@ actor SystemTunnelBackend: TunnelBackend {
 
         let oldReference = (manager.protocolConfiguration as? NETunnelProviderProtocol)?.passwordReference
         let newReference = try saveProfileToKeychain(profile)
+        pendingKeychainReferences.insert(newReference)
+        defer { pendingKeychainReferences.remove(newReference) }
 
         configure(
             manager: manager,
@@ -164,6 +171,12 @@ actor SystemTunnelBackend: TunnelBackend {
     }
 
     func setOnDemandEnabled(_ isEnabled: Bool, for id: UUID) async throws -> TunnelRecord {
+        try await withSerializedPreferences {
+            try await performSetOnDemandEnabled(isEnabled, for: id)
+        }
+    }
+
+    private func performSetOnDemandEnabled(_ isEnabled: Bool, for id: UUID) async throws -> TunnelRecord {
         guard let manager = managersByID[id] else {
             throw TunnelError.tunnelNotFound
         }
@@ -200,6 +213,12 @@ actor SystemTunnelBackend: TunnelBackend {
     }
 
     func remove(id: UUID) async throws {
+        try await withSerializedPreferences {
+            try await performRemove(id: id)
+        }
+    }
+
+    private func performRemove(id: UUID) async throws {
         guard let manager = managersByID[id] else {
             throw TunnelError.tunnelNotFound
         }
@@ -269,111 +288,5 @@ actor SystemTunnelBackend: TunnelBackend {
     private func handleConfigurationChange() {
         guard !configurationChangeObservationPaused else { return }
         eventHub.yield(.configurationsChanged)
-    }
-}
-
-private extension SystemTunnelBackend {
-    func resolveManagerForSave(replacing id: UUID?) throws -> NETunnelProviderManager {
-        guard let id else {
-            return NETunnelProviderManager()
-        }
-        guard let existing = managersByID[id] else {
-            throw TunnelError.tunnelNotFound
-        }
-        return existing
-    }
-
-    func needsReloadAfterOnDemandChange(
-        manager: NETunnelProviderManager,
-        newPolicy: OnDemandPolicy,
-        effectiveOnDemand: Bool
-    ) -> Bool {
-        let wasEnabled = manager.isOnDemandEnabled
-        let previousPolicy = OnDemandPolicy(from: manager.onDemandRules)
-        return (effectiveOnDemand && !wasEnabled) || (effectiveOnDemand && newPolicy != previousPolicy)
-    }
-
-    func saveProfileToKeychain(_ profile: TunnelProfile) throws -> Data {
-        do {
-            return try profileStore.save(profile, replacing: nil)
-        } catch {
-            Log.error("Save: Failed to save profile to keychain: \(error)")
-            throw TunnelError.saveFailed(TunnelError.describeSystemError(error))
-        }
-    }
-
-    func configure(
-        manager: NETunnelProviderManager,
-        profile: TunnelProfile,
-        passwordReference: Data,
-        onDemandPolicy: OnDemandPolicy,
-        isOnDemandEnabled: Bool
-    ) {
-        let proto = NETunnelProviderProtocol()
-        proto.providerBundleIdentifier = providerBundleIdentifier
-        proto.passwordReference = passwordReference
-        proto.providerConfiguration = nil
-        proto.serverAddress = ProfileStore.serverAddress(for: profile)
-        proto.applyKillSwitch(profile.options.sanitized(for: profile))
-
-        manager.localizedDescription = profile.name
-        manager.protocolConfiguration = proto
-        manager.isEnabled = true
-        onDemandPolicy.apply(to: manager)
-        manager.isOnDemandEnabled = isOnDemandEnabled
-    }
-
-    func commitManagerPreferences(
-        _ manager: NETunnelProviderManager,
-        newReference: Data,
-        oldReference: Data?,
-        shouldReloadForOnDemand: Bool
-    ) async throws {
-        do {
-            try await manager.saveToPreferences()
-        } catch {
-            Log.error("Save: Saving configuration failed: \(error)")
-            profileStore.delete(reference: newReference)
-            throw TunnelError.saveFailed(TunnelError.describeSystemError(error))
-        }
-
-        if let oldReference, oldReference != newReference {
-            profileStore.delete(reference: oldReference)
-            idByPasswordReference.removeValue(forKey: oldReference)
-        }
-
-        if shouldReloadForOnDemand {
-            // Quirk #3: After enabling or modifying on-demand, reload from preferences
-            // or iOS stops delivering connection status updates.
-            do {
-                try await manager.loadFromPreferences()
-            } catch {
-                Log.error("Save: Reloading after enabling on-demand failed: \(error)")
-                throw TunnelError.saveFailed(TunnelError.describeSystemError(error))
-            }
-        }
-    }
-
-    func resolveStableID(
-        for manager: NETunnelProviderManager,
-        passwordReference: Data,
-        name: String,
-        claimedIDs: inout Set<UUID>
-    ) -> UUID {
-        if let existing = idByPasswordReference[passwordReference], claimedIDs.insert(existing).inserted {
-            return existing
-        }
-        if let existing = idByObjectID[ObjectIdentifier(manager)], claimedIDs.insert(existing).inserted {
-            return existing
-        }
-        if let matchingEntry = managersByID.first(where: {
-            $0.value.localizedDescription == name && !claimedIDs.contains($0.key)
-        }) {
-            claimedIDs.insert(matchingEntry.key)
-            return matchingEntry.key
-        }
-        let freshID = UUID()
-        claimedIDs.insert(freshID)
-        return freshID
     }
 }

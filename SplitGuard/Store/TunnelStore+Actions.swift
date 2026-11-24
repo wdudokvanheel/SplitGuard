@@ -19,6 +19,7 @@ extension TunnelStore {
         // Quirk #1: Saving a new VPN configuration can deactivate a running tunnel on iOS.
         let previouslyActiveTunnel = tunnels.first { $0.status == .active || $0.status == .activating }
 
+        markLocalMutation()
         let record: TunnelRecord
         do {
             record = try await backend.save(
@@ -30,9 +31,9 @@ extension TunnelStore {
         } catch {
             throw wrapError(error, fallback: TunnelError.saveFailed)
         }
+        markLocalMutation()
 
-        let created = Tunnel(record: record)
-        appendTunnel(created)
+        let created = upsertTunnel(from: record)
         sortTunnels()
         bumpRevision()
         updateQuickActions()
@@ -67,6 +68,7 @@ extension TunnelStore {
             shouldEnsureOnDemandEnabled || tunnel.isOnDemandEnabled
         )
 
+        markLocalMutation()
         let record: TunnelRecord
         do {
             record = try await backend.save(
@@ -78,6 +80,7 @@ extension TunnelStore {
         } catch {
             throw wrapError(error, fallback: TunnelError.saveFailed)
         }
+        markLocalMutation()
 
         applyUpdateResult(tunnel: tunnel, record: record, oldName: oldName, newName: trimmedName)
 
@@ -103,12 +106,14 @@ extension TunnelStore {
 
     @discardableResult
     func delete(tunnel: Tunnel) async -> Bool {
+        markLocalMutation()
         do {
             try await backend.remove(id: tunnel.id)
         } catch {
             present(error: wrapError(error, fallback: TunnelError.removeFailed))
             return false
         }
+        markLocalMutation()
 
         removeDeletedTunnelLocally(tunnel)
         bumpRevision()
@@ -122,6 +127,7 @@ extension TunnelStore {
         guard !tunnelsToDelete.isEmpty else { return false }
 
         // Quirk #6: Suppress intermediate configuration-change notifications during bulk removal.
+        markLocalMutation()
         await backend.setConfigurationChangeObservationPaused(true)
         var firstError: Error?
 
@@ -134,6 +140,7 @@ extension TunnelStore {
                 break
             }
         }
+        markLocalMutation()
 
         await backend.setConfigurationChangeObservationPaused(false)
         await reloadFromBackend()
@@ -251,6 +258,21 @@ extension TunnelStore {
 
     func dismissSplitDNSSuggestion() {
         pendingSplitDNSSuggestion = nil
+    }
+
+    @discardableResult
+    func upsertTunnel(from record: TunnelRecord) -> Tunnel {
+        if let existing = tunnel(for: record.id) {
+            existing.apply(record: record)
+            return existing
+        }
+        let created = Tunnel(record: record)
+        appendTunnel(created)
+        return created
+    }
+
+    func markLocalMutation() {
+        mutationEpoch &+= 1
     }
 }
 

@@ -55,6 +55,9 @@ final class TunnelStore {
     var waitingTunnelID: Tunnel.ID?
     var waiteeTunnelID: Tunnel.ID?
     var pendingDeactivationActions: [Tunnel.ID: @MainActor () async -> Void] = [:]
+    var mutationEpoch = 0
+    private var isReloadingFromBackend = false
+    private var needsAnotherReload = false
 
     @ObservationIgnored nonisolated(unsafe) var eventTask: Task<Void, Never>?
     @ObservationIgnored nonisolated(unsafe) var transitionPollTask: Task<Void, Never>?
@@ -267,18 +270,33 @@ extension TunnelStore {
     }
 
     func reloadFromBackend() async {
-        do {
-            let records = try await backend.loadAll()
-            applyLoadedRecords(records)
-            setLoadingState(isLoading: false, hasLoaded: true)
-            RecentTunnelsTracker.cleanupTunnels(
-                except: Set(tunnels.map(\.name)),
-                userDefaults: recentTunnelsUserDefaults
-            )
-            updateQuickActions()
-        } catch {
-            Log.error("Failed to reload tunnels after configuration change: \(error)")
+        if isReloadingFromBackend {
+            needsAnotherReload = true
+            return
         }
+        isReloadingFromBackend = true
+        defer { isReloadingFromBackend = false }
+
+        repeat {
+            needsAnotherReload = false
+            let startEpoch = mutationEpoch
+            do {
+                let records = try await backend.loadAll()
+                if mutationEpoch != startEpoch {
+                    needsAnotherReload = true
+                    continue
+                }
+                applyLoadedRecords(records)
+                setLoadingState(isLoading: false, hasLoaded: true)
+                RecentTunnelsTracker.cleanupTunnels(
+                    except: Set(tunnels.map(\.name)),
+                    userDefaults: recentTunnelsUserDefaults
+                )
+                updateQuickActions()
+            } catch {
+                Log.error("Failed to reload tunnels after configuration change: \(error)")
+            }
+        } while needsAnotherReload
     }
 
     func refreshStatuses() async {
@@ -322,7 +340,7 @@ extension TunnelStore {
     }
 
     func applyLoadedRecords(_ records: [TunnelRecord]) {
-        let existingByID = Dictionary(uniqueKeysWithValues: tunnels.map { ($0.id, $0) })
+        let existingByID = Dictionary(tunnels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let sortedRecords = records.sorted { Self.tunnelNameIsLessThan($0.profile.name, $1.profile.name) }
         let activeIDs = Set(sortedRecords.map(\.id))
 
