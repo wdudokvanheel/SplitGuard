@@ -8,6 +8,10 @@ let package = Package(
     products: [.library(name: "WireGuardEngine", targets: ["WireGuardEngine"])],
     targets: [
         .target(name: "WireGuardEngine"),
-        .testTarget(name: "WireGuardEngineTests", dependencies: ["WireGuardEngine"])
+        .testTarget(
+            name: "WireGuardEngineTests",
+            dependencies: ["WireGuardEngine"],
+            resources: [.process("Fixtures")]
+        )
     ]
 )
