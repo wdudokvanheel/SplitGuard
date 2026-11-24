@@ -39,7 +39,7 @@ extension WireGuardDevice {
     /// Runs on the handshake lane. Manual tests advance their clock then drive this entry point.
     func processDeadlines() {
         lock.withLock {
-            guard let io else { return }
+            guard let io, io.state != .closed else { return }
             io.alarm?.consume()
             io.armedDeadline = nil
             for _ in 0..<64 {
@@ -47,8 +47,7 @@ extension WireGuardDevice {
                 io.deadlines.update(peer: next.peer, kind: next.key.kind, time: nil)
                 if let peer = next.peer, canRun(peer, io: io) {
                     expire(next.key.kind, for: peer, io: io)
-                } else if next.key.kind == .collectRateLimiter,
-                          io.state != .closed, !io.limiter.collectStaleEntries() {
+                } else if next.key.kind == .collectRateLimiter, !io.limiter.collectStaleEntries() {
                     timer(.collectRateLimiter, for: nil, after: HandshakeRateLimiter.collectionInterval, io: io)
                 }
             }

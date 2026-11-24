@@ -151,8 +151,10 @@ final class ContinuousAlarm {
         repeat { result = kevent64(fd, nil, 0, &event, 1, 0, &timeout) } while result < 0 && errno == EINTR
     }
 
-    deinit {
+    func cancel() {
         readable.cancel()
         fallback.cancel()
     }
+
+    deinit { cancel() }
 }

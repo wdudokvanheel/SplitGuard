@@ -8,7 +8,8 @@ import Foundation
 /// (or a Data value whose backing storage will remain immutable while the engine retains it).
 /// A false return indicates that the packet was dropped at admission. Deliver each stream
 /// in read order. The engine consumes writes in order; any asynchronous writer must bound
-/// its own buffering. I/O methods must not call back into device control methods.
+/// its own buffering. Return promptly from writes and do not call device control methods
+/// from I/O methods. The engine drives up and down explicitly and samples MTU on sends.
 public protocol TunnelDevice: AnyObject {
     /// Thread-safe current MTU. Use zero if padding should have no MTU cap.
     var mtu: Int { get }

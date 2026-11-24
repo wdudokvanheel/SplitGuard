@@ -173,6 +173,7 @@ extension WireGuardDevice {
                 io.limiter.reset()
             }
             for key in Array(peers.keys) { removePeer(key) }
+            io?.alarm?.cancel()
         }
     }
 
