@@ -180,9 +180,11 @@ extension WireGuardDevice {
     func sendHandshakeResponse(_ peer: WireGuardPeer, io: DeviceIO) {
         peer.withState { $0.lastSentHandshake = protocolNow() }
         guard let (packet, _) = try? createHandshakeResponse(for: peer) else { return }
-        timerSessionDerived(peer, io: io)
-        timerAuthenticatedTraversal(peer, io: io)
-        timerAuthenticatedSent(peer, io: io)
+        if canRun(peer, io: io) {
+            timerSessionDerived(peer, io: io)
+            timerAuthenticatedTraversal(peer, io: io)
+            timerAuthenticatedSent(peer, io: io)
+        }
         sendWire(packet.bytes, to: peer, io: io)
     }
 }

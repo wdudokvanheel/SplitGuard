@@ -42,7 +42,7 @@ extension WireGuardDevice {
 
     func flushStaged(_ peer: WireGuardPeer) {
         guard let io else { return }
-        io.readyPeers[ObjectIdentifier(peer)] = nil
+        io.readyPeers.remove(peer)
         peer.withState {
             io.stagedCount -= $0.staged.count
             io.stagedDrops += $0.staged.count
@@ -69,7 +69,7 @@ extension WireGuardDevice {
         guard let io, canRun(peer, io: io), peer.withState({ $0.staged.count > 0 }) else { return }
         if usableSendingSession(peer) != nil {
             let wasIdle = io.readyPeers.isEmpty
-            io.readyPeers[ObjectIdentifier(peer)] = peer
+            io.readyPeers.append(peer)
             if wake && wasIdle { io.outboundReady.add(data: 1) }
         } else {
             requestHandshakeInitiation(peer, io: io)
@@ -77,8 +77,7 @@ extension WireGuardDevice {
     }
 
     private func takeStaged(_ io: DeviceIO) -> StagedTransport? {
-        while let (id, peer) = io.readyPeers.first {
-            io.readyPeers[id] = nil
+        while let peer = io.readyPeers.popFirst() {
             guard canRun(peer, io: io), peer.withState({ $0.staged.count > 0 }) else { continue }
             guard let session = usableSendingSession(peer), let counter = session.reserveSendCounter() else {
                 requestHandshakeInitiation(peer, io: io)
@@ -263,9 +262,11 @@ extension WireGuardDevice {
 
             switch packet.kind {
             case .initiation:
-                guard let peer = try? consumeHandshakeInitiation(packet), canRun(peer, io: io) else { return }
-                timerAuthenticatedTraversal(peer, io: io)
-                timerAuthenticatedReceived(peer, io: io)
+                guard let peer = try? consumeHandshakeInitiation(packet) else { return }
+                if canRun(peer, io: io) {
+                    timerAuthenticatedTraversal(peer, io: io)
+                    timerAuthenticatedReceived(peer, io: io)
+                }
                 roam(peer, from: incoming.source)
                 accountReceived(peer, bytes: incoming.data.count)
                 sendHandshakeResponse(peer, io: io)

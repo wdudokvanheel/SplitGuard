@@ -34,7 +34,7 @@ final class DeviceIO {
     let handshake = PacketLane<FromWire>("handshake", capacity: 1024)
     let outboundReady: DispatchSourceUserDataAdd
     let alarm: ContinuousAlarm?
-    private let manualWake: DispatchSourceUserDataAdd
+    private let manualWake: DispatchSourceUserDataAdd?
     private let handshakeQueueKey = DispatchSpecificKey<UInt8>()
     var onHandshakeQueue: Bool { DispatchQueue.getSpecific(key: handshakeQueueKey) != nil }
 
@@ -49,7 +49,7 @@ final class DeviceIO {
     var run: UInt64 = 0
     var bindGeneration: UInt64 = 0
     var brokenRoaming = false
-    var readyPeers: [ObjectIdentifier: WireGuardPeer] = [:]
+    var readyPeers = ReadyPeers()
     var stagedCount = 0
     var stagedPeak = 0
     var peerStagedPeak = 0
@@ -71,9 +71,15 @@ final class DeviceIO {
         self.jitterMilliseconds = jitterMilliseconds
         limiter = HandshakeRateLimiter(now: now, maximumEntries: 4096)
         handshake.queue.setSpecific(key: handshakeQueueKey, value: 1)
-        manualWake = DispatchSource.makeUserDataAddSource(queue: handshake.queue)
-        manualWake.resume()
-        alarm = automaticTimers ? try ContinuousAlarm(queue: handshake.queue) : nil
+        if automaticTimers {
+            alarm = try ContinuousAlarm(queue: handshake.queue)
+            manualWake = nil
+        } else {
+            alarm = nil
+            let manualWake = DispatchSource.makeUserDataAddSource(queue: handshake.queue)
+            manualWake.resume()
+            self.manualWake = manualWake
+        }
         outboundReady = DispatchSource.makeUserDataAddSource(queue: outbound.queue)
         outboundReady.resume()
     }
@@ -84,11 +90,11 @@ final class DeviceIO {
         inbound.install { [weak device] in device?.decryptTransport($0) }
         handshake.install { [weak device] in device?.handleHandshake($0) }
         alarm?.install { [weak device] in device?.processDeadlines() }
-        manualWake.setEventHandler { [weak device] in device?.processDeadlines() }
+        manualWake?.setEventHandler { [weak device] in device?.processDeadlines() }
     }
 
     func manualWakeHandshake() {
-        if alarm == nil { manualWake.add(data: 1) }
+        manualWake?.add(data: 1)
     }
 
     func withHandshakeLane<Result>(_ body: () throws -> Result) rethrows -> Result {
@@ -104,8 +110,8 @@ final class DeviceIO {
 }
 
 extension WireGuardDevice {
-    static let maxSegmentSize = 1700
-    static let maxContentSize = maxSegmentSize - TransportHeader.minimumPacketSize
+    public static let maxSegmentSize = 1700
+    public static let maxContentSize = maxSegmentSize - TransportHeader.minimumPacketSize
     static let stagedCapacity = 128
     static let stagedBufferLimit = 1024
 

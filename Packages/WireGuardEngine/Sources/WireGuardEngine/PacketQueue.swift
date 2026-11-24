@@ -105,3 +105,32 @@ final class PacketLane<Element> {
         if depth > 0 { ready.add(data: 1) }
     }
 }
+
+/// Ready peers take turns on the outbound lane. Only peers with staged packets
+/// can enter this queue, so the global staged buffer budget bounds its size.
+struct ReadyPeers {
+    private var peers = PacketQueue<WireGuardPeer>(capacity: WireGuardDevice.stagedBufferLimit)
+    private var queued: Set<ObjectIdentifier> = []
+
+    var isEmpty: Bool { peers.count == 0 }
+
+    mutating func append(_ peer: WireGuardPeer) {
+        guard queued.insert(ObjectIdentifier(peer)).inserted else { return }
+        let appended = peers.append(peer)
+        precondition(appended)
+    }
+
+    mutating func popFirst() -> WireGuardPeer? {
+        guard let peer = peers.popFirst() else { return nil }
+        queued.remove(ObjectIdentifier(peer))
+        return peer
+    }
+
+    mutating func remove(_ peer: WireGuardPeer) {
+        guard queued.remove(ObjectIdentifier(peer)) != nil else { return }
+        for _ in 0..<peers.count {
+            guard let candidate = peers.popFirst(), candidate !== peer else { continue }
+            _ = peers.append(candidate)
+        }
+    }
+}
