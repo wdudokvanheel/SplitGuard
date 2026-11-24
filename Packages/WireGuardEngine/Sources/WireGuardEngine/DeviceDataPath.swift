@@ -14,11 +14,17 @@ private struct StagedTransport {
 
 extension WireGuardDevice {
     func stageTunnelPacket(_ incoming: DeviceIO.FromTunnel) {
-        guard let route = IPPacket(incoming.data, inbound: false) else { return }
+        guard let route = IPPacket(incoming.data, inbound: false) else {
+            recordDrop(.invalidPacket)
+            return
+        }
         lock.withLock {
-            guard let io, io.state == .up, incoming.run == io.run,
-                  let peer = allowedIPs.lookup(route.address),
-                  peers[peer.publicKey] === peer else { return }
+            guard let io, io.state == .up, incoming.run == io.run else { return }
+            guard let peer = allowedIPs.lookup(route.address),
+                  peers[peer.publicKey] === peer else {
+                recordDrop(.noRoute)
+                return
+            }
             if stage(incoming.data, for: peer, io: io, requireRunning: true) {
                 scheduleStagedDrain(peer, io: io, wake: true)
             }
@@ -33,12 +39,14 @@ extension WireGuardDevice {
             case staged
             case needsGlobalEviction
         }
+        var evicted = false
         let outcome: StageOutcome = peer.withState { state in
             if requireRunning, !state.running { return .skipped }
             if state.staged.count == Self.stagedCapacity {
                 _ = state.staged.popFirst()
                 io.stagedCount -= 1
                 io.stagedDrops += 1
+                evicted = true
             }
             if io.stagedCount >= Self.stagedBufferLimit {
                 return .needsGlobalEviction
@@ -50,7 +58,11 @@ extension WireGuardDevice {
                 return .staged
             }
             io.stagedDrops += 1
+            evicted = true
             return state.staged.count > 0 ? .staged : .skipped
+        }
+        if evicted {
+            recordDrop(.stagedEvicted)
         }
         switch outcome {
         case .skipped:
@@ -59,9 +71,11 @@ extension WireGuardDevice {
             return true
         case .needsGlobalEviction:
             evictLongestStagedPeer(excluding: peer, io: io)
-            return peer.withState { state in
+            var droppedOnAppend = false
+            let hasStaged = peer.withState { state -> Bool in
                 guard io.stagedCount < Self.stagedBufferLimit, state.staged.append(packet) else {
                     io.stagedDrops += 1
+                    droppedOnAppend = true
                     return state.staged.count > 0
                 }
                 io.stagedCount += 1
@@ -69,6 +83,10 @@ extension WireGuardDevice {
                 io.peerStagedPeak = max(io.peerStagedPeak, state.staged.count)
                 return true
             }
+            if droppedOnAppend {
+                recordDrop(.stagedEvicted)
+            }
+            return hasStaged
         }
     }
 
@@ -83,24 +101,32 @@ extension WireGuardDevice {
             }
         }
         guard let victim else { return }
-        let emptied = victim.withState { state -> Bool in
-            guard state.staged.popFirst() != nil else { return false }
+        let (popped, emptied) = victim.withState { state -> (Bool, Bool) in
+            guard state.staged.popFirst() != nil else { return (false, false) }
             io.stagedCount -= 1
             io.stagedDrops += 1
-            return state.staged.count == 0
+            return (true, state.staged.count == 0)
+        }
+        if popped {
+            recordDrop(.stagedEvicted)
         }
         if emptied {
             io.readyPeers.remove(victim)
         }
     }
 
-    func flushStaged(_ peer: WireGuardPeer) {
+    func flushStaged(_ peer: WireGuardPeer, dropReason: DropReason? = nil) {
         guard let io else { return }
         io.readyPeers.remove(peer)
-        peer.withState {
-            io.stagedCount -= $0.staged.count
-            io.stagedDrops += $0.staged.count
-            $0.staged.removeAll()
+        let dropped = peer.withState { state -> Int in
+            let count = state.staged.count
+            io.stagedCount -= count
+            io.stagedDrops += count
+            state.staged.removeAll()
+            return count
+        }
+        if let dropReason, dropped > 0 {
+            recordDrop(dropReason, count: dropped)
         }
     }
 
@@ -231,6 +257,7 @@ extension WireGuardDevice {
             guard peerSnapshot.running else { return nil }
             guard protocolNow().elapsed(since: work.session.created) < WireGuardTiming.rejectAfterTime else {
                 io.stagedDrops += 1
+                recordDrop(.noSession)
                 requestHandshakeInitiation(peer, io: io)
                 return nil
             }
@@ -244,14 +271,17 @@ extension WireGuardDevice {
         do {
             try io.transport.send(datagram, to: endpoint)
         } catch {
+            recordSendFailure(peer: peer.publicKey, error: error)
             return
         }
 
         lock.withLock {
             guard work.run == io.run, io.state == .up, peers[peer.publicKey] === peer else { return }
+            let wallNow = io.wallNow()
             let running = peer.withState { state -> Bool in
                 guard state.running else { return false }
                 state.txBytes &+= UInt64(datagram.count)
+                state.lastSentUnixNanoseconds = wallNow
                 return true
             }
             guard running else { return }
@@ -273,12 +303,28 @@ extension WireGuardDevice {
                   case .keypair(let owner, let keypair)? = indices.lookup(header.receiver),
                   protocolNow().elapsed(since: keypair.created) <= WireGuardTiming.rejectAfterTime,
                   owner.withState({ $0.running }) else { return false }
-            return io.inbound.offer(.init(wire: incoming, header: header, peer: owner, keypair: keypair),
-                                    token: generation)
+            switch io.inbound.offerResult(.init(wire: incoming, header: header, peer: owner, keypair: keypair),
+                                          token: generation) {
+            case .admitted:
+                return true
+            case .queueFull:
+                recordDrop(.queueFull)
+                return false
+            case .staleToken:
+                return false
+            }
         case .initiation where incoming.data.count == HandshakePacket.Kind.initiation.size,
              .response where incoming.data.count == HandshakePacket.Kind.response.size,
              .cookieReply where incoming.data.count == CookieReply.size:
-            return io.handshake.offer(incoming, token: generation)
+            switch io.handshake.offerResult(incoming, token: generation) {
+            case .admitted:
+                return true
+            case .queueFull:
+                recordDrop(.queueFull)
+                return false
+            case .staleToken:
+                return false
+            }
         default:
             return false
         }
@@ -328,14 +374,17 @@ extension WireGuardDevice {
 
         let currentKeypair = peer.keypairs.current
         let keepalivePending = !plaintext.isEmpty && timerPending(.sendKeepalive, peer, io: io)
-        let (triggerFinalRekey, persistentKeepaliveInterval) = peer.withState { state -> (Bool, UInt16) in
-            if !state.roamingDisabled {
-                state.endpoint = work.wire.source
-            }
+        let (triggerFinalRekey, persistentKeepaliveInterval, roamedEndpoint) = peer.withState { state -> (Bool, UInt16, IPEndpoint?) in
+            let roamed: IPEndpoint? = state.roam(to: work.wire.source) ? work.wire.source : nil
+            let wallNow = io.wallNow()
             if accepted == .confirmed {
                 state.handshakeAttempts = 0
                 state.sentLastMinuteHandshake = false
-                state.lastHandshakeUnixNanoseconds = io.wallNow()
+                state.handshakeGaveUp = false
+                state.handshakeInitiatedAt = nil
+                state.lastInitiationSentAt = nil
+                state.lastHandshakeInstant = now
+                state.lastHandshakeUnixNanoseconds = wallNow
             }
             var finalRekey = false
             if !state.sentLastMinuteHandshake, let current = currentKeypair, current.isInitiator {
@@ -346,13 +395,18 @@ extension WireGuardDevice {
                 }
             }
             state.rxBytes &+= UInt64(work.wire.data.count)
+            state.lastReceivedUnixNanoseconds = wallNow
             if keepalivePending {
                 state.needAnotherKeepalive = true
             }
-            return (finalRekey, state.persistentKeepaliveInterval)
+            return (finalRekey, state.persistentKeepaliveInterval, roamed)
         }
 
+        if let roamedEndpoint {
+            emitEvent(.endpointChanged(peer.publicKey, roamedEndpoint))
+        }
         if accepted == .confirmed {
+            emitEvent(.handshakeCompleted(peer.publicKey, roundTrip: nil))
             requestStagedDrain(peer)
         }
         if triggerFinalRekey {
@@ -387,7 +441,11 @@ extension WireGuardDevice {
             if underLoad(io) {
                 if !checkHandshakeMAC2(packet, from: incoming.source) {
                     if let reply = try? createCookieReply(for: packet, from: incoming.source, mac1Verified: true) {
-                        try? io.transport.send(reply.bytes, to: incoming.source)
+                        do {
+                            try io.transport.send(reply.bytes, to: incoming.source)
+                        } catch {
+                            recordSendFailure(peer: nil, error: error)
+                        }
                     }
                     return
                 }
@@ -397,10 +455,14 @@ extension WireGuardDevice {
             switch packet.kind {
             case .initiation:
                 guard let peer = try? consumeHandshakeInitiation(packet, mac1Verified: true) else { return }
-                let (running, keepaliveInterval) = peer.withState { state -> (Bool, UInt16) in
-                    if !state.roamingDisabled { state.endpoint = incoming.source }
+                let (running, keepaliveInterval, roamedEndpoint) = peer.withState { state -> (Bool, UInt16, IPEndpoint?) in
+                    let roamed: IPEndpoint? = state.roam(to: incoming.source) ? incoming.source : nil
                     state.rxBytes &+= UInt64(incoming.data.count)
-                    return (state.running, state.persistentKeepaliveInterval)
+                    state.lastReceivedUnixNanoseconds = io.wallNow()
+                    return (state.running, state.persistentKeepaliveInterval, roamed)
+                }
+                if let roamedEndpoint {
+                    emitEvent(.endpointChanged(peer.publicKey, roamedEndpoint))
                 }
                 if peers[peer.publicKey] === peer, running {
                     timerAuthenticatedTraversal(peer, interval: keepaliveInterval, io: io)
@@ -411,17 +473,31 @@ extension WireGuardDevice {
             case .response:
                 guard let (peer, _) = try? consumeHandshakeResponse(packet, mac1Verified: true),
                       peers[peer.publicKey] === peer else { return }
-                let keepaliveInterval: UInt16? = peer.withState { state in
+                let now = protocolNow()
+                let responseInfo: (keepaliveInterval: UInt16, roamedEndpoint: IPEndpoint?, roundTrip: Duration?)? = peer.withState { state in
                     guard state.running else { return nil }
-                    if !state.roamingDisabled { state.endpoint = incoming.source }
+                    let roamed: IPEndpoint? = state.roam(to: incoming.source) ? incoming.source : nil
+                    let wallNow = io.wallNow()
                     state.rxBytes &+= UInt64(incoming.data.count)
+                    state.lastReceivedUnixNanoseconds = wallNow
                     state.handshakeAttempts = 0
                     state.sentLastMinuteHandshake = false
-                    state.lastHandshakeUnixNanoseconds = io.wallNow()
-                    return state.persistentKeepaliveInterval
+                    state.handshakeGaveUp = false
+                    state.handshakeInitiatedAt = nil
+                    let roundTripNs = state.lastInitiationSentAt.map { now.elapsed(since: $0) }
+                    state.lastInitiationSentAt = nil
+                    state.handshakeRoundTripNanoseconds = roundTripNs
+                    state.lastHandshakeInstant = now
+                    state.lastHandshakeUnixNanoseconds = wallNow
+                    let roundTrip = roundTripNs.map { Duration.nanoseconds(Int64(clamping: $0)) }
+                    return (state.persistentKeepaliveInterval, roamed, roundTrip)
                 }
-                guard let keepaliveInterval else { return }
-                timerAuthenticatedTraversal(peer, interval: keepaliveInterval, io: io)
+                guard let responseInfo else { return }
+                if let roamedEndpoint = responseInfo.roamedEndpoint {
+                    emitEvent(.endpointChanged(peer.publicKey, roamedEndpoint))
+                }
+                emitEvent(.handshakeCompleted(peer.publicKey, roundTrip: responseInfo.roundTrip))
+                timerAuthenticatedTraversal(peer, interval: responseInfo.keepaliveInterval, io: io)
                 timerAuthenticatedReceived(peer, io: io)
                 timerSessionDerived(peer, io: io)
                 timer(.retransmitHandshake, for: peer, after: nil, io: io)

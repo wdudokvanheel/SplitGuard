@@ -53,7 +53,12 @@ extension WireGuardDevice {
                     expire(next.key.kind, for: peer, io: io)
                 } else if next.key.kind == .collectRateLimiter, !io.limiter.collectStaleEntries() {
                     timer(.collectRateLimiter, for: nil, after: HandshakeRateLimiter.collectionInterval, io: io)
+                } else if next.key.kind == .flushDrops {
+                    flushPendingDrops(force: false)
                 }
+            }
+            if events.hasDueDrops(at: protocolNow()) {
+                flushPendingDrops(force: false)
             }
             armNextDeadline(io)
         }
@@ -62,20 +67,27 @@ extension WireGuardDevice {
     private func expire(_ kind: PeerTimer, for peer: WireGuardPeer, io: DeviceIO) {
         switch kind {
         case .retransmitHandshake:
-            let retry = peer.withState { state -> Bool in
-                guard state.handshakeAttempts <= WireGuardTiming.maxTimerHandshakes else { return false }
+            let attempt: Int? = peer.withState { state in
+                guard state.handshakeAttempts <= WireGuardTiming.maxTimerHandshakes else {
+                    state.handshakeGaveUp = true
+                    state.handshakeInitiatedAt = nil
+                    return nil
+                }
                 state.handshakeAttempts += 1
-                return true
+                return state.handshakeAttempts
             }
-            if retry {
+            if let attempt {
                 clearEndpointSource(peer, io: io)
                 sendHandshakeInitiation(peer, retry: true, io: io)
+                emitEvent(.handshakeRetry(peer.publicKey, attempt: attempt))
             } else {
                 timer(.sendKeepalive, for: peer, after: nil, io: io)
-                flushStaged(peer)
+                flushStaged(peer, dropReason: .noSession)
                 if !timerPending(.zeroKeyMaterial, peer, io: io) {
                     timer(.zeroKeyMaterial, for: peer, after: WireGuardTiming.zeroAfterTime, io: io)
                 }
+                emitEvent(.handshakeGaveUp(peer.publicKey))
+                updatePeerHealth(peer, io: io)
             }
         case .sendKeepalive:
             sendKeepalive(peer)
@@ -89,12 +101,14 @@ extension WireGuardDevice {
             clearEndpointSource(peer, io: io)
             sendHandshakeInitiation(peer, retry: false, io: io)
         case .zeroKeyMaterial:
-            zeroAndFlush(peer)
+            zeroAndFlush(peer, dropReason: .noSession)
         case .persistentKeepalive:
             if peer.withState({ $0.persistentKeepaliveInterval > 0 }) { sendKeepalive(peer) }
         case .initiate:
             sendHandshakeInitiation(peer, retry: false, io: io)
-        case .collectRateLimiter:
+        case .healthCheck:
+            updatePeerHealth(peer, io: io)
+        case .collectRateLimiter, .flushDrops:
             break
         }
     }
@@ -108,10 +122,17 @@ extension WireGuardDevice {
     }
 
     func timerDataSent(_ peer: WireGuardPeer, io: DeviceIO) {
+        let now = protocolNow()
+        peer.withState { state in
+            if state.lastDataSentInstant == nil {
+                state.lastDataSentInstant = now
+            }
+        }
         if !timerPending(.newHandshake, peer, io: io) {
             timer(.newHandshake, for: peer,
                   after: WireGuardTiming.keepaliveTimeout + WireGuardTiming.rekeyTimeout + jitter(io), io: io)
         }
+        updatePeerHealth(peer, io: io, now: now)
     }
 
     func timerDataReceived(_ peer: WireGuardPeer, io: DeviceIO) {
@@ -127,17 +148,28 @@ extension WireGuardDevice {
     }
 
     func timerAuthenticatedReceived(_ peer: WireGuardPeer, io: DeviceIO) {
+        let now = protocolNow()
+        peer.withState { state in
+            state.lastAuthenticatedReceivedInstant = now
+            state.lastDataSentInstant = nil
+        }
         timer(.newHandshake, for: peer, after: nil, io: io)
+        updatePeerHealth(peer, io: io, now: now)
     }
 
     func timerHandshakeComplete(_ peer: WireGuardPeer, io: DeviceIO) {
+        let now = protocolNow()
         timer(.retransmitHandshake, for: peer, after: nil, io: io)
         timer(.initiate, for: peer, after: nil, io: io)
         peer.withState {
             $0.handshakeAttempts = 0
             $0.sentLastMinuteHandshake = false
+            $0.handshakeGaveUp = false
+            $0.handshakeInitiatedAt = nil
+            $0.lastHandshakeInstant = now
             $0.lastHandshakeUnixNanoseconds = io.wallNow()
         }
+        updatePeerHealth(peer, io: io, now: now)
     }
 
     func timerSessionDerived(_ peer: WireGuardPeer, io: DeviceIO) {
@@ -177,7 +209,13 @@ extension WireGuardDevice {
     func sendHandshakeInitiation(_ peer: WireGuardPeer, retry: Bool, io: DeviceIO) {
         let now = protocolNow()
         let allowed = peer.withState { state -> Bool in
-            if !retry { state.handshakeAttempts = 0 }
+            if !retry {
+                state.handshakeAttempts = 0
+                if state.handshakeGaveUp {
+                    state.handshakeGaveUp = false
+                    state.handshakeInitiatedAt = nil
+                }
+            }
             guard state.lastSentHandshake.map({ now.elapsed(since: $0) >= WireGuardTiming.rekeyTimeout }) ?? true else {
                 return false
             }
@@ -186,10 +224,17 @@ extension WireGuardDevice {
         }
         guard allowed else { return }
         guard let packet = try? createHandshakeInitiation(for: peer) else { return }
+        peer.withState { state in
+            if state.handshakeInitiatedAt == nil {
+                state.handshakeInitiatedAt = now
+            }
+            state.lastInitiationSentAt = now
+        }
         timerAuthenticatedTraversal(peer, io: io)
         timerAuthenticatedSent(peer, io: io)
         sendWire(packet.bytes, to: peer, io: io)
         timer(.retransmitHandshake, for: peer, after: WireGuardTiming.rekeyTimeout + jitter(io), io: io)
+        updatePeerHealth(peer, io: io, now: now)
     }
 
     func sendHandshakeResponse(_ peer: WireGuardPeer, io: DeviceIO) {

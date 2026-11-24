@@ -42,6 +42,7 @@ public final class WireGuardDevice: @unchecked Sendable {
     // can use the existing locked Noise methods as part of a larger atomic transition.
     let lock = NSRecursiveLock()
     let io: DeviceIO?
+    let events = DeviceEventDispatcher()
     var identity = StaticIdentity()
     var cookieChecker = CookieChecker(for: .zero)
     let protocolNow: () -> ProtocolInstant

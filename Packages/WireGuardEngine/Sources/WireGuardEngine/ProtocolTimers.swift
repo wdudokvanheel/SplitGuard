@@ -21,6 +21,8 @@ enum PeerTimer: CaseIterable, Hashable, Sendable {
     // Immediate, coalesced work sent to the handshake queue by the outbound lane.
     case initiate
     case collectRateLimiter
+    case healthCheck
+    case flushDrops
 }
 
 struct PeerTimerKey: Hashable, Sendable {

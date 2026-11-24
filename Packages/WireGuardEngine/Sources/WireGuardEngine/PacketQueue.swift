@@ -115,23 +115,37 @@ final class PacketLane<Element>: @unchecked Sendable {
         if shouldSync { syncBackpressure() }
     }
 
-    func offer(_ item: Element, token: UInt64) -> Bool {
-        let (admitted, shouldSync): (Bool, Bool) = lock.withLock {
-            guard token == self.token, packets.append(item) else {
+    enum OfferResult: Sendable {
+        case admitted
+        case queueFull
+        case staleToken
+    }
+
+    func offerResult(_ item: Element, token: UInt64) -> OfferResult {
+        let (result, shouldSync): (OfferResult, Bool) = lock.withLock {
+            guard token == self.token else {
                 metrics.dropped += 1
-                return (false, false)
+                return (.staleToken, false)
+            }
+            guard packets.append(item) else {
+                metrics.dropped += 1
+                return (.queueFull, false)
             }
             metrics.admitted += 1
             metrics.peak = max(metrics.peak, packets.count)
             if packets.count == 1 { ready.add(data: 1) }
             if let highWaterMark, !backpressureActive, packets.count >= highWaterMark {
                 backpressureActive = true
-                return (true, true)
+                return (.admitted, true)
             }
-            return (true, false)
+            return (.admitted, false)
         }
         if shouldSync { syncBackpressure() }
-        return admitted
+        return result
+    }
+
+    func offer(_ item: Element, token: UInt64) -> Bool {
+        offerResult(item, token: token) == .admitted
     }
 
     var depth: Int { lock.withLock { packets.count } }

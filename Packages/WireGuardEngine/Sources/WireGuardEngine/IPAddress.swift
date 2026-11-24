@@ -5,7 +5,7 @@ import Darwin
 import Foundation
 
 /// Network-order address bits. IPv4-mapped IPv6 addresses retain their IPv6 family.
-public struct IPAddress: Hashable, CustomStringConvertible, Sendable {
+public struct IPAddress: Hashable, Codable, CustomStringConvertible, Sendable {
     public let isIPv6: Bool
     private let high: UInt64
     private let low: UInt64
@@ -32,7 +32,8 @@ public struct IPAddress: Hashable, CustomStringConvertible, Sendable {
         }
     }
 
-    public init?(_ text: Substring) {
+    public init?(_ text: some StringProtocol) {
+        let text = Substring(text)
         let ipv6 = text.utf8.contains(58)
         var host = text.utf8[...]
         var zone: [UInt8] = []
@@ -167,19 +168,34 @@ public struct IPAddress: Hashable, CustomStringConvertible, Sendable {
     private static func dottedDecimal(_ bytes: ArraySlice<UInt8>) -> String {
         bytes.map { String($0) }.joined(separator: ".")
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let text = try container.decode(String.self)
+        guard let parsed = IPAddress(text) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid IP address: \(text)")
+        }
+        self = parsed
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(description)
+    }
 }
 
-struct IPPrefix: Hashable, CustomStringConvertible, Sendable {
-    let address: IPAddress
-    let length: Int
+public struct IPPrefix: Hashable, Codable, CustomStringConvertible, Sendable {
+    public let address: IPAddress
+    public let length: Int
 
-    init?(address: IPAddress, length: Int) {
+    public init?(address: IPAddress, length: Int) {
         guard address.zoneID == nil, (0...address.bitCount).contains(length) else { return nil }
         self.address = address.masked(to: length)
         self.length = length
     }
 
-    init?(_ text: Substring) {
+    public init?(_ text: some StringProtocol) {
+        let text = Substring(text)
         guard let slash = text.utf8.lastIndex(of: 47) else { return nil }
         let bits = text[text.utf8.index(after: slash)...]
         // The netip version used by the app accepts only canonical decimal prefix lengths.
@@ -189,14 +205,28 @@ struct IPPrefix: Hashable, CustomStringConvertible, Sendable {
         self.init(address: address, length: Int(length))
     }
 
-    func contains(_ candidate: IPAddress) -> Bool {
+    public func contains(_ candidate: IPAddress) -> Bool {
         candidate.isIPv6 == address.isIPv6 && address.commonBits(with: candidate) >= length
     }
 
-    var description: String { "\(address)/\(length)" }
+    public var description: String { "\(address)/\(length)" }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let text = try container.decode(String.self)
+        guard let parsed = IPPrefix(text) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid IP prefix: \(text)")
+        }
+        self = parsed
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(description)
+    }
 }
 
-public struct IPEndpoint: Hashable, CustomStringConvertible, Sendable {
+public struct IPEndpoint: Hashable, Codable, CustomStringConvertible, Sendable {
     public let address: IPAddress
     public let port: UInt16
 
@@ -205,7 +235,8 @@ public struct IPEndpoint: Hashable, CustomStringConvertible, Sendable {
         self.port = port
     }
 
-    public init?(_ text: Substring) {
+    public init?(_ text: some StringProtocol) {
+        let text = Substring(text)
         guard let colon = text.utf8.lastIndex(of: 58),
               let port = parseUnsignedDecimal(text[text.utf8.index(after: colon)...], as: UInt16.self)
         else { return nil }
@@ -232,6 +263,20 @@ public struct IPEndpoint: Hashable, CustomStringConvertible, Sendable {
 
     public var description: String {
         address.isIPv6 ? "[\(address)]:\(port)" : "\(address):\(port)"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let text = try container.decode(String.self)
+        guard let parsed = IPEndpoint(text) else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid IP endpoint: \(text)")
+        }
+        self = parsed
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(description)
     }
 }
 

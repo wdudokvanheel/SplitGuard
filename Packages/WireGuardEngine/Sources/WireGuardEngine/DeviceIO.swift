@@ -134,14 +134,27 @@ extension WireGuardDevice {
             do {
                 try rebindLocked(io)
                 io.outbound.register(run)
-                try io.tunnel.start { [weak io] data in
-                    guard let io, (1...Self.maxContentSize).contains(data.count) else { return false }
-                    return io.outbound.offer(.init(data: data, run: run), token: run)
+                try io.tunnel.start { [weak self, weak io] data in
+                    guard let io else { return false }
+                    guard (1...Self.maxContentSize).contains(data.count) else {
+                        self?.recordDrop(.invalidPacket)
+                        return false
+                    }
+                    switch io.outbound.offerResult(.init(data: data, run: run), token: run) {
+                    case .admitted:
+                        return true
+                    case .queueFull:
+                        self?.recordDrop(.queueFull)
+                        return false
+                    case .staleToken:
+                        return false
+                    }
                 }
             } catch {
-                _ = try? stopLocked(io, finalState: .down)
+                _ = try? stopLocked(io, finalState: .down, emitStateChange: false)
                 throw error
             }
+            emitEvent(.stateChanged(.up))
             for peer in peers.values {
                 startPeer(peer)
                 if peer.withState({ $0.persistentKeepaliveInterval > 0 }) {
@@ -156,7 +169,7 @@ extension WireGuardDevice {
     public func down() throws {
         try lock.withLock {
             guard let io, io.state == .up else { return }
-            try stopLocked(io, finalState: .down)
+            try stopLocked(io, finalState: .down, emitStateChange: true)
         }
     }
 
@@ -166,12 +179,14 @@ extension WireGuardDevice {
             if let io {
                 guard io.state != .closed else { return }
                 if io.state == .up {
-                    _ = try? stopLocked(io, finalState: .closed)
+                    _ = try? stopLocked(io, finalState: .closed, emitStateChange: true)
                 } else {
                     io.state = .closed
+                    flushPendingDrops(force: true)
                 }
                 io.tunnel.close()
                 io.deadlines.update(peer: nil, kind: .collectRateLimiter, time: nil)
+                io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
                 armNextDeadline(io)
                 io.limiter.reset()
             }
@@ -180,30 +195,35 @@ extension WireGuardDevice {
         }
     }
 
-    private func stopLocked(_ io: DeviceIO, finalState: DeviceIO.State) throws {
+    private func stopLocked(_ io: DeviceIO, finalState: DeviceIO.State, emitStateChange: Bool) throws {
         io.state = finalState
         io.outbound.register(nil, discard: true)
         io.inbound.register(nil, discard: true)
         io.handshake.register(nil, discard: true)
         io.tunnel.stop()
         defer {
+            io.deadlines.update(peer: nil, kind: .flushDrops, time: nil)
+            flushPendingDrops(force: true)
             for peer in peers.values { stopPeer(peer) }
             // The limiter is device-wide and can finish collecting after down.
             armNextDeadline(io)
+            if emitStateChange {
+                emitEvent(.stateChanged(.down))
+            }
         }
         boundPort = 0
         try io.transport.unbind()
     }
 
     /// Replace the UDP socket registrations while preserving the device's current sessions.
-    public func rebind() throws {
+    public func rebind(attempt: Int = 1, final: Bool = false) throws {
         try lock.withLock {
             guard let io, io.state == .up else { return }
-            try rebindLocked(io)
+            try rebindLocked(io, attempt: attempt, final: final)
         }
     }
 
-    func rebindLocked(_ io: DeviceIO) throws {
+    func rebindLocked(_ io: DeviceIO, attempt: Int = 1, final: Bool = false) throws {
         guard io.state != .closed else { return }
         io.inbound.register(nil)
         io.handshake.register(nil)
@@ -219,14 +239,19 @@ extension WireGuardDevice {
             boundPort = try io.transport.bind(port: configuredPort) { [weak self] data, source in
                 self?.admitDatagram(.init(data: data, source: source, run: run), generation: generation) ?? false
             }
+            if mark != 0 { try io.transport.setFirewallMark(mark) }
         } catch {
+            if boundPort != 0 {
+                _ = try? io.transport.unbind()
+            }
             boundPort = 0
             io.inbound.register(nil)
             io.handshake.register(nil)
+            emitEvent(.rebindFailed(attempt: attempt, errno: DeviceEventDispatcher.posixErrno(from: error), final: final))
             throw error
         }
-        if mark != 0 { try io.transport.setFirewallMark(mark) }
         clearEndpointSources(io)
+        emitEvent(.socketsRebound(port: boundPort))
     }
 
     func clearEndpointSources(_ io: DeviceIO) {
@@ -268,6 +293,9 @@ extension WireGuardDevice {
             guard !$0.running else { return }
             $0.running = true
             $0.lastSentHandshake = nil
+            $0.handshakeInitiatedAt = nil
+            $0.lastInitiationSentAt = nil
+            $0.handshakeGaveUp = false
             $0.handshakeAttempts = 0
             $0.needAnotherKeepalive = false
             $0.sentLastMinuteHandshake = false
@@ -275,15 +303,31 @@ extension WireGuardDevice {
     }
 
     func stopPeer(_ peer: WireGuardPeer) {
-        peer.withState { $0.running = false }
+        let healthChangedToIdle = peer.withState { state -> Bool in
+            state.running = false
+            state.handshakeInitiatedAt = nil
+            state.lastInitiationSentAt = nil
+            state.handshakeGaveUp = false
+            state.lastHandshakeInstant = nil
+            state.lastAuthenticatedReceivedInstant = nil
+            state.lastDataSentInstant = nil
+            if state.lastReportedHealth != .idle {
+                state.lastReportedHealth = .idle
+                return true
+            }
+            return false
+        }
         if let io {
             for kind in PeerTimer.allCases { io.deadlines.update(peer: peer, kind: kind, time: nil) }
             armNextDeadline(io)
         }
         zeroAndFlush(peer)
+        if healthChangedToIdle {
+            emitEvent(.healthChanged(peer.publicKey, .idle))
+        }
     }
 
-    func zeroAndFlush(_ peer: WireGuardPeer) {
+    func zeroAndFlush(_ peer: WireGuardPeer, dropReason: DropReason? = nil) {
         peer.withState { state in
             clearHandshake(&state.handshake, for: peer)
             peer.keypairs.withSlots { slots in
@@ -294,7 +338,7 @@ extension WireGuardDevice {
                 slots = SessionKeypairs.Slots()
             }
         }
-        flushStaged(peer)
+        flushStaged(peer, dropReason: dropReason)
     }
 
     func canRun(_ peer: WireGuardPeer, io: DeviceIO) -> Bool {
@@ -302,8 +346,9 @@ extension WireGuardDevice {
     }
 
     func roam(_ peer: WireGuardPeer, from source: IPEndpoint) {
-        peer.withState {
-            if !$0.roamingDisabled { $0.endpoint = source }
+        let changed = peer.withState { $0.roam(to: source) }
+        if changed {
+            emitEvent(.endpointChanged(peer.publicKey, source))
         }
     }
 
@@ -316,8 +361,15 @@ extension WireGuardDevice {
         guard let endpoint = peer.withState({ $0.endpoint }) else { return false }
         do {
             try io.transport.send(packet, to: endpoint)
-            peer.withState { $0.txBytes &+= UInt64(packet.count) }
+            let wallNow = io.wallNow()
+            peer.withState {
+                $0.txBytes &+= UInt64(packet.count)
+                $0.lastSentUnixNanoseconds = wallNow
+            }
             return true
-        } catch { return false }
+        } catch {
+            recordSendFailure(peer: peer.publicKey, error: error)
+            return false
+        }
     }
 }

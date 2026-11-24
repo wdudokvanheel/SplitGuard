@@ -3,19 +3,41 @@
 
 import Foundation
 
-struct NoisePublicKey: Hashable, Sendable {
+public struct WireGuardPublicKey: Hashable, Codable, Sendable, CustomStringConvertible {
     private static let byteCount = 32
-    static let zero = NoisePublicKey(rawValue: Data(count: byteCount))!
-    let rawValue: Data
+    static let zero = WireGuardPublicKey(rawValue: Data(count: byteCount))!
+    public let rawValue: Data
 
-    init?(rawValue: Data) {
+    public init?(rawValue: Data) {
         guard rawValue.count == Self.byteCount else { return nil }
         self.rawValue = rawValue
     }
 
-    init?(hex: Substring) {
-        guard let rawValue = decodeKey(hex, byteCount: Self.byteCount) else { return nil }
+    public init?(hex: some StringProtocol) {
+        guard let rawValue = decodeKey(Substring(hex), byteCount: Self.byteCount) else { return nil }
         self.init(rawValue: rawValue)
+    }
+
+    public init?(base64: String) {
+        guard let rawValue = Data(base64Encoded: base64), rawValue.count == Self.byteCount else { return nil }
+        self.init(rawValue: rawValue)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let encoded = try container.decode(String.self)
+        guard let key = WireGuardPublicKey(base64: encoded) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Invalid base64 WireGuard public key"
+            )
+        }
+        self = key
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(base64)
     }
 
     func matches(_ other: Self) -> Bool {
@@ -23,15 +45,17 @@ struct NoisePublicKey: Hashable, Sendable {
     }
 
     var isZero: Bool { SecretBytes.isZero(rawValue) }
-    var hex: String { encodeKey(rawValue) }
+    public var hex: String { encodeKey(rawValue) }
+    public var base64: String { rawValue.base64EncodedString() }
+    public var description: String { base64 }
 }
 
-struct NoisePrivateKey {
+public struct WireGuardPrivateKey: Equatable, Sendable {
     private static let byteCount = 32
-    static var zero: Self { NoisePrivateKey(rawValue: Data(count: byteCount), preservingZero: true)! }
-    private(set) var rawValue: Data
+    static var zero: Self { WireGuardPrivateKey(rawValue: Data(count: byteCount), preservingZero: true)! }
+    public private(set) var rawValue: Data
 
-    init?(rawValue: Data, preservingZero: Bool = false) {
+    public init?(rawValue: Data, preservingZero: Bool = false) {
         guard rawValue.count == Self.byteCount else { return nil }
         var key = rawValue
         if !preservingZero || !SecretBytes.isZero(key) {
@@ -42,10 +66,20 @@ struct NoisePrivateKey {
         self.rawValue = key
     }
 
-    init?(hex: Substring, preservingZero: Bool = false) {
-        guard var decoded = decodeKey(hex, byteCount: Self.byteCount) else { return nil }
+    public init?(hex: some StringProtocol, preservingZero: Bool = false) {
+        guard var decoded = decodeKey(Substring(hex), byteCount: Self.byteCount) else { return nil }
         defer { SecretBytes.zero(&decoded) }
         self.init(rawValue: decoded, preservingZero: preservingZero)
+    }
+
+    public init?(base64: String) {
+        guard var decoded = Data(base64Encoded: base64), decoded.count == Self.byteCount else { return nil }
+        defer { SecretBytes.zero(&decoded) }
+        self.init(rawValue: decoded, preservingZero: false)
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        SecretBytes.equal(lhs.rawValue, rhs.rawValue)
     }
 
     func matches(_ other: Self) -> Bool {
@@ -54,40 +88,55 @@ struct NoisePrivateKey {
 
     private init(clampedKey: Data) { rawValue = clampedKey }
 
-    static func generate() -> Self {
+    public static func generate() -> Self {
         Self(clampedKey: X25519.generatePrivateKey())
     }
 
-    func publicKey() throws -> NoisePublicKey {
-        NoisePublicKey(rawValue: try X25519.publicKey(for: rawValue))!
+    public func publicKey() throws -> WireGuardPublicKey {
+        WireGuardPublicKey(rawValue: try X25519.publicKey(for: rawValue))!
     }
 
-    mutating func clear() { SecretBytes.zero(&rawValue) }
+    public mutating func clear() { SecretBytes.zero(&rawValue) }
 
     var isZero: Bool { SecretBytes.isZero(rawValue) }
-    var hex: String { encodeKey(rawValue) }
+    public var hex: String { encodeKey(rawValue) }
+    public var base64: String { rawValue.base64EncodedString() }
 }
 
-struct NoisePresharedKey {
+public struct WireGuardPresharedKey: Equatable, Sendable {
     private static let byteCount = 32
-    static var zero: Self { NoisePresharedKey(rawValue: Data(count: byteCount))! }
-    private(set) var rawValue: Data
+    static var zero: Self { WireGuardPresharedKey(rawValue: Data(count: byteCount))! }
+    public private(set) var rawValue: Data
 
-    init?(rawValue: Data) {
+    public init?(rawValue: Data) {
         guard rawValue.count == Self.byteCount else { return nil }
         self.rawValue = rawValue
     }
 
-    init?(hex: Substring) {
-        guard let rawValue = decodeKey(hex, byteCount: Self.byteCount) else { return nil }
+    public init?(hex: some StringProtocol) {
+        guard let rawValue = decodeKey(Substring(hex), byteCount: Self.byteCount) else { return nil }
         self.init(rawValue: rawValue)
     }
 
-    mutating func clear() { SecretBytes.zero(&rawValue) }
+    public init?(base64: String) {
+        guard let rawValue = Data(base64Encoded: base64), rawValue.count == Self.byteCount else { return nil }
+        self.init(rawValue: rawValue)
+    }
+
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        SecretBytes.equal(lhs.rawValue, rhs.rawValue)
+    }
+
+    public mutating func clear() { SecretBytes.zero(&rawValue) }
 
     var isZero: Bool { SecretBytes.isZero(rawValue) }
-    var hex: String { encodeKey(rawValue) }
+    public var hex: String { encodeKey(rawValue) }
+    public var base64: String { rawValue.base64EncodedString() }
 }
+
+typealias NoisePublicKey = WireGuardPublicKey
+typealias NoisePrivateKey = WireGuardPrivateKey
+typealias NoisePresharedKey = WireGuardPresharedKey
 
 private func decodeKey(_ hex: Substring, byteCount: Int) -> Data? {
     guard hex.utf8.count == 2 * byteCount else { return nil }
