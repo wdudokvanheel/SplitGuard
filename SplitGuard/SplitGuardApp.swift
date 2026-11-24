@@ -1,3 +1,5 @@
+import enum SplitGuardCore.AppGroup
+import enum SplitGuardCore.Log
 import SwiftUI
 import UIKit
 
@@ -16,8 +18,8 @@ struct SplitGuardApp: App {
         #else
         _store = State(initialValue: TunnelStore())
         #endif
-        Logger.configureGlobal(tagged: "APP", withFilePath: FileManager.logFileURL?.path)
-        wg_log(.info, staticMessage: "SplitGuard launched")
+        Log.configure(source: "APP", fileURL: AppGroup.appLogURL())
+        Log.info("SplitGuard launched")
         Self.configureBrutalistNavigationAppearance()
     }
 

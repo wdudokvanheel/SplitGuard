@@ -3,7 +3,8 @@
 import Foundation
 import Network
 import NetworkExtension
-import os
+import enum SplitGuardCore.AppGroup
+import enum SplitGuardCore.Log
 import SplitGuardTunnel
 import WireGuardEngine
 import WireGuardKit
@@ -24,7 +25,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 self?.recordInteropEvent(message)
             }
             #endif
-            wg_log(logLevel.osLogLevel, message: message)
+            switch logLevel {
+            case .verbose:
+                Log.debug(message)
+            case .error:
+                Log.error(message)
+            }
         }
     }()
 
@@ -142,9 +148,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         recordInteropEvent(activationAttemptId == nil ? "System activation" : "App activation")
         #endif
 
-        Logger.configureGlobal(tagged: "NET", withFilePath: FileManager.logFileURL?.path)
+        Log.configure(source: "NET", fileURL: AppGroup.tunnelLogURL())
 
-        wg_log(.info, message: "Starting tunnel from the " + (activationAttemptId == nil ? "OS directly, rather than the app" : "app"))
+        Log.info("Starting tunnel from the " + (activationAttemptId == nil ? "OS directly, rather than the app" : "app"))
 
         guard let tunnelProviderProtocol = self.protocolConfiguration as? NETunnelProviderProtocol,
               let tunnelConfiguration = tunnelProviderProtocol.asTunnelConfiguration() else {
@@ -156,19 +162,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let splitDNSConfiguration = tunnelProviderProtocol.splitDNSConfiguration
         if splitDNSConfiguration.mode == .onlyDomains {
             let domains = splitDNSConfiguration.normalizedDomainNames.joined(separator: ", ")
-            wg_log(.info, message: "Split DNS enabled for domains: \(domains)")
+            Log.info("Split DNS enabled for domains: \(domains)")
         }
         if splitDNSConfiguration.hasExclusions {
             let exclusions = splitDNSConfiguration.exclusions.map {
                 $0.includesSubdomains ? $0.name : "\($0.name) (exact)"
             }.joined(separator: ", ")
-            wg_log(.info, message: "Split DNS exclusions enabled: \(exclusions)")
+            Log.info("Split DNS exclusions enabled: \(exclusions)")
         }
 
         let tunnelOptions = tunnelProviderProtocol.tunnelOptions
         let endpointPolicy: EndpointResolutionPolicy = tunnelOptions.killSwitch.isEnabled ? .bestEffort : .required
         if tunnelOptions.killSwitch.isEnabled {
-            wg_log(.info, message: "Kill switch enabled (allowLocalNetwork=\(tunnelOptions.killSwitch.allowLocalNetwork))")
+            Log.info("Kill switch enabled (allowLocalNetwork=\(tunnelOptions.killSwitch.allowLocalNetwork))")
         }
 
         controller.start(
@@ -177,7 +183,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             endpointResolution: endpointPolicy
         ) { controllerError in
             guard let controllerError else {
-                wg_log(.info, message: "Tunnel started with WireGuard engine \(TunnelController.engineVersion)")
+                Log.info("Tunnel started with WireGuard engine \(TunnelController.engineVersion)")
                 completionHandler(nil)
                 return
             }
@@ -188,14 +194,15 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        wg_log(.info, staticMessage: "Stopping tunnel")
+        Log.info("Stopping tunnel")
 
         controller.stop { error in
             ErrorNotifier.removeLastErrorFile()
 
             if let error {
-                wg_log(.error, message: "Failed to stop tunnel controller: \(error)")
+                Log.error("Failed to stop tunnel controller: \(error)")
             }
+            Log.flush()
             completionHandler()
 
             #if os(macOS)
@@ -244,19 +251,19 @@ private extension PacketTunnelProvider {
         switch controllerError {
         case .dnsResolution(let dnsErrors):
             let hostnames = dnsErrors.map(\.address).joined(separator: ", ")
-            wg_log(.error, message: "DNS resolution failed for the following hostnames: \(hostnames)")
+            Log.error("DNS resolution failed for the following hostnames: \(hostnames)")
             return .dnsResolutionFailure
         case .setNetworkSettings(let error):
-            wg_log(.error, message: "Starting tunnel failed with setTunnelNetworkSettings returning \(error.localizedDescription)")
+            Log.error("Starting tunnel failed with setTunnelNetworkSettings returning \(error.localizedDescription)")
             return .couldNotSetNetworkSettings
         case .configuration(let error):
-            wg_log(.error, message: "Starting tunnel failed with configuration error: \(error)")
+            Log.error("Starting tunnel failed with configuration error: \(error)")
             return .couldNotStartBackend
         case .startEngine(let error):
-            wg_log(.error, message: "Starting tunnel failed with engine error: \(error)")
+            Log.error("Starting tunnel failed with engine error: \(error)")
             return .couldNotStartBackend
         case .invalidState:
-            wg_log(.error, staticMessage: "Starting tunnel failed: controller is in an invalid state")
+            Log.error("Starting tunnel failed: controller is in an invalid state")
             return .couldNotStartBackend
         }
     }
@@ -311,15 +318,4 @@ private extension PacketTunnelProvider {
         }
     }
     #endif
-}
-
-extension TunnelLogLevel {
-    var osLogLevel: OSLogType {
-        switch self {
-        case .verbose:
-            return .debug
-        case .error:
-            return .error
-        }
-    }
 }

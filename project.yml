@@ -22,6 +22,8 @@ packages:
     path: Vendor/wireguard-apple
   WireGuardEngine:
     path: Packages/WireGuardEngine
+  SplitGuardCore:
+    path: Packages/SplitGuardCore
   SplitGuardTunnel:
     path: Packages/SplitGuardTunnel
 
@@ -40,6 +42,7 @@ targets:
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
+      - package: SplitGuardCore
       - package: SplitGuardTunnel
       - package: WireGuardEngine
       - package: WireGuardKit
@@ -50,11 +53,7 @@ targets:
         PRODUCT_NAME: SplitGuardNetworkExtension
         INFOPLIST_FILE: SplitGuardNetworkExtension/Info.plist
         CODE_SIGN_ENTITLEMENTS: SplitGuardNetworkExtension/SplitGuardNetworkExtension.entitlements
-        SWIFT_OBJC_BRIDGING_HEADER: SplitGuardNetworkExtension/SplitGuardNetworkExtension-Bridging-Header.h
         ENABLE_DEBUG_DYLIB: NO
-        HEADER_SEARCH_PATHS:
-          - "$(inherited)"
-          - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/Shared/Logging"
         SKIP_INSTALL: YES
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: NO
         LD_RUNPATH_SEARCH_PATHS:
@@ -81,6 +80,7 @@ targets:
     dependencies:
       - target: SplitGuardNetworkExtension
         embed: true
+      - package: SplitGuardCore
       - package: WireGuardEngine
       - package: WireGuardKit
       - sdk: NetworkExtension.framework
@@ -96,7 +96,6 @@ targets:
         SWIFT_OBJC_BRIDGING_HEADER: SplitGuard/SplitGuard-Bridging-Header.h
         HEADER_SEARCH_PATHS:
           - "$(inherited)"
-          - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/Shared/Logging"
           - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive/3rdparty/minizip"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"

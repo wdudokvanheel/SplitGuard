@@ -1,13 +1,21 @@
 import Foundation
 import Observation
+import enum SplitGuardCore.AppGroup
+import enum SplitGuardCore.Log
+import struct SplitGuardCore.LogEntry
+import class SplitGuardCore.MergedLogReader
 
 struct LogEntryItem: Identifiable, Equatable {
     let id: Int
     let timestamp: String
     let message: String
+    let formattedLine: String
 
-    var formattedLine: String {
-        "\(timestamp) \(message)"
+    init(id: Int, entry: LogEntry) {
+        self.id = id
+        self.timestamp = entry.timestampText
+        self.message = "[\(entry.source)] [\(entry.level.label)] \(entry.message)"
+        self.formattedLine = entry.formattedLine
     }
 }
 
@@ -19,15 +27,15 @@ final class LogViewerViewModel {
     private(set) var isLogUnavailable = false
     var searchText = ""
 
-    private let logFilePath: String?
-    private var helper: LogViewHelper?
+    private let reader: MergedLogReader?
     private var pollingTask: Task<Void, Never>?
     private var isFetching = false
 
-    init(logFilePath: String? = FileManager.logFileURL?.path) {
-        self.logFilePath = logFilePath
-        self.helper = LogViewHelper(logFilePath: logFilePath)
-        if self.helper == nil {
+    init(logDirectoryURL: URL? = AppGroup.containerURL()) {
+        if let logDirectoryURL {
+            self.reader = MergedLogReader(directoryURL: logDirectoryURL)
+        } else {
+            self.reader = nil
             self.isLoading = false
             self.isLogUnavailable = true
         }
@@ -43,7 +51,7 @@ final class LogViewerViewModel {
     }
 
     func startPolling() {
-        guard helper != nil, pollingTask == nil else { return }
+        guard reader != nil, pollingTask == nil else { return }
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -59,28 +67,21 @@ final class LogViewerViewModel {
     }
 
     func fetchOnce() async {
-        guard let helper, !isFetching else { return }
+        guard let reader, !isFetching else { return }
         isFetching = true
         defer { isFetching = false }
 
-        let fetched: [LogViewHelper.LogEntry] = await withCheckedContinuation { continuation in
-            helper.fetchLogEntriesSinceLastFetch { newEntries in
-                continuation.resume(returning: newEntries)
-            }
-        }
+        let result = await Task.detached(priority: .userInitiated) {
+            Log.flush()
+            return reader.poll()
+        }.value
 
         isLoading = false
-        guard !fetched.isEmpty else { return }
+        guard result.didChange || entries.count != result.entries.count else { return }
 
-        let startID = entries.count
-        let newItems = fetched.enumerated().map { offset, entry in
-            LogEntryItem(
-                id: startID + offset,
-                timestamp: entry.timestamp,
-                message: entry.message
-            )
+        entries = result.entries.enumerated().map { offset, entry in
+            LogEntryItem(id: offset, entry: entry)
         }
-        entries.append(contentsOf: newItems)
     }
 
     func exportLogFile(completion: @escaping (Result<URL, AlertItem>) -> Void) {
@@ -90,7 +91,7 @@ final class LogViewerViewModel {
         let destinationURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("splitguard-log-\(timestamp).txt")
         let fallbackText = entries.map(\.formattedLine).joined(separator: "\n")
-        let filePath = logFilePath
+        let reader = self.reader
 
         DispatchQueue.global(qos: .userInitiated).async {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
@@ -105,13 +106,10 @@ final class LogViewerViewModel {
                 }
             }
 
-            let useGlobalLogger = filePath == nil || filePath == FileManager.logFileURL?.path
+            Log.flush()
             var written = false
-            if useGlobalLogger {
-                written = Logger.global?.writeLog(to: destinationURL.path) ?? false
-            }
-            if !written, let filePath, let fileLogger = try? Logger(tagged: "APP", withFilePath: filePath) {
-                written = fileLogger.writeLog(to: destinationURL.path)
+            if let reader {
+                written = (try? reader.writeExport(to: destinationURL)) != nil
             }
             if !written && !fallbackText.isEmpty {
                 written = (try? fallbackText.write(to: destinationURL, atomically: true, encoding: .utf8)) != nil
