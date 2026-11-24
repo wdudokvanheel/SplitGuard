@@ -2,6 +2,7 @@
 
 import Foundation
 import NetworkExtension
+import Security
 import SplitGuardCore
 import WireGuardEngine
 
@@ -134,15 +135,6 @@ extension SystemTunnelBackend {
         }
     }
 
-    func removeOrphanedManager(_ manager: NETunnelProviderManager) async {
-        Log.info("Removing orphaned tunnel '\(manager.localizedDescription ?? "<unknown>")'")
-        do {
-            try await manager.removeFromPreferences()
-        } catch {
-            Log.error("Failed to remove orphaned tunnel: \(error)")
-        }
-    }
-
     func loadCurrentProfile(for manager: NETunnelProviderManager) throws -> TunnelProfile {
         guard let proto = manager.protocolConfiguration as? NETunnelProviderProtocol else {
             throw TunnelError.loadFailed("Tunnel protocol configuration is missing.")
@@ -191,32 +183,37 @@ extension SystemTunnelBackend {
         }
     }
 
-    func loadManagersFromPreferences() async throws -> [NETunnelProviderManager] {
+    func loadReferencedManagersFromPreferences() async throws -> [(manager: NETunnelProviderManager, reference: Data)] {
+        let managers: [NETunnelProviderManager]
         do {
-            return try await loadPreferenceManagers()
+            managers = try await loadPreferenceManagers()
         } catch {
             Log.error("Failed to load tunnel provider managers: \(error)")
             throw TunnelError.loadFailed(TunnelError.describeSystemError(error))
         }
+        // NetworkExtension returns managers created by this app. Collect their references
+        // before attempting any Keychain reads or decoding.
+        return managers.compactMap { manager in
+            guard let reference = (manager.protocolConfiguration as? NETunnelProviderProtocol)?.passwordReference else {
+                Log.warning("Unable to load tunnel '\(manager.localizedDescription ?? "")': Missing Keychain reference.")
+                return nil
+            }
+            return (manager, reference)
+        }
     }
 
-    func verifiedProfile(for manager: NETunnelProviderManager) async -> (Data, TunnelProfile)? {
-        guard let proto = manager.protocolConfiguration as? NETunnelProviderProtocol,
-              let passwordRef = proto.passwordReference,
-              profileStore.verify(reference: passwordRef) else {
-            await removeOrphanedManager(manager)
-            return nil
-        }
-
-        let managerName = manager.localizedDescription ?? ""
+    func loadStoredProfile(reference: Data, name: String) -> TunnelProfile? {
         do {
-            let profile = try profileStore.loadProfile(from: proto, name: managerName)
-            return (passwordRef, profile)
+            return try profileStore.load(reference: reference, name: name)
+        } catch ProfileStoreError.keychainLoadFailed(errSecItemNotFound) {
+            Log.warning("Unable to load tunnel '\(name)': Keychain item is missing.")
+        } catch let error as ProfileStoreError {
+            Log.error("Unable to load tunnel '\(name)': \(error.localizedDescription)")
         } catch {
-            Log.error("Removing tunnel '\(managerName)' with unreadable profile: \(error)")
-            await removeOrphanedManager(manager)
-            return nil
+            // A parser error can contain parts of the stored configuration.
+            Log.error("Unable to load tunnel '\(name)': Stored profile could not be decoded.")
         }
+        return nil
     }
 
     func resolveManagerForSave(replacing id: UUID?) throws -> NETunnelProviderManager {

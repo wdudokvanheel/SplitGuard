@@ -46,8 +46,8 @@ actor SystemTunnelBackend: TunnelBackend {
     init(
         profileStore: ProfileStore = ProfileStore(),
         bundle: Bundle = .main,
-        loadPreferenceManagers: @escaping @Sendable () async throws -> [NETunnelProviderManager]
-            = NETunnelProviderManager.loadAllFromPreferences
+        loadPreferenceManagers: @escaping @Sendable () async throws -> [NETunnelProviderManager] =
+            { try await NETunnelProviderManager.loadAllFromPreferences() }
     ) {
         self.profileStore = profileStore
         self.loadPreferenceManagers = loadPreferenceManagers
@@ -82,27 +82,28 @@ actor SystemTunnelBackend: TunnelBackend {
 
     private func performLoadAll() async throws -> [TunnelRecord] {
         installNotificationObserversIfNeeded()
-        let loadedManagers = try await loadManagersFromPreferences()
+        let referencedManagers = try await loadReferencedManagersFromPreferences()
+        let activeReferences = Set(referencedManagers.map(\.reference))
 
         var nextManagersByID: [UUID: NETunnelProviderManager] = [:]
         var nextIDByRef: [Data: UUID] = [:]
         var nextIDByObjID: [ObjectIdentifier: UUID] = [:]
-        var activeReferences: Set<Data> = []
         var claimedIDs: Set<UUID> = []
         var records: [TunnelRecord] = []
 
-        for manager in loadedManagers {
-            guard let (passwordRef, profile) = await verifiedProfile(for: manager) else { continue }
+        for (manager, passwordRef) in referencedManagers {
+            let name = manager.localizedDescription ?? ""
+            let profile = loadStoredProfile(reference: passwordRef, name: name)
             let id = resolveStableID(
                 for: manager,
                 passwordReference: passwordRef,
-                name: profile.name,
+                name: profile?.name ?? name,
                 claimedIDs: &claimedIDs
             )
-            activeReferences.insert(passwordRef)
             nextManagersByID[id] = manager
             nextIDByRef[passwordRef] = id
             nextIDByObjID[ObjectIdentifier(manager)] = id
+            guard let profile else { continue }
             records.append(makeRecord(id: id, profile: profile, manager: manager))
         }
 
