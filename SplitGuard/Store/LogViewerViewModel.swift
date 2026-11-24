@@ -95,7 +95,9 @@ final class LogViewerViewModel {
 
         DispatchQueue.global(qos: .userInitiated).async {
             if FileManager.default.fileExists(atPath: destinationURL.path) {
-                guard FileManager.deleteFile(at: destinationURL) else {
+                do {
+                    try FileManager.default.removeItem(at: destinationURL)
+                } catch {
                     DispatchQueue.main.async {
                         completion(.failure(AlertItem(
                             title: tr("alertUnableToRemovePreviousLogTitle"),

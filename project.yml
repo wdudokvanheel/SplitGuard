@@ -65,21 +65,16 @@ targets:
         excludes:
           - Info.plist
           - SplitGuard.entitlements
-          - SplitGuard-Bridging-Header.h
       - path: Tools/wg-interop/Device
       - path: Tools/wg-interop/Shared
       - path: Vendor/wireguard-apple/Sources/WireGuardApp/LocalizationHelper.swift
       - path: Vendor/wireguard-apple/Sources/WireGuardApp/Base.lproj/Localizable.strings
-      - path: Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive
-        excludes:
-          - 3rdparty/minizip/MiniZip64_info.txt
     dependencies:
       - target: SplitGuardNetworkExtension
         embed: true
       - package: SplitGuardCore
       - package: WireGuardEngine
       - sdk: NetworkExtension.framework
-      - sdk: libz.tbd
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bitechular.splitguard
@@ -88,10 +83,6 @@ targets:
         CODE_SIGN_ENTITLEMENTS: SplitGuard/SplitGuard.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        SWIFT_OBJC_BRIDGING_HEADER: SplitGuard/SplitGuard-Bridging-Header.h
-        HEADER_SEARCH_PATHS:
-          - "$(inherited)"
-          - "$(PROJECT_DIR)/Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive/3rdparty/minizip"
         LD_RUNPATH_SEARCH_PATHS:
           - "$(inherited)"
           - "@executable_path/Frameworks"

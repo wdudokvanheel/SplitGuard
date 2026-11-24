@@ -259,6 +259,7 @@ extension TunnelStore {
             )
             updateQuickActions()
             flushPendingQuickAction()
+            await flushPendingOpenedURLs()
         } catch {
             setLoadingState(isLoading: false)
             present(error: wrapError(error, fallback: TunnelError.loadFailed))

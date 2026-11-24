@@ -197,7 +197,7 @@ struct BrutalistAddTunnelSheet: View {
 
                     AddTunnelActionRow(
                         title: tr("addTunnelMenuImportFile").uppercased(),
-                        subtitle: "Pick a .conf file or .zip archive",
+                        subtitle: "Pick one or more .conf files",
                         systemImage: "doc.badge.plus",
                         fill: SGColor.pureWhite,
                         foreground: SGColor.inkOnPop,

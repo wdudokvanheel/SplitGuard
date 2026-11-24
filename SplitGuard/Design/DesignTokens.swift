@@ -222,6 +222,6 @@ extension UTType {
     }
 
     static var splitGuardImportTypes: [UTType] {
-        [.wireGuardQuickConfig, .zip, .plainText, .text]
+        [.wireGuardQuickConfig, .plainText, .text]
     }
 }

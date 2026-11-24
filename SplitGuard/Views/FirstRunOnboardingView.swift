@@ -89,7 +89,7 @@ struct FirstRunOnboardingView: View {
                     HStack(spacing: 5) {
                         Text("IMPORT")
                             .foregroundStyle(SGColor.inkOnPop)
-                        Text(".CONF / .ZIP")
+                        Text(".CONF FILES")
                             .foregroundStyle(SGColor.popGreen)
                     }
                     .font(SGTypography.displayButton)
@@ -192,7 +192,7 @@ private struct FirstRunHeroFrame: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(
-                    "Scan a WireGuard QR code or import a .conf / .zip file. " +
+                    "Scan a WireGuard QR code or import .conf files. " +
                         "SplitGuard will offer to route only your private domains through VPN DNS."
                 )
                 .font(SGTypography.subheadline)
