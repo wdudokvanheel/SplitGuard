@@ -66,18 +66,18 @@ targets:
           - Info.plist
           - SplitGuard.entitlements
           - SplitGuard-Bridging-Header.h
-      - path: Vendor/wireguard-apple/Sources/Shared
       - path: Tools/wg-interop/Device
       - path: Tools/wg-interop/Shared
-      - path: Vendor/wireguard-apple/Sources/WireGuardApp
+      - path: Vendor/wireguard-apple/Sources/WireGuardApp/LocalizationHelper.swift
+      - path: Vendor/wireguard-apple/Sources/WireGuardApp/Base.lproj/Localizable.strings
+      - path: Vendor/wireguard-apple/Sources/WireGuardApp/ZipArchive
         excludes:
-          - ZipArchive/3rdparty/minizip/MiniZip64_info.txt
+          - 3rdparty/minizip/MiniZip64_info.txt
     dependencies:
       - target: SplitGuardNetworkExtension
         embed: true
       - package: SplitGuardCore
       - package: WireGuardEngine
-      - package: WireGuardKit
       - sdk: NetworkExtension.framework
       - sdk: libz.tbd
     settings:

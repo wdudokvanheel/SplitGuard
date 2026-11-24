@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: MIT
+
 import Foundation
 import Observation
+import SplitGuardCore
 import WireGuardEngine
-import WireGuardKit
 
 @MainActor
 @Observable
@@ -12,52 +14,53 @@ final class TunnelLiveMetricsMonitor {
     private(set) var hasLiveStats = false
     private(set) var now = Date()
     private(set) var deviceStatus: DeviceStatus?
-    private(set) var monitoredTunnelID: ObjectIdentifier?
+    private(set) var monitoredTunnelID: Tunnel.ID?
 
-    private weak var monitoredTunnel: TunnelContainer?
+    private weak var monitoredTunnel: Tunnel?
+    private weak var store: TunnelStore?
     private var pollingTask: Task<Void, Never>?
 
     var killSwitchBlockState: KillSwitchBlockState? {
         KillSwitchBlockState.evaluate(
-            killSwitchEnabled: monitoredTunnel?.tunnelOptions.killSwitch.isEnabled ?? false,
+            killSwitchEnabled: monitoredTunnel?.options.killSwitch.isEnabled ?? false,
             deviceStatus: deviceStatus
         )
     }
 
-    func killSwitchBlockState(for tunnel: TunnelContainer) -> KillSwitchBlockState? {
-        guard ObjectIdentifier(tunnel) == monitoredTunnelID else { return nil }
+    func killSwitchBlockState(for tunnel: Tunnel) -> KillSwitchBlockState? {
+        guard tunnel.id == monitoredTunnelID else { return nil }
         return killSwitchBlockState
     }
 
     var rxFormatted: String {
-        TunnelDetailViewModel.formatBytes(totalRxBytes)
+        Self.formatBytes(totalRxBytes)
     }
 
     var txFormatted: String {
-        TunnelDetailViewModel.formatBytes(totalTxBytes)
+        Self.formatBytes(totalTxBytes)
     }
 
     var handshakeAgeText: String? {
         Self.formatHandshakeAge(from: latestHandshakeDate, now: now)
     }
 
-    func update(tunnel: TunnelContainer?, status: TunnelStatus, isVisible: Bool) {
+    func update(tunnel: Tunnel?, status: TunnelStatus, store: TunnelStore, isVisible: Bool) {
+        self.store = store
         guard isVisible, let tunnel, status == .active else {
             stop()
-            if tunnel.map(ObjectIdentifier.init) != monitoredTunnelID || status == .inactive {
+            if tunnel?.id != monitoredTunnelID || status == .inactive {
                 resetMetrics()
                 monitoredTunnel = tunnel
-                monitoredTunnelID = tunnel.map(ObjectIdentifier.init)
+                monitoredTunnelID = tunnel?.id
             }
             return
         }
 
-        let targetID = ObjectIdentifier(tunnel)
-        if monitoredTunnelID != targetID {
+        if monitoredTunnelID != tunnel.id {
             stop()
             resetMetrics()
             monitoredTunnel = tunnel
-            monitoredTunnelID = targetID
+            monitoredTunnelID = tunnel.id
         }
         startPollingIfNeeded()
     }
@@ -65,6 +68,25 @@ final class TunnelLiveMetricsMonitor {
     func stop() {
         pollingTask?.cancel()
         pollingTask = nil
+    }
+
+    func apply(deviceStatus: DeviceStatus?) {
+        self.deviceStatus = deviceStatus
+        guard let deviceStatus else {
+            totalRxBytes = 0
+            totalTxBytes = 0
+            latestHandshakeDate = nil
+            hasLiveStats = false
+            return
+        }
+
+        let peers = deviceStatus.peers
+        totalRxBytes = peers.reduce(0) { $0 &+ $1.rxBytes }
+        totalTxBytes = peers.reduce(0) { $0 &+ $1.txBytes }
+        latestHandshakeDate = peers.compactMap(\.lastHandshake).max()
+        hasLiveStats = peers.contains {
+            $0.rxBytes > 0 || $0.txBytes > 0 || $0.lastHandshake != nil
+        }
     }
 
     private func resetMetrics() {
@@ -87,27 +109,15 @@ final class TunnelLiveMetricsMonitor {
     }
 
     private func pollOnce() async {
-        guard let tunnel = monitoredTunnel else { return }
-        let fetchedStatus: DeviceStatus? = await withCheckedContinuation { continuation in
-            tunnel.getRuntimeDeviceStatus { status in
-                continuation.resume(returning: status)
-            }
-        }
+        guard let tunnel = monitoredTunnel, let store else { return }
+        let fetchedStatus = await store.fetchDeviceStatus(for: tunnel)
         guard !Task.isCancelled else { return }
         now = Date()
-        deviceStatus = fetchedStatus
-        guard let runtimeConfig = tunnel.mergedRuntimeConfiguration(with: fetchedStatus) else { return }
-        apply(configuration: runtimeConfig)
+        apply(deviceStatus: fetchedStatus)
     }
 
-    func apply(configuration: TunnelConfiguration) {
-        let peers = configuration.peers
-        totalRxBytes = peers.compactMap(\.rxBytes).reduce(0, +)
-        totalTxBytes = peers.compactMap(\.txBytes).reduce(0, +)
-        latestHandshakeDate = peers.compactMap(\.lastHandshakeTime).max()
-        hasLiveStats = peers.contains {
-            $0.rxBytes != nil || $0.txBytes != nil || $0.lastHandshakeTime != nil
-        }
+    static func formatBytes(_ bytes: UInt64) -> String {
+        Int64(clamping: bytes).formatted(.byteCount(style: .binary))
     }
 
     static func formatHandshakeAge(from date: Date?, now: Date = Date()) -> String? {

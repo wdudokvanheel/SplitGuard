@@ -1,80 +1,98 @@
+// SPDX-License-Identifier: MIT
+
 import Foundation
 import Observation
-import WireGuardKit
+import SplitGuardCore
+import WireGuardEngine
 
-struct AlertItem: Identifiable, Equatable, Error {
+struct AlertItem: Identifiable, Equatable, Error, Sendable {
     let id = UUID()
     let title: String
     let message: String
 }
 
-struct ActivationErrorBanner: Identifiable, Equatable {
+struct ActivationErrorBanner: Identifiable, Equatable, Sendable {
     let id = UUID()
     let tunnelName: String
     let title: String
     let message: String
 }
 
-struct SplitDNSSuggestionPrompt: Identifiable, Equatable, Hashable {
+struct SplitDNSSuggestionPrompt: Identifiable, Equatable, Hashable, Sendable {
     let id = UUID()
-    let tunnelID: ObjectIdentifier
+    let tunnelID: Tunnel.ID
     let tunnelName: String
     let suggestedDomain: String
     let dnsServers: [String]
 }
 
-final class SwiftUIErrorPresenter: ErrorPresenterProtocol {
-    static func showErrorAlert(
-        title: String,
-        message: String,
-        from sourceVC: AnyObject?,
-        onPresented: (() -> Void)?,
-        onDismissal: (() -> Void)?
-    ) {
-        DispatchQueue.main.async {
-            if let store = sourceVC as? TunnelStore {
-                store.presentAlert(title: title, message: message)
-            }
-            onPresented?()
-            onDismissal?()
-        }
-    }
-}
-
 @MainActor
 @Observable
 final class TunnelStore {
-    private(set) var tunnels: [TunnelContainer] = []
+    private(set) var tunnels: [Tunnel] = []
     private(set) var isLoading = true
+    private(set) var hasLoaded = false
     private(set) var revision = 0
     private(set) var lastActivationError: ActivationErrorBanner?
 
-    private(set) var statusByTunnel: [ObjectIdentifier: TunnelStatus] = [:]
-    private(set) var onDemandEnabledByTunnel: [ObjectIdentifier: Bool] = [:]
-    private(set) var hasOnDemandRulesByTunnel: [ObjectIdentifier: Bool] = [:]
-
     var activeAlert: AlertItem?
-    var requestedNavigationTunnelID: ObjectIdentifier?
+    var requestedNavigationTunnelID: Tunnel.ID?
     var pendingSplitDNSSuggestion: SplitDNSSuggestionPrompt?
     private(set) var favoriteTunnelName: String?
     private(set) var appearanceMode: AppAppearanceMode
 
-    var manager: TunnelsManager?
     var pendingOpenedURLs: [URL] = []
     var pendingQuickActionTunnelName: String?
+
+    let backend: any TunnelBackend
+    let recentTunnelsUserDefaults: UserDefaults?
     private let userDefaults: UserDefaults
+    let transitionPollInterval: Duration
     private var alertQueue: [AlertItem] = []
-    private var observations: [ObjectIdentifier: [NSKeyValueObservation]] = [:]
+
+    var attemptingActivationIDs: Set<Tunnel.ID> = []
+    var restartingTunnelIDs: Set<Tunnel.ID> = []
+    var waitingTunnelID: Tunnel.ID?
+    var waiteeTunnelID: Tunnel.ID?
+    var pendingDeactivationActions: [Tunnel.ID: @MainActor () async -> Void] = [:]
+
+    @ObservationIgnored nonisolated(unsafe) var eventTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) var transitionPollTask: Task<Void, Never>?
 
     private static let favoriteTunnelDefaultsKey = "splitguard.favoriteTunnelName"
 
-    init(autoLoad: Bool = true, userDefaults: UserDefaults = .standard) {
+    init(
+        backend: (any TunnelBackend)? = nil,
+        autoLoad: Bool = true,
+        userDefaults: UserDefaults = .standard,
+        recentTunnelsUserDefaults: UserDefaults? = nil,
+        transitionPollInterval: Duration = .seconds(5)
+    ) {
+        #if targetEnvironment(simulator)
+        self.backend = backend ?? InMemoryTunnelBackend()
+        #else
+        self.backend = backend ?? SystemTunnelBackend()
+        #endif
         self.userDefaults = userDefaults
+        self.recentTunnelsUserDefaults = recentTunnelsUserDefaults
+        self.transitionPollInterval = transitionPollInterval
         self.favoriteTunnelName = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey)
         self.appearanceMode = AppAppearanceMode.load(from: userDefaults)
+
+        startEventStream()
+
         if autoLoad {
-            loadTunnels()
+            Task { [weak self] in
+                await self?.loadTunnels()
+            }
+        } else {
+            isLoading = false
         }
+    }
+
+    deinit {
+        eventTask?.cancel()
+        transitionPollTask?.cancel()
     }
 
     func setAppearanceMode(_ mode: AppAppearanceMode) {
@@ -83,32 +101,28 @@ final class TunnelStore {
         mode.save(to: userDefaults)
     }
 
-    var activeTunnel: TunnelContainer? {
-        tunnels.first { status(for: $0) != .inactive }
+    var activeTunnel: Tunnel? {
+        tunnels.first { $0.status != .inactive }
     }
 
-    var favoriteTunnel: TunnelContainer? {
+    var favoriteTunnel: Tunnel? {
         guard let favoriteTunnelName else { return nil }
         return tunnels.first { $0.name == favoriteTunnelName }
     }
 
-    var featuredTunnel: TunnelContainer? {
+    var featuredTunnel: Tunnel? {
         activeTunnel ?? favoriteTunnel ?? tunnels.first
     }
 
-    func isFavorite(_ tunnel: TunnelContainer) -> Bool {
+    func isFavorite(_ tunnel: Tunnel) -> Bool {
         favoriteTunnelName == tunnel.name
     }
 
-    func toggleFavorite(_ tunnel: TunnelContainer) {
-        if isFavorite(tunnel) {
-            setFavoriteTunnelName(nil)
-        } else {
-            setFavoriteTunnelName(tunnel.name)
-        }
+    func toggleFavorite(_ tunnel: Tunnel) {
+        setFavoriteTunnelName(isFavorite(tunnel) ? nil : tunnel.name)
     }
 
-    func setFavorite(_ tunnel: TunnelContainer?) {
+    func setFavorite(_ tunnel: Tunnel?) {
         setFavoriteTunnelName(tunnel?.name)
     }
 
@@ -121,108 +135,40 @@ final class TunnelStore {
         }
     }
 
-    func loadTunnels() {
-        isLoading = true
-        TunnelsManager.create { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.isLoading = false
-                switch result {
-                case .success(let manager):
-                    self.attach(manager: manager)
-                case .failure(let error):
-                    self.present(error: error)
-                }
-            }
-        }
+    func tunnel(for id: Tunnel.ID) -> Tunnel? {
+        tunnels.first { $0.id == id }
     }
 
-    func attach(manager: TunnelsManager) {
-        self.manager = manager
-        manager.tunnelsListDelegate = self
-        manager.activationDelegate = self
-        isLoading = false
-        syncTunnelsFromManager()
-        flushPendingOpenedURLs()
-        flushPendingQuickAction()
+    func tunnel(named name: String) -> Tunnel? {
+        tunnels.first { $0.name == name }
     }
 
-    func tunnel(for id: ObjectIdentifier) -> TunnelContainer? {
-        tunnels.first { ObjectIdentifier($0) == id }
+    func status(for tunnel: Tunnel) -> TunnelStatus {
+        tunnel.status
     }
 
-    func status(for tunnel: TunnelContainer) -> TunnelStatus {
-        statusByTunnel[ObjectIdentifier(tunnel)] ?? tunnel.status
+    func isOnDemandEnabled(for tunnel: Tunnel) -> Bool {
+        tunnel.isOnDemandEnabled
     }
 
-    func isOnDemandEnabled(for tunnel: TunnelContainer) -> Bool {
-        onDemandEnabledByTunnel[ObjectIdentifier(tunnel)] ?? tunnel.isActivateOnDemandEnabled
-    }
-
-    func hasOnDemandRules(for tunnel: TunnelContainer) -> Bool {
-        hasOnDemandRulesByTunnel[ObjectIdentifier(tunnel)] ?? tunnel.hasOnDemandRules
+    func hasOnDemandRules(for tunnel: Tunnel) -> Bool {
+        tunnel.hasOnDemandRules
     }
 
     func displayState(
-        for tunnel: TunnelContainer,
+        for tunnel: Tunnel,
         killSwitchBlockState: KillSwitchBlockState? = nil
     ) -> TunnelDisplayState {
         TunnelDisplayState(
-            status: status(for: tunnel),
-            hasOnDemandRules: hasOnDemandRules(for: tunnel),
-            isOnDemandEnabled: isOnDemandEnabled(for: tunnel),
+            status: tunnel.status,
+            hasOnDemandRules: tunnel.hasOnDemandRules,
+            isOnDemandEnabled: tunnel.isOnDemandEnabled,
             killSwitchBlockState: killSwitchBlockState
         )
     }
 
-    func refreshStatuses() {
-        manager?.refreshStatuses()
-    }
-
-    func setTunnelActive(_ isOn: Bool, for tunnel: TunnelContainer) {
-        guard let manager else { return }
-        clearActivationError(for: tunnel.name)
-
-        if hasOnDemandRules(for: tunnel) {
-            manager.setOnDemandEnabled(isOn, on: tunnel) { [weak self] error in
-                DispatchQueue.main.async {
-                    guard let self else { return }
-                    if let error {
-                        self.present(error: error)
-                        return
-                    }
-                    if !isOn {
-                        manager.startDeactivation(of: tunnel)
-                    }
-                }
-            }
-        } else if isOn {
-            manager.startActivation(of: tunnel)
-            statusByTunnel[ObjectIdentifier(tunnel)] = tunnel.status
-        } else {
-            manager.startDeactivation(of: tunnel)
-            statusByTunnel[ObjectIdentifier(tunnel)] = tunnel.status
-        }
-    }
-
-    func delete(tunnel: TunnelContainer, completion: ((Bool) -> Void)? = nil) {
-        guard let manager else {
-            completion?(false)
-            return
-        }
-        manager.remove(tunnel: tunnel) { [weak self] error in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                if let error {
-                    self.present(error: error)
-                    completion?(false)
-                } else {
-                    self.clearActivationError(for: tunnel.name)
-                    self.syncTunnelsFromManager()
-                    completion?(true)
-                }
-            }
-        }
+    func recordActivationError(tunnelName: String, error: TunnelError) {
+        recordActivationError(tunnelName: tunnelName, title: error.title, message: error.message)
     }
 
     func recordActivationError(tunnelName: String, title: String, message: String) {
@@ -244,9 +190,8 @@ final class TunnelStore {
         lastActivationError = nil
     }
 
-    func present(error: WireGuardAppError) {
-        let alert = error.alertText
-        presentAlert(title: alert.title, message: alert.message)
+    func present(error: TunnelError) {
+        presentAlert(title: error.title, message: error.message)
     }
 
     func presentAlert(title: String, message: String) {
@@ -262,55 +207,167 @@ final class TunnelStore {
         activeAlert = alertQueue.isEmpty ? nil : alertQueue.removeFirst()
     }
 
-    func syncTunnelsFromManager() {
-        guard let manager else { return }
-        let list = manager.mapTunnels { $0 }
-        tunnels = list
-        revision += 1
-
-        let activeIDs = Set(list.map(ObjectIdentifier.init))
-        observations = observations.filter { activeIDs.contains($0.key) }
-        statusByTunnel = statusByTunnel.filter { activeIDs.contains($0.key) }
-        onDemandEnabledByTunnel = onDemandEnabledByTunnel.filter { activeIDs.contains($0.key) }
-        hasOnDemandRulesByTunnel = hasOnDemandRulesByTunnel.filter { activeIDs.contains($0.key) }
-
-        for tunnel in list {
-            let id = ObjectIdentifier(tunnel)
-            statusByTunnel[id] = tunnel.status
-            onDemandEnabledByTunnel[id] = tunnel.isActivateOnDemandEnabled
-            hasOnDemandRulesByTunnel[id] = tunnel.hasOnDemandRules || tunnel.onDemandOption != .off
-            installObserversIfNeeded(for: tunnel, id: id)
-        }
-        updateQuickActions()
+    func setTunnelsList(_ newTunnels: [Tunnel]) {
+        tunnels = newTunnels
     }
 
-    private func installObserversIfNeeded(for tunnel: TunnelContainer, id: ObjectIdentifier) {
-        guard observations[id] == nil else { return }
-        let statusObs = tunnel.observe(\.status, options: [.new]) { [weak self] container, _ in
-            let newStatus = container.status
-            let containerID = ObjectIdentifier(container)
-            if Thread.isMainThread {
-                MainActor.assumeIsolated {
-                    self?.statusByTunnel[containerID] = newStatus
+    func appendTunnel(_ tunnel: Tunnel) {
+        tunnels.append(tunnel)
+    }
+
+    func removeTunnelFromList(id: Tunnel.ID) {
+        tunnels.removeAll { $0.id == id }
+    }
+
+    func sortTunnels() {
+        tunnels.sort { Self.tunnelNameIsLessThan($0.name, $1.name) }
+    }
+
+    func bumpRevision() {
+        revision += 1
+    }
+
+    func setLoadingState(isLoading: Bool, hasLoaded: Bool? = nil) {
+        self.isLoading = isLoading
+        if let hasLoaded {
+            self.hasLoaded = hasLoaded
+        }
+    }
+
+    static func tunnelNameIsLessThan(_ lhs: String, _ rhs: String) -> Bool {
+        lhs.localizedStandardCompare(rhs) == .orderedAscending
+    }
+
+    func wrapError(_ error: Error, fallback: (String) -> TunnelError) -> TunnelError {
+        if let tunnelError = error as? TunnelError {
+            return tunnelError
+        }
+        return fallback(TunnelError.describeSystemError(error))
+    }
+}
+
+extension TunnelStore {
+    func loadTunnels() async {
+        setLoadingState(isLoading: true)
+        do {
+            let records = try await backend.loadAll()
+            applyLoadedRecords(records)
+            setLoadingState(isLoading: false, hasLoaded: true)
+            RecentTunnelsTracker.cleanupTunnels(
+                except: Set(tunnels.map(\.name)),
+                userDefaults: recentTunnelsUserDefaults
+            )
+            updateQuickActions()
+            flushPendingQuickAction()
+        } catch {
+            setLoadingState(isLoading: false)
+            present(error: wrapError(error, fallback: TunnelError.loadFailed))
+        }
+    }
+
+    func reloadFromBackend() async {
+        do {
+            let records = try await backend.loadAll()
+            applyLoadedRecords(records)
+            setLoadingState(isLoading: false, hasLoaded: true)
+            RecentTunnelsTracker.cleanupTunnels(
+                except: Set(tunnels.map(\.name)),
+                userDefaults: recentTunnelsUserDefaults
+            )
+            updateQuickActions()
+        } catch {
+            Log.error("Failed to reload tunnels after configuration change: \(error)")
+        }
+    }
+
+    func refreshStatuses() async {
+        let statuses = await backend.refreshStatuses()
+        for (id, status) in statuses {
+            guard let tunnel = tunnel(for: id) else { continue }
+            if id == waitingTunnelID && status == .inactive {
+                continue
+            }
+            let hasPendingTransition = status == .inactive && (
+                attemptingActivationIDs.contains(id)
+                    || restartingTunnelIDs.contains(id)
+                    || pendingDeactivationActions[id] != nil
+                    || waiteeTunnelID == id
+            )
+            if status != tunnel.status || hasPendingTransition {
+                await handleStatusChange(tunnelID: id, status: status)
+            }
+        }
+        updateTransitionPolling()
+    }
+
+    func fetchDeviceStatus(for tunnel: Tunnel) async -> DeviceStatus? {
+        guard tunnel.status != .inactive else { return nil }
+        return await backend.fetchDeviceStatus(for: tunnel.id)
+    }
+
+    private func startEventStream() {
+        let stream = backend.events()
+        eventTask = Task { @MainActor [weak self] in
+            for await event in stream {
+                guard let self, !Task.isCancelled else { return }
+                switch event {
+                case .statusChanged(let tunnelID, let status):
+                    await self.handleStatusChange(tunnelID: tunnelID, status: status)
+                case .configurationsChanged:
+                    await self.reloadFromBackend()
                 }
+            }
+        }
+    }
+
+    func applyLoadedRecords(_ records: [TunnelRecord]) {
+        let existingByID = Dictionary(uniqueKeysWithValues: tunnels.map { ($0.id, $0) })
+        let sortedRecords = records.sorted { Self.tunnelNameIsLessThan($0.profile.name, $1.profile.name) }
+        let activeIDs = Set(sortedRecords.map(\.id))
+
+        let removedIDs = Set(existingByID.keys).subtracting(activeIDs)
+        for removedID in removedIDs {
+            cleanupState(forRemovedID: removedID)
+        }
+
+        var updatedTunnels: [Tunnel] = []
+        updatedTunnels.reserveCapacity(sortedRecords.count)
+
+        for record in sortedRecords {
+            if let existing = existingByID[record.id] {
+                let preserveSyntheticStatus =
+                    (restartingTunnelIDs.contains(record.id) && record.status != .inactive)
+                    || (waitingTunnelID == record.id && record.status == .inactive)
+                existing.apply(record: record, preservingStatus: preserveSyntheticStatus)
+                updatedTunnels.append(existing)
             } else {
-                Task { @MainActor [weak self] in
-                    self?.statusByTunnel[containerID] = newStatus
-                }
+                updatedTunnels.append(Tunnel(record: record))
             }
         }
-        let onDemandObs = tunnel.observe(\.isActivateOnDemandEnabled, options: [.new]) { [weak self] container, _ in
-            let newValue = container.isActivateOnDemandEnabled
-            Task { @MainActor [weak self] in
-                self?.onDemandEnabledByTunnel[ObjectIdentifier(container)] = newValue
+
+        setTunnelsList(updatedTunnels)
+        bumpRevision()
+        updateTransitionPolling()
+    }
+
+    func cleanupState(forRemovedID id: Tunnel.ID) {
+        attemptingActivationIDs.remove(id)
+        restartingTunnelIDs.remove(id)
+        if waitingTunnelID == id {
+            waitingTunnelID = nil
+            waiteeTunnelID = nil
+        }
+        if waiteeTunnelID == id {
+            waiteeTunnelID = nil
+            if let nextID = waitingTunnelID, let nextTunnel = tunnel(for: nextID) {
+                waitingTunnelID = nil
+                nextTunnel.status = .inactive
             }
         }
-        let rulesObs = tunnel.observe(\.hasOnDemandRules, options: [.new]) { [weak self] container, _ in
-            let newValue = container.hasOnDemandRules
-            Task { @MainActor [weak self] in
-                self?.hasOnDemandRulesByTunnel[ObjectIdentifier(container)] = newValue
+        if let action = pendingDeactivationActions.removeValue(forKey: id) {
+            Task { @MainActor in
+                await action()
             }
         }
-        observations[id] = [statusObs, onDemandObs, rulesObs]
     }
 }
