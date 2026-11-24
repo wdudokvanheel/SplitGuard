@@ -21,4 +21,15 @@ Vendor/wireguard-apple/Sources/WireGuardKitGo/out/
 # Signing artifacts
 *.mobileprovision
 *.p12
+*.p8
 *.cer
+
+# Fastlane and release tooling
+vendor/bundle/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+*.ipa
+*.dSYM.zip
+*.dSYM
