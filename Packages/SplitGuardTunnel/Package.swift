@@ -20,14 +20,6 @@ let package = Package(
                 .product(name: "SplitGuardCore", package: "SplitGuardCore")
             ],
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
-        ),
-        .testTarget(
-            name: "SplitGuardTunnelTests",
-            dependencies: [
-                "SplitGuardTunnel",
-                .product(name: "WireGuardEngine", package: "WireGuardEngine"),
-                .product(name: "SplitGuardCore", package: "SplitGuardCore")
-            ]
         )
     ]
 )

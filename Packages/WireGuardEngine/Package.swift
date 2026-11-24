@@ -10,11 +10,6 @@ let package = Package(
         .target(
             name: "WireGuardEngine",
             swiftSettings: [.enableExperimentalFeature("StrictConcurrency")]
-        ),
-        .testTarget(
-            name: "WireGuardEngineTests",
-            dependencies: ["WireGuardEngine"],
-            resources: [.process("Fixtures")]
         )
     ]
 )

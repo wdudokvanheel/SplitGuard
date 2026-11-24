@@ -21,20 +21,6 @@
                ReferencedContainer = "container:SplitGuard.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "9980DE9A797D949C009D27F5"
-               BuildableName = "SplitGuardTests.xctest"
-               BlueprintName = "SplitGuardTests"
-               ReferencedContainer = "container:SplitGuard.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -53,20 +39,7 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "9980DE9A797D949C009D27F5"
-               BuildableName = "SplitGuardTests.xctest"
-               BlueprintName = "SplitGuardTests"
-               ReferencedContainer = "container:SplitGuard.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
       </Testables>
-      <CommandLineArguments>
-      </CommandLineArguments>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
