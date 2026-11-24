@@ -199,10 +199,12 @@ private extension TunnelDraft {
         guard !trimmed.isEmpty else { return nil }
         guard let value = Self.parseUInt16(trimmed), InterfaceConfiguration.isSupportedMTU(value) else {
             let range = InterfaceConfiguration.supportedMTURange
+            let minimum = String(range.lowerBound)
+            let maximum = String(range.upperBound)
             output.errorFields.insert(.mtu)
             output.messages.append(String(
                 localized: "alert.invalidInterface.mtuInvalid",
-                defaultValue: "Enter an MTU between \(range.lowerBound) and \(range.upperBound), or leave it blank for Automatic"
+                defaultValue: "Enter an MTU between \(minimum) and \(maximum), or leave it blank for Automatic"
             ))
             return nil
         }

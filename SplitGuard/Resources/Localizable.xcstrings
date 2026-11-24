@@ -128,7 +128,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enter an MTU between %lld and %lld, or leave it blank for Automatic"
+            "value" : "Enter an MTU between %@ and %@, or leave it blank for Automatic"
           }
         }
       }
