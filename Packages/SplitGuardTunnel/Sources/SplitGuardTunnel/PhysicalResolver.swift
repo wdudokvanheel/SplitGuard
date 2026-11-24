@@ -32,16 +32,58 @@ public enum DNSSDResolverError: Error, Equatable, Sendable {
 /// Resolves DNS records via `DNSServiceQueryRecord` scoped to the physical network interface
 /// so excluded lookups use the underlying Wi-Fi/cellular resolver instead of the tunnel DNS.
 public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
+    struct QueryResults {
+        let recordType: UInt16
+        let recordClass: UInt16
+        private var records: [DNSResourceRecord] = []
+
+        init(recordType: UInt16, recordClass: UInt16) {
+            self.recordType = recordType
+            self.recordClass = recordClass
+        }
+
+        mutating func receive(
+            flags: DNSServiceFlags,
+            errorCode: DNSServiceErrorType,
+            record: DNSResourceRecord?
+        ) -> Result<DNSLookupResponse, Error>? {
+            switch Int(errorCode) {
+            case kDNSServiceErr_NoSuchName:
+                return .success(DNSLookupResponse(responseCode: .nameError, records: []))
+            case kDNSServiceErr_NoSuchRecord:
+                return .success(DNSLookupResponse(responseCode: .noError, records: records))
+            case kDNSServiceErr_NoError:
+                break
+            default:
+                return .failure(DNSSDResolverError.serviceError(errorCode))
+            }
+
+            let isAdd = (flags & DNSServiceFlags(kDNSServiceFlagsAdd)) != 0
+            if isAdd, let record {
+                records.append(record)
+            }
+            let moreComing = (flags & DNSServiceFlags(kDNSServiceFlagsMoreComing)) != 0
+            guard !moreComing else { return nil }
+            return .success(DNSLookupResponse(responseCode: .noError, records: records))
+        }
+    }
+
     private final class QueryState {
         let token: UInt
         let completion: @Sendable (Result<DNSLookupResponse, Error>) -> Void
         var serviceRef: DNSServiceRef?
         var timer: DispatchSourceTimer?
-        var records: [DNSResourceRecord] = []
+        var results: QueryResults
         var finished = false
 
-        init(token: UInt, completion: @escaping @Sendable (Result<DNSLookupResponse, Error>) -> Void) {
+        init(
+            token: UInt,
+            recordType: UInt16,
+            recordClass: UInt16,
+            completion: @escaping @Sendable (Result<DNSLookupResponse, Error>) -> Void
+        ) {
             self.token = token
+            self.results = QueryResults(recordType: recordType, recordClass: recordClass)
             self.completion = completion
         }
     }
@@ -91,7 +133,7 @@ public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
     ) {
         queue.async {
             let token = Self.registry.allocateToken()
-            let state = QueryState(token: token, completion: completion)
+            let state = QueryState(token: token, recordType: recordType, recordClass: recordClass, completion: completion)
             Self.registry.store(state, for: token)
 
             var serviceRef: DNSServiceRef?
@@ -142,37 +184,22 @@ public final class DNSSDResolver: PhysicalResolver, @unchecked Sendable {
         let token = UInt(bitPattern: context)
         guard let state = registry.lookup(for: token), !state.finished else { return }
 
-        if errorCode == kDNSServiceErr_NoSuchName {
-            finish(token: token, result: .success(DNSLookupResponse(responseCode: .nameError, records: [])))
-            return
-        }
-
-        if errorCode == kDNSServiceErr_NoSuchRecord {
-            finish(token: token, result: .success(DNSLookupResponse(responseCode: .noError, records: state.records)))
-            return
-        }
-
-        guard errorCode == kDNSServiceErr_NoError else {
-            finish(token: token, result: .failure(DNSSDResolverError.serviceError(errorCode)))
-            return
-        }
-
+        var record: DNSResourceRecord?
         let isAdd = (flags & DNSServiceFlags(kDNSServiceFlagsAdd)) != 0
-        if isAdd, rdlen > 0, let rdata, let fullname {
+        if errorCode == kDNSServiceErr_NoError, isAdd, rdlen > 0, let rdata, let fullname {
             let recordName = String(cString: fullname)
             let recordData = Data(bytes: rdata, count: Int(rdlen))
-            state.records.append(DNSResourceRecord(
+            record = DNSResourceRecord(
                 name: recordName,
                 type: rrtype,
                 recordClass: rrclass,
                 ttl: ttl,
                 rdata: recordData
-            ))
+            )
         }
 
-        let moreComing = (flags & DNSServiceFlags(kDNSServiceFlagsMoreComing)) != 0
-        if !moreComing {
-            finish(token: token, result: .success(DNSLookupResponse(responseCode: .noError, records: state.records)))
+        if let result = state.results.receive(flags: flags, errorCode: errorCode, record: record) {
+            finish(token: token, result: result)
         }
     }
 
