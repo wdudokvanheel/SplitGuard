@@ -7,12 +7,12 @@ struct InterfaceEditorCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: tr("tunnelSectionTitleInterface"))
+            BrutalistSectionBar(title: String(localized: "tunnel.section.interface", defaultValue: "Interface"))
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 EditorTextRow(
                     label: InterfaceField.name.localizedTitle,
-                    placeholder: tr("tunnelEditPlaceholderTextRequired"),
+                    placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
                     text: Binding(get: { viewModel.name }, set: { viewModel.updateName($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.name),
                     isMonospaced: false,
@@ -23,7 +23,7 @@ struct InterfaceEditorCard: View {
 
                 EditorTextRow(
                     label: InterfaceField.privateKey.localizedTitle,
-                    placeholder: tr("tunnelEditPlaceholderTextRequired"),
+                    placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
                     text: Binding(get: { viewModel.privateKey }, set: { viewModel.updatePrivateKey($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.privateKey),
                     isMonospaced: true,
@@ -38,7 +38,7 @@ struct InterfaceEditorCard: View {
                     HStack(spacing: SGSpacing.xSmall) {
                         Image(systemName: "key.fill")
                             .font(.subheadline.weight(.bold))
-                        Text(tr("tunnelInterfaceGenerateKeypair").uppercased())
+                        Text(String(localized: "tunnel.interface.generateKeypair", defaultValue: "Generate keypair").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                     }
@@ -59,7 +59,10 @@ struct InterfaceEditorCard: View {
 
                 EditorTextRow(
                     label: InterfaceField.addresses.localizedTitle,
-                    placeholder: tr("tunnelEditPlaceholderTextStronglyRecommended"),
+                    placeholder: String(
+                        localized: "tunnel.editor.placeholder.stronglyRecommended",
+                        defaultValue: "Strongly recommended"
+                    ),
                     text: Binding(get: { viewModel.addresses }, set: { viewModel.updateAddresses($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.addresses),
                     isMonospaced: true,
@@ -68,7 +71,7 @@ struct InterfaceEditorCard: View {
 
                 EditorTextRow(
                     label: InterfaceField.listenPort.localizedTitle,
-                    placeholder: tr("tunnelEditPlaceholderTextAutomatic"),
+                    placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
                     text: Binding(get: { viewModel.listenPort }, set: { viewModel.updateListenPort($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.listenPort),
                     isMonospaced: true,
@@ -77,7 +80,7 @@ struct InterfaceEditorCard: View {
 
                 EditorTextRow(
                     label: InterfaceField.mtu.localizedTitle,
-                    placeholder: tr("tunnelEditPlaceholderTextAutomatic"),
+                    placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
                     text: Binding(get: { viewModel.mtu }, set: { viewModel.updateMTU($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.mtu),
                     isMonospaced: true,
@@ -87,8 +90,11 @@ struct InterfaceEditorCard: View {
                 EditorTextRow(
                     label: InterfaceField.dns.localizedTitle,
                     placeholder: viewModel.shouldStronglyRecommendDNS
-                        ? tr("tunnelEditPlaceholderTextStronglyRecommended")
-                        : tr("tunnelEditPlaceholderTextOptional"),
+                        ? String(
+                            localized: "tunnel.editor.placeholder.stronglyRecommended",
+                            defaultValue: "Strongly recommended"
+                        )
+                        : String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
                     text: Binding(get: { viewModel.dns }, set: { viewModel.updateDNS($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.dns),
                     isMonospaced: true,
@@ -164,7 +170,11 @@ struct PeerEditorCard: View {
     let onRequestDelete: () -> Void
 
     private var sectionTitle: String {
-        peerCount > 1 ? "\(tr("tunnelSectionTitlePeer")) \(peerIndex + 1)" : tr("tunnelSectionTitlePeer")
+        if peerCount > 1 {
+            let number = peerIndex + 1
+            return String(localized: "tunnel.section.peerNumbered", defaultValue: "Peer \(number)")
+        }
+        return String(localized: "tunnel.section.peer", defaultValue: "Peer")
     }
 
     var body: some View {
@@ -172,14 +182,30 @@ struct PeerEditorCard: View {
             BrutalistSectionBar(title: sectionTitle)
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
-                peerFieldRow(.publicKey, placeholder: tr("tunnelEditPlaceholderTextRequired"), keyboard: .asciiCapable)
-                peerFieldRow(.presharedKey, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .asciiCapable)
-                peerFieldRow(.endpoint, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .asciiCapable)
-                peerFieldRow(.allowedIPs, placeholder: tr("tunnelEditPlaceholderTextOptional"), keyboard: .numbersAndPunctuation)
+                peerFieldRow(
+                    .publicKey,
+                    placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
+                    keyboard: .asciiCapable
+                )
+                peerFieldRow(
+                    .presharedKey,
+                    placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                    keyboard: .asciiCapable
+                )
+                peerFieldRow(
+                    .endpoint,
+                    placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                    keyboard: .asciiCapable
+                )
+                peerFieldRow(
+                    .allowedIPs,
+                    placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                    keyboard: .numbersAndPunctuation
+                )
 
                 if viewModel.shouldAllowExcludePrivateIPs(for: peerID) {
                     BrutalistFormToggleRow(
-                        title: tr("tunnelPeerExcludePrivateIPs"),
+                        title: String(localized: "tunnel.peer.excludePrivateIPs", defaultValue: "Exclude private IPs"),
                         isOn: Binding(
                             get: { viewModel.excludePrivateIPsValue(for: peerID) },
                             set: { viewModel.setExcludePrivateIPs($0, for: peerID) }
@@ -188,13 +214,17 @@ struct PeerEditorCard: View {
                     )
                 }
 
-                peerFieldRow(.persistentKeepalive, placeholder: tr("tunnelEditPlaceholderTextOff"), keyboard: .numberPad)
+                peerFieldRow(
+                    .persistentKeepalive,
+                    placeholder: String(localized: "tunnel.editor.placeholder.off", defaultValue: "Off"),
+                    keyboard: .numberPad
+                )
 
                 Button(action: onRequestDelete) {
                     HStack(spacing: SGSpacing.xSmall) {
                         Image(systemName: "trash.fill")
                             .font(.caption.weight(.bold))
-                        Text(tr("deletePeerButtonTitle").uppercased())
+                        Text(String(localized: "tunnel.peer.delete", defaultValue: "Delete peer").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                     }
@@ -243,11 +273,11 @@ struct OnDemandEditorCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: tr("tunnelSectionTitleOnDemand"))
+            BrutalistSectionBar(title: String(localized: "tunnel.section.onDemand", defaultValue: "On-Demand Activation"))
 
             VStack(spacing: SGSpacing.small) {
                 BrutalistFormToggleRow(
-                    title: tr("tunnelOnDemandCellular"),
+                    title: String(localized: "tunnel.onDemand.cellular", defaultValue: "Cellular"),
                     isOn: $viewModel.isCellularOnDemandEnabled,
                     activeTint: SGColor.popYellow
                 )
@@ -255,7 +285,7 @@ struct OnDemandEditorCard: View {
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 BrutalistFormToggleRow(
-                    title: tr("tunnelOnDemandWiFi"),
+                    title: String(localized: "tunnel.onDemand.wifi", defaultValue: "Wi-Fi"),
                     isOn: $viewModel.isWiFiOnDemandEnabled,
                     activeTint: SGColor.popYellow
                 )
@@ -265,7 +295,7 @@ struct OnDemandEditorCard: View {
 
                     Button(action: onEditSSIDs) {
                         HStack(spacing: SGSpacing.small) {
-                            Text(tr("tunnelOnDemandSSIDsKey").uppercased())
+                            Text(String(localized: "tunnel.onDemand.ssids", defaultValue: "SSIDs").uppercased())
                                 .font(SGTypography.metricLabel)
                                 .foregroundStyle(SGColor.textSecondary)
                             Spacer()

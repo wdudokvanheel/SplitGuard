@@ -140,10 +140,10 @@ struct TunnelDetailOnDemandCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: tr("tunnelSectionTitleOnDemand"))
+            BrutalistSectionBar(title: String(localized: "tunnel.section.onDemand", defaultValue: "On-Demand Activation"))
             VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
                 HStack {
-                    Text(tr("tunnelOnDemandKey").uppercased())
+                    Text(String(localized: "tunnel.onDemand.label", defaultValue: "On-demand").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.textSecondary)
                     Spacer()
@@ -155,7 +155,7 @@ struct TunnelDetailOnDemandCard: View {
                 if let ssidSummary {
                     Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
                     HStack {
-                        Text(tr("tunnelOnDemandSSIDsKey").uppercased())
+                        Text(String(localized: "tunnel.onDemand.ssids", defaultValue: "SSIDs").uppercased())
                             .font(SGTypography.metricLabel)
                             .foregroundStyle(SGColor.textSecondary)
                         Spacer()

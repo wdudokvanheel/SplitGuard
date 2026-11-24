@@ -48,7 +48,7 @@ struct FirstRunOnboardingView: View {
 
             BrutalistIconButton(
                 systemImage: "gearshape.fill",
-                accessibilityLabelText: tr("tunnelsListSettingsButtonTitle"),
+                accessibilityLabelText: String(localized: "settings.title", defaultValue: "Settings"),
                 action: onOpenSettings
             )
         }

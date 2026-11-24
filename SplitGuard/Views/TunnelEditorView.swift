@@ -61,21 +61,21 @@ struct TunnelEditorView: View {
                 set: { if !$0 { viewModel.validationAlert = nil } }
             )
         ) {
-            Button(tr("actionOK"), role: .cancel) {
+            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
                 viewModel.validationAlert = nil
             }
         } message: {
             Text(viewModel.validationAlert?.message ?? "")
         }
         .confirmationDialog(
-            tr("deletePeerConfirmationAlertMessage"),
+            String(localized: "tunnel.peer.delete.confirm", defaultValue: "Delete this peer?"),
             isPresented: Binding(
                 get: { peerPendingDeleteID != nil },
                 set: { if !$0 { peerPendingDeleteID = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button(tr("deletePeerConfirmationAlertButtonTitle"), role: .destructive) {
+            Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
                 if let peerID = peerPendingDeleteID {
                     withAnimation(.snappy(duration: 0.2)) {
                         viewModel.deletePeer(id: peerID)
@@ -83,7 +83,7 @@ struct TunnelEditorView: View {
                 }
                 peerPendingDeleteID = nil
             }
-            Button(tr("actionCancel"), role: .cancel) {
+            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {
                 peerPendingDeleteID = nil
             }
         }
@@ -94,7 +94,7 @@ struct TunnelEditorView: View {
             title: viewModel.navigationTitle,
             leading: {
                 BrutalistHeaderButton(
-                    title: tr("actionCancel"),
+                    title: String(localized: "action.cancel", defaultValue: "Cancel"),
                     fill: SGColor.surfaceCard,
                     foreground: SGColor.textPrimary
                 ) {
@@ -104,7 +104,7 @@ struct TunnelEditorView: View {
             },
             trailing: {
                 BrutalistHeaderButton(
-                    title: tr("actionSave"),
+                    title: String(localized: "action.save", defaultValue: "Save"),
                     fill: SGColor.popGreen,
                     foreground: SGColor.inkOnPop,
                     showGrain: true
@@ -133,7 +133,7 @@ struct TunnelEditorView: View {
             HStack(spacing: SGSpacing.xSmall) {
                 Image(systemName: "plus")
                     .font(.subheadline.weight(.black))
-                Text(tr("addPeerButtonTitle").uppercased())
+                Text(String(localized: "tunnel.peer.add", defaultValue: "Add peer").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
             }

@@ -157,7 +157,7 @@ struct TunnelRowView: View {
                 }
                 if let onDelete {
                     Button(role: .destructive, action: onDelete) {
-                        Label(tr("tunnelsListSwipeDeleteButtonTitle"), systemImage: "trash")
+                        Label(String(localized: "action.delete", defaultValue: "Delete"), systemImage: "trash")
                     }
                 }
             }

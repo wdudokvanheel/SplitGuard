@@ -40,7 +40,6 @@
 		6627E8AF02A0CACFBAFF8328 /* TunnelEditorCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2875C00C2AD5E898AE254BCD /* TunnelEditorCards.swift */; };
 		66CC82E4AC17504CBBD6F06E /* QRCameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D12B41820538FC44A6C090F2 /* QRCameraController.swift */; };
 		689D237BB62B1BA8DAC2DBD5 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE31FAF8762586763D26D62 /* NetworkExtension.framework */; };
-		6A49973A88D454BE67B5FF89 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 20AC1C317BDA3A107BABB985 /* Localizable.strings */; };
 		6AFA883392F8AB7531D0DA17 /* FirstRunOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */; };
 		6AFD8E0C29F72D3E2FA41D8C /* TunnelStatus+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8DAFD7AC9C8490A078F5B2 /* TunnelStatus+Presentation.swift */; };
 		6D71F7335E340574A376C010 /* IBMPlexSans-Italic-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = D1891842A1561CFC627896AD /* IBMPlexSans-Italic-Variable.ttf */; };
@@ -51,7 +50,6 @@
 		81F19D40D893EF1ADFAEA630 /* TunnelEditingAndDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF8000D3BD6D700460EE1226 /* TunnelEditingAndDetailTests.swift */; };
 		841E4110561566AF596FD347 /* RecentTunnelsTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07DC3791F8FD925BA7ABAEF /* RecentTunnelsTracker.swift */; };
 		8AC496038585E02D2E08EEE0 /* TunnelImportExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 134641E2A49CCE1245E11B16 /* TunnelImportExportTests.swift */; };
-		8FF5FDD483C0DFAE6DF2DCC3 /* LocalizationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7F55B4FBF3A6457D14825C3 /* LocalizationHelper.swift */; };
 		935F8A4241729FBFF7ABF04F /* IBMPlexSans-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 790EFB2B653559AD88EC49F9 /* IBMPlexSans-Variable.ttf */; };
 		96CD8E49056A7108C847FDD9 /* TunnelEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE8575BE590E8A1AE8CC1BB /* TunnelEditorViewModel.swift */; };
 		979175CA53FB19007D321434 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B97E633EA4D203AA314F3036 /* PrivacyInfo.xcprivacy */; };
@@ -72,6 +70,7 @@
 		BDEAB6B8BF2D235C74872722 /* AllowedIPHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 221A7AB63493E5342C1F3965 /* AllowedIPHelpers.swift */; };
 		C2888389E4E82A4D407F1AE4 /* InteropPing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DD032C3076414B283486C4 /* InteropPing.swift */; };
 		CBDACD3A14D869B3603BE67D /* TunnelListCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1509232A600A9086FB51E73 /* TunnelListCards.swift */; };
+		CCFD5ACEC313EAC2186DFE79 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = EE6F26C23D20B92B87D6177D /* Localizable.xcstrings */; };
 		CF1A2655BA1103088D1A4974 /* InteropBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = B373DEE0FAF012CBA41950AD /* InteropBenchmark.swift */; };
 		D01DAFD4914739F40D301BAC /* TunnelEditorViewModel+SplitDNS.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */; };
 		D0434EC50BF54F27025B6042 /* TunnelStore+Actions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */; };
@@ -143,7 +142,6 @@
 		1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerViewModel.swift; sourceTree = "<group>"; };
 		1BF78ECB1AEF60FF6FBDDAE4 /* AppSettingsAndPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsAndPresentationTests.swift; sourceTree = "<group>"; };
 		1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		20AC1C317BDA3A107BABB985 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = Localizable.strings; sourceTree = "<group>"; };
 		20D72BD677DCE56EA9965BC3 /* PrivateDataConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateDataConfirmation.swift; sourceTree = "<group>"; };
 		220C443FF34F909838758525 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
 		221A7AB63493E5342C1F3965 /* AllowedIPHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AllowedIPHelpers.swift; sourceTree = "<group>"; };
@@ -191,7 +189,6 @@
 		B373DEE0FAF012CBA41950AD /* InteropBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteropBenchmark.swift; sourceTree = "<group>"; };
 		B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunOnboardingView.swift; sourceTree = "<group>"; };
 		B7096639911D9721C0514859 /* TunnelStore+Activation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Activation.swift"; sourceTree = "<group>"; };
-		B7F55B4FBF3A6457D14825C3 /* LocalizationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationHelper.swift; sourceTree = "<group>"; };
 		B97E633EA4D203AA314F3036 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		BAE31FAF8762586763D26D62 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 		BFFA18910E009D21A97F6EE9 /* SplitGuard.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SplitGuard.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -212,6 +209,7 @@
 		E917C7B55084B089925C8FE1 /* KillSwitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KillSwitchTests.swift; sourceTree = "<group>"; };
 		EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSNameTesterView.swift; sourceTree = "<group>"; };
 		EE63AA8796B065AF46154667 /* SplitDNSExclusionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSExclusionListView.swift; sourceTree = "<group>"; };
+		EE6F26C23D20B92B87D6177D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F155393E9987A5017EA37843 /* WireGuardEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WireGuardEngine; path = Packages/WireGuardEngine; sourceTree = SOURCE_ROOT; };
 		F7F4ABFCF6DF80093CC65422 /* DNSLookupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSLookupService.swift; sourceTree = "<group>"; };
 		FD489BC920428BE1B1A34FF3 /* TunnelBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelBackend.swift; sourceTree = "<group>"; };
@@ -257,15 +255,6 @@
 				E7E9EFF7A2B8250E862F8CA0 /* TunnelStore+Import.swift */,
 			);
 			path = Store;
-			sourceTree = "<group>";
-		};
-		103A0CC0E271E204F075611D /* WireGuardApp */ = {
-			isa = PBXGroup;
-			children = (
-				B7F55B4FBF3A6457D14825C3 /* LocalizationHelper.swift */,
-			);
-			name = WireGuardApp;
-			path = "Vendor/wireguard-apple/Sources/WireGuardApp";
 			sourceTree = "<group>";
 		};
 		13077F1A8A436A80D8A877A9 /* SplitGuard */ = {
@@ -351,15 +340,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		5974C56BFA4048CBF9B3F667 /* Base.lproj */ = {
-			isa = PBXGroup;
-			children = (
-				20AC1C317BDA3A107BABB985 /* Localizable.strings */,
-			);
-			name = Base.lproj;
-			path = "Vendor/wireguard-apple/Sources/WireGuardApp/Base.lproj";
-			sourceTree = "<group>";
-		};
 		5F6DEFA7C6DD453C46F8BB8F /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -434,14 +414,12 @@
 		8D659E79DA8507BCD17F0198 = {
 			isa = PBXGroup;
 			children = (
-				5974C56BFA4048CBF9B3F667 /* Base.lproj */,
 				16CA194FEC70B3702D8D8CCD /* Device */,
 				77314806360CF7EE5B576D6C /* Packages */,
 				99E525E38190D4899F2A5EB0 /* Shared */,
 				13077F1A8A436A80D8A877A9 /* SplitGuard */,
 				1F87CB5F87FC7EA2EB837148 /* SplitGuardNetworkExtension */,
 				43D3AEBAFDEBF9D3BAAD57D6 /* SplitGuardTests */,
-				103A0CC0E271E204F075611D /* WireGuardApp */,
 				4D5831A67CC21A096D8F8652 /* Frameworks */,
 				688BCFEA26AA96A6935F0C9A /* Products */,
 			);
@@ -475,6 +453,7 @@
 		B197E408357E498746C9ADEF /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				EE6F26C23D20B92B87D6177D /* Localizable.xcstrings */,
 				D76DC5CC147667B6E7B82650 /* Fonts */,
 			);
 			path = Resources;
@@ -641,7 +620,7 @@
 				81B611F255C0E6D46AA9FA54 /* BebasNeue-Regular.ttf in Resources */,
 				6D71F7335E340574A376C010 /* IBMPlexSans-Italic-Variable.ttf in Resources */,
 				935F8A4241729FBFF7ABF04F /* IBMPlexSans-Variable.ttf in Resources */,
-				6A49973A88D454BE67B5FF89 /* Localizable.strings in Resources */,
+				CCFD5ACEC313EAC2186DFE79 /* Localizable.xcstrings in Resources */,
 				054CF8FA80A57CEA969FAA08 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -692,7 +671,6 @@
 				C2888389E4E82A4D407F1AE4 /* InteropPing.swift in Sources */,
 				FF9554850AB0B3F150CF34E7 /* InteropTelemetry.swift in Sources */,
 				123E8DAC4FF6DAF55A0A0D42 /* KillSwitchEditorCard.swift in Sources */,
-				8FF5FDD483C0DFAE6DF2DCC3 /* LocalizationHelper.swift in Sources */,
 				3C836C1652ECEAF7111CC35B /* LogViewerView.swift in Sources */,
 				2E68C5299449768567CA56A2 /* LogViewerViewModel.swift in Sources */,
 				2D07EFCA4534FA38DC00922F /* OnDemandPolicy.swift in Sources */,

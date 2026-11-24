@@ -27,7 +27,7 @@ struct QRScannerView: View {
         ZStack {
             VStack(spacing: 0) {
                 BrutalistHeaderBar(
-                    title: tr("scanQRCodeViewTitle"),
+                    title: String(localized: "qr.scan.title", defaultValue: "Scan QR code"),
                     enableSwipeBack: scannedProfile == nil,
                     leading: {
                         BrutalistBackButton {
@@ -88,7 +88,7 @@ struct QRScannerView: View {
                 }
             )
         ) {
-            Button(tr("actionOK"), role: .cancel) {
+            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
                 scanError = nil
                 isScanningPaused = false
             }
@@ -119,7 +119,12 @@ struct QRScannerView: View {
                             .padding(-2)
                     )
 
-                Text(tr("scanQRCodeTipText").uppercased())
+                Text(
+                    String(
+                        localized: "qr.scan.tip",
+                        defaultValue: "Tip: Generate with `qrencode -t ansiutf8 < tunnel.conf`"
+                    ).uppercased()
+                )
                     .font(SGTypography.badge)
                     .tracking(0.8)
                     .foregroundStyle(SGColor.inkOnPop)
@@ -165,8 +170,11 @@ struct QRScannerView: View {
 
         guard let profile = try? TunnelProfileCodec.parse(payload, name: "Scanned") else {
             scanError = AlertItem(
-                title: tr("alertScanQRCodeInvalidQRCodeTitle"),
-                message: tr("alertScanQRCodeInvalidQRCodeMessage")
+                title: String(localized: "alert.qr.invalidCode.title", defaultValue: "Invalid QR Code"),
+                message: String(
+                    localized: "alert.qr.invalidCode.message",
+                    defaultValue: "The scanned QR code is not a valid WireGuard configuration"
+                )
             )
             return
         }
@@ -209,7 +217,7 @@ private struct QRNameScannedTunnelSheet: View {
                 title: "Name Tunnel",
                 leading: {
                     BrutalistHeaderButton(
-                        title: tr("actionCancel"),
+                        title: String(localized: "action.cancel", defaultValue: "Cancel"),
                         fill: SGColor.surfaceCard,
                         foreground: SGColor.textPrimary,
                         action: onCancel
@@ -217,7 +225,7 @@ private struct QRNameScannedTunnelSheet: View {
                 },
                 trailing: {
                     BrutalistHeaderButton(
-                        title: tr("actionSave"),
+                        title: String(localized: "action.save", defaultValue: "Save"),
                         fill: SGColor.popGreen,
                         foreground: SGColor.inkOnPop,
                         showGrain: true,
@@ -230,7 +238,12 @@ private struct QRNameScannedTunnelSheet: View {
             ScrollView {
                 VStack(spacing: SGSpacing.medium) {
                     VStack(spacing: 0) {
-                        BrutalistSectionBar(title: tr("alertScanQRCodeNamePromptTitle"))
+                        BrutalistSectionBar(
+                            title: String(
+                                localized: "qr.scan.namePromptTitle",
+                                defaultValue: "Please name the scanned tunnel"
+                            )
+                        )
                         TextField("e.g. Home VPN", text: $tunnelName)
                             .font(SGTypography.body)
                             .autocorrectionDisabled()
@@ -299,10 +312,15 @@ private struct QRScannerCameraFallbackView: View {
     var body: some View {
         VStack(spacing: SGSpacing.medium) {
             BrutalistUnavailableCard(
-                title: isDenied ? "Camera Access Needed" : tr("alertScanQRCodeCameraUnsupportedTitle"),
+                title: isDenied
+                    ? "Camera Access Needed"
+                    : String(localized: "alert.qr.cameraUnsupported.title", defaultValue: "Camera Unsupported"),
                 message: isDenied
                     ? "Allow camera access in Settings to scan configuration QR codes."
-                    : tr("alertScanQRCodeCameraUnsupportedMessage"),
+                    : String(
+                        localized: "alert.qr.cameraUnsupported.message",
+                        defaultValue: "This device is not able to scan QR codes"
+                    ),
                 systemImage: isDenied ? "camera.fill" : "camera.metering.unknown",
                 accent: isDenied ? SGColor.popYellow : SGColor.popBlue
             )

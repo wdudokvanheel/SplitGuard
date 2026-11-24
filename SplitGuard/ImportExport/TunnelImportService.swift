@@ -79,7 +79,7 @@ enum TunnelImportService {
         } catch {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: tr("alertCantOpenInputConfFileTitle"),
+                title: String(localized: "alert.import.cantOpenFile.title", defaultValue: "Unable to import from file"),
                 message: error.localizedDescription
             ))
         }
@@ -87,7 +87,7 @@ enum TunnelImportService {
         guard let text = String(data: data, encoding: .utf8) else {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: tr("alertBadConfigImportTitle"),
+                title: String(localized: "alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
                 message: "The file is not valid UTF-8 text."
             ))
         }
@@ -98,7 +98,7 @@ enum TunnelImportService {
         } catch {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: tr("alertBadConfigImportTitle"),
+                title: String(localized: "alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
                 message: error.localizedDescription
             ))
         }

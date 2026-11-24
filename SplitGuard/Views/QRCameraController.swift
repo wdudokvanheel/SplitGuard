@@ -62,8 +62,11 @@ final class QRCameraController: UIViewController, AVCaptureMetadataOutputObjects
               captureSession.canAddInput(input),
               captureSession.canAddOutput(metadataOutput) else {
             onFailure?(
-                tr("alertScanQRCodeCameraUnsupportedTitle"),
-                tr("alertScanQRCodeCameraUnsupportedMessage")
+                String(localized: "alert.qr.cameraUnsupported.title", defaultValue: "Camera Unsupported"),
+                String(
+                    localized: "alert.qr.cameraUnsupported.message",
+                    defaultValue: "This device is not able to scan QR codes"
+                )
             )
             return
         }
@@ -111,8 +114,11 @@ final class QRCameraController: UIViewController, AVCaptureMetadataOutputObjects
         guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let stringValue = object.stringValue else {
             onFailure?(
-                tr("alertScanQRCodeUnreadableQRCodeTitle"),
-                tr("alertScanQRCodeUnreadableQRCodeMessage")
+                String(localized: "alert.qr.unreadableCode.title", defaultValue: "Invalid Code"),
+                String(
+                    localized: "alert.qr.unreadableCode.message",
+                    defaultValue: "The scanned code could not be read"
+                )
             )
             return
         }

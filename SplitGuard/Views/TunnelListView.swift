@@ -33,10 +33,10 @@ struct TunnelListView: View {
 
     private var multiDeleteDialogMessage: String {
         let count = selectedTunnels.count
-        if count == 1 {
-            return tr(format: "deleteTunnelConfirmationAlertButtonMessage (%d)", count)
-        }
-        return tr(format: "deleteTunnelsConfirmationAlertButtonMessage (%d)", count)
+        return String(
+            localized: "tunnels.delete.confirmCount",
+            defaultValue: "Delete \(count) tunnels?"
+        )
     }
 
     var body: some View {
@@ -87,14 +87,14 @@ struct TunnelListView: View {
             titleVisibility: .visible
         ) {
             if let tunnel = tunnelPendingDelete {
-                Button(tr("deleteTunnelConfirmationAlertButtonTitle"), role: .destructive) {
+                Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
                     Task {
                         _ = await store.delete(tunnel: tunnel)
                     }
                     tunnelPendingDelete = nil
                 }
             }
-            Button(tr("actionCancel"), role: .cancel) {
+            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {
                 tunnelPendingDelete = nil
             }
         } message: {
@@ -107,7 +107,7 @@ struct TunnelListView: View {
             isPresented: $showMultiDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button(tr("deleteTunnelsConfirmationAlertButtonTitle"), role: .destructive) {
+            Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
                 let targets = selectedTunnels
                 Task {
                     let succeeded = await store.deleteMultiple(tunnels: targets)
@@ -116,7 +116,7 @@ struct TunnelListView: View {
                     }
                 }
             }
-            Button(tr("actionCancel"), role: .cancel) {}
+            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {}
         }
     }
 }
@@ -270,7 +270,7 @@ private extension TunnelListView {
 
                 BrutalistIconButton(
                     systemImage: "checklist",
-                    accessibilityLabelText: tr("tunnelsListSelectButtonTitle"),
+                    accessibilityLabelText: String(localized: "tunnels.list.select", defaultValue: "Select"),
                     action: {
                         withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
                             isSelecting = true
@@ -281,7 +281,7 @@ private extension TunnelListView {
 
                 BrutalistIconButton(
                     systemImage: "gearshape.fill",
-                    accessibilityLabelText: tr("tunnelsListSettingsButtonTitle"),
+                    accessibilityLabelText: String(localized: "settings.title", defaultValue: "Settings"),
                     action: onOpenSettings
                 )
 

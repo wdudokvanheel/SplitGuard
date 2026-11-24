@@ -100,8 +100,11 @@ final class LogViewerViewModel {
                 } catch {
                     DispatchQueue.main.async {
                         completion(.failure(AlertItem(
-                            title: tr("alertUnableToRemovePreviousLogTitle"),
-                            message: tr("alertUnableToRemovePreviousLogMessage")
+                            title: String(localized: "alert.log.exportFailed.title", defaultValue: "Log export failed"),
+                            message: String(
+                                localized: "alert.log.removePreviousFailed.message",
+                                defaultValue: "The pre-existing log could not be cleared"
+                            )
                         )))
                     }
                     return
@@ -122,8 +125,11 @@ final class LogViewerViewModel {
                     completion(.success(destinationURL))
                 } else {
                     completion(.failure(AlertItem(
-                        title: tr("alertUnableToWriteLogTitle"),
-                        message: tr("alertUnableToWriteLogMessage")
+                        title: String(localized: "alert.log.exportFailed.title", defaultValue: "Log export failed"),
+                        message: String(
+                            localized: "alert.log.writeFailed.message",
+                            defaultValue: "Unable to write logs to file"
+                        )
                     )))
                 }
             }

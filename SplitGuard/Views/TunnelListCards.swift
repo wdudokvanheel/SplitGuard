@@ -298,7 +298,7 @@ struct MultiSelectBottomBarView: View {
                 Text(
                     selectedCount == 0
                         ? "Tap tunnels to select"
-                        : tr(format: "tunnelsListSelectedTitle (%d)", selectedCount)
+                        : String(localized: "tunnels.list.selectedCount", defaultValue: "\(selectedCount) selected")
                 )
                 .font(SGTypography.subheadline)
                 .foregroundStyle(SGColor.textPrimary)

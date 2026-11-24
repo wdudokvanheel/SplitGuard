@@ -14,7 +14,7 @@ struct LogViewerView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: tr("logViewTitle"),
+                title: String(localized: "log.title", defaultValue: "Log"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -90,7 +90,7 @@ struct LogViewerView: View {
                 set: { if !$0 { exportAlert = nil } }
             )
         ) {
-            Button(tr("actionOK"), role: .cancel) {
+            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
                 exportAlert = nil
             }
         } message: {

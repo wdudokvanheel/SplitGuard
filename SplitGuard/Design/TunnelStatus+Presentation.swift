@@ -31,19 +31,19 @@ extension TunnelStatus {
     var displayTitle: String {
         switch self {
         case .inactive:
-            return tr("tunnelStatusInactive")
+            return String(localized: "tunnel.status.inactive", defaultValue: "Inactive")
         case .activating:
-            return tr("tunnelStatusActivating")
+            return String(localized: "tunnel.status.activating", defaultValue: "Activating")
         case .active:
-            return tr("tunnelStatusActive")
+            return String(localized: "tunnel.status.active", defaultValue: "Active")
         case .deactivating:
-            return tr("tunnelStatusDeactivating")
+            return String(localized: "tunnel.status.deactivating", defaultValue: "Deactivating")
         case .reasserting:
-            return tr("tunnelStatusReasserting")
+            return String(localized: "tunnel.status.reasserting", defaultValue: "Reactivating")
         case .restarting:
-            return tr("tunnelStatusRestarting")
+            return String(localized: "tunnel.status.restarting", defaultValue: "Restarting")
         case .waiting:
-            return tr("tunnelStatusWaiting")
+            return String(localized: "tunnel.status.waiting", defaultValue: "Waiting")
         }
     }
 
@@ -149,10 +149,13 @@ struct TunnelDisplayState: Equatable {
             return killSwitchBlockState.displayText
         }
         if hasOnDemandRules && !isOnDemandEnabled && status == .inactive {
-            return tr("tunnelStatusOnDemandDisabled")
+            return String(localized: "tunnel.status.onDemandDisabled", defaultValue: "On-Demand Disabled")
         }
         if hasOnDemandRules && isOnDemandEnabled {
-            return status.displayTitle + tr("tunnelStatusAddendumOnDemand")
+            return String(
+                localized: "tunnel.status.onDemandFormat",
+                defaultValue: "\(status.displayTitle) (On-Demand)"
+            )
         }
         return status.displayTitle
     }

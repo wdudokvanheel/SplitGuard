@@ -11,7 +11,7 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: tr("settingsViewTitle"),
+                title: String(localized: "settings.title", defaultValue: "Settings"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -47,7 +47,7 @@ struct SettingsView: View {
                 set: { if !$0 { localAlert = nil } }
             )
         ) {
-            Button(tr("actionOK"), role: .cancel) {
+            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
                 localAlert = nil
             }
         } message: {
@@ -108,7 +108,7 @@ struct SettingsView: View {
                     Image(systemName: "archivebox.fill")
                         .font(.headline.weight(.bold))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("settingsExportZipButtonTitle").uppercased())
+                        Text(String(localized: "settings.exportZip", defaultValue: "Export zip archive").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                         Text("Includes private keys • Requires Face ID or passcode")
@@ -148,7 +148,7 @@ struct SettingsView: View {
                         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("settingsViewLogButtonTitle").uppercased())
+                        Text(String(localized: "settings.viewLog", defaultValue: "View log").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                             .foregroundStyle(SGColor.textPrimary)
@@ -200,7 +200,11 @@ struct SettingsView: View {
 
     private func exportConfigurationsAsZip() {
         Task {
-            guard await PrivateDataConfirmation.confirmAccess(reason: tr("iosExportPrivateData")) else {
+            let reason = String(
+                localized: "privacy.exportPrivateKeys",
+                defaultValue: "Authenticate to export tunnel private keys."
+            )
+            guard await PrivateDataConfirmation.confirmAccess(reason: reason) else {
                 return
             }
             isExportingZip = true

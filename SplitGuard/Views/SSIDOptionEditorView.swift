@@ -21,7 +21,7 @@ struct SSIDOptionEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: tr("tunnelOnDemandSSIDViewTitle"),
+                title: String(localized: "tunnel.onDemand.ssids", defaultValue: "SSIDs"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -102,11 +102,11 @@ struct SSIDOptionEditorView: View {
 
     private var selectedSSIDsCard: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: tr("tunnelOnDemandSectionTitleSelectedSSIDs"))
+            BrutalistSectionBar(title: String(localized: "tunnel.onDemand.ssids", defaultValue: "SSIDs"))
 
             VStack(spacing: SGSpacing.xSmall) {
                 if viewModel.selectedSSIDs.isEmpty {
-                    Text(tr("tunnelOnDemandNoSSIDs"))
+                    Text(String(localized: "tunnel.onDemand.noSSIDs", defaultValue: "No SSIDs"))
                         .font(SGTypography.subheadline)
                         .foregroundStyle(SGColor.textSecondary)
                         .frame(maxWidth: .infinity)
@@ -122,7 +122,7 @@ struct SSIDOptionEditorView: View {
                                 .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                             TextField(
-                                tr("tunnelOnDemandSSIDTextFieldPlaceholder"),
+                                String(localized: "tunnel.onDemand.ssidPlaceholder", defaultValue: "SSID"),
                                 text: Binding(
                                     get: {
                                         index < viewModel.selectedSSIDs.count ? viewModel.selectedSSIDs[index] : ""
@@ -169,7 +169,7 @@ struct SSIDOptionEditorView: View {
 
     private var addSSIDsCard: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: tr("tunnelOnDemandSectionTitleAddSSIDs"))
+            BrutalistSectionBar(title: String(localized: "tunnel.onDemand.addSSIDs", defaultValue: "Add SSIDs"))
 
             VStack(spacing: SGSpacing.small) {
                 if let connectedSSID, canAddConnectedSSID {
@@ -179,7 +179,12 @@ struct SSIDOptionEditorView: View {
                         HStack(spacing: SGSpacing.xSmall) {
                             Image(systemName: "wifi")
                                 .font(.subheadline.weight(.bold))
-                            Text(tr(format: "tunnelOnDemandAddMessageAddConnectedSSID (%@)", connectedSSID).uppercased())
+                            Text(
+                                String(
+                                    localized: "tunnel.onDemand.addConnectedSSID",
+                                    defaultValue: "Add connected: \(connectedSSID)"
+                                ).uppercased()
+                            )
                                 .font(SGTypography.displayCompact)
                         }
                         .padding(.vertical, 10)
@@ -197,7 +202,10 @@ struct SSIDOptionEditorView: View {
                 }
 
                 HStack(spacing: SGSpacing.small) {
-                    TextField(tr("tunnelOnDemandSSIDTextFieldPlaceholder"), text: $newSSIDText)
+                    TextField(
+                        String(localized: "tunnel.onDemand.ssidPlaceholder", defaultValue: "SSID"),
+                        text: $newSSIDText
+                    )
                         .font(SGTypography.monoValue)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)

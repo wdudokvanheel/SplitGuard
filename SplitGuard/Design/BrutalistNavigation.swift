@@ -186,7 +186,7 @@ struct BrutalistAddTunnelSheet: View {
             ScrollView {
                 VStack(spacing: SGSpacing.small) {
                     AddTunnelActionRow(
-                        title: tr("addTunnelMenuQRCode").uppercased(),
+                        title: String(localized: "addTunnel.menu.qrCode", defaultValue: "Create from QR code").uppercased(),
                         subtitle: "Scan a WireGuard QR code with camera",
                         systemImage: "qrcode.viewfinder",
                         fill: SGColor.popPink,
@@ -196,7 +196,7 @@ struct BrutalistAddTunnelSheet: View {
                     )
 
                     AddTunnelActionRow(
-                        title: tr("addTunnelMenuImportFile").uppercased(),
+                        title: String(localized: "addTunnel.menu.importFile", defaultValue: "Create from file").uppercased(),
                         subtitle: "Pick one or more .conf files",
                         systemImage: "doc.badge.plus",
                         fill: SGColor.pureWhite,
@@ -207,7 +207,7 @@ struct BrutalistAddTunnelSheet: View {
                     )
 
                     AddTunnelActionRow(
-                        title: tr("addTunnelMenuFromScratch").uppercased(),
+                        title: String(localized: "addTunnel.menu.fromScratch", defaultValue: "Create from scratch").uppercased(),
                         subtitle: "Generate keys and configure manually",
                         systemImage: "square.and.pencil",
                         fill: SGColor.popYellow,

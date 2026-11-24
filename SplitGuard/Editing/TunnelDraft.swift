@@ -16,19 +16,19 @@ enum InterfaceField: Hashable, CaseIterable, Sendable {
     var localizedTitle: String {
         switch self {
         case .name:
-            return tr("tunnelInterfaceName")
+            return String(localized: "tunnel.interface.name", defaultValue: "Name")
         case .privateKey:
-            return tr("tunnelInterfacePrivateKey")
+            return String(localized: "tunnel.interface.privateKey", defaultValue: "Private key")
         case .publicKey:
-            return tr("tunnelInterfacePublicKey")
+            return String(localized: "tunnel.interface.publicKey", defaultValue: "Public key")
         case .addresses:
-            return tr("tunnelInterfaceAddresses")
+            return String(localized: "tunnel.interface.addresses", defaultValue: "Addresses")
         case .listenPort:
-            return tr("tunnelInterfaceListenPort")
+            return String(localized: "tunnel.interface.listenPort", defaultValue: "Listen port")
         case .mtu:
-            return tr("tunnelInterfaceMTU")
+            return String(localized: "tunnel.interface.mtu", defaultValue: "MTU")
         case .dns:
-            return tr("tunnelInterfaceDNS")
+            return String(localized: "tunnel.interface.dns", defaultValue: "DNS servers")
         }
     }
 }
@@ -43,15 +43,15 @@ enum PeerField: Hashable, CaseIterable, Sendable {
     var localizedTitle: String {
         switch self {
         case .publicKey:
-            return tr("tunnelPeerPublicKey")
+            return String(localized: "tunnel.peer.publicKey", defaultValue: "Public key")
         case .presharedKey:
-            return tr("tunnelPeerPreSharedKey")
+            return String(localized: "tunnel.peer.presharedKey", defaultValue: "Preshared key")
         case .endpoint:
-            return tr("tunnelPeerEndpoint")
+            return String(localized: "tunnel.peer.endpoint", defaultValue: "Endpoint")
         case .allowedIPs:
-            return tr("tunnelPeerAllowedIPs")
+            return String(localized: "tunnel.peer.allowedIPs", defaultValue: "Allowed IPs")
         case .persistentKeepalive:
-            return tr("tunnelPeerPersistentKeepalive")
+            return String(localized: "tunnel.peer.persistentKeepalive", defaultValue: "Persistent keepalive")
         }
     }
 }

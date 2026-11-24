@@ -48,7 +48,11 @@ struct TunnelDetailView: View {
                         foreground: SGColor.inkOnPop
                     ) {
                         Task {
-                            if await PrivateDataConfirmation.confirmAccess(reason: tr("iosViewPrivateData")) {
+                            let reason = String(
+                                localized: "privacy.viewPrivateKeys",
+                                defaultValue: "Authenticate to view tunnel private keys."
+                            )
+                            if await PrivateDataConfirmation.confirmAccess(reason: reason) {
                                 onEdit()
                             }
                         }
@@ -80,7 +84,7 @@ struct TunnelDetailView: View {
 
                     if !viewModel.interfaceRows.isEmpty {
                         brutalistFieldSection(
-                            title: tr("tunnelSectionTitleInterface"),
+                            title: String(localized: "tunnel.section.interface", defaultValue: "Interface"),
                             rows: viewModel.interfaceRows
                         )
                     }
@@ -133,11 +137,11 @@ struct TunnelDetailView: View {
             viewModel.refreshStaticConfiguration()
         }
         .confirmationDialog(
-            tr("deleteTunnelConfirmationAlertMessage"),
+            String(localized: "tunnel.delete.confirm", defaultValue: "Delete this tunnel?"),
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button(tr("deleteTunnelConfirmationAlertButtonTitle"), role: .destructive) {
+            Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
                 Task {
                     let succeeded = await store.delete(tunnel: tunnel)
                     if succeeded {
@@ -145,7 +149,7 @@ struct TunnelDetailView: View {
                     }
                 }
             }
-            Button(tr("actionCancel"), role: .cancel) {}
+            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {}
         }
     }
 }
@@ -153,9 +157,10 @@ struct TunnelDetailView: View {
 private extension TunnelDetailView {
     func peerSectionTitle(for peer: PeerDisplaySnapshot) -> String {
         if viewModel.peers.count > 1 {
-            return "\(tr("tunnelSectionTitlePeer")) \(peer.index + 1)"
+            let number = peer.index + 1
+            return String(localized: "tunnel.section.peerNumbered", defaultValue: "Peer \(number)")
         }
-        return tr("tunnelSectionTitlePeer")
+        return String(localized: "tunnel.section.peer", defaultValue: "Peer")
     }
 
     func brutalistFieldSection(title: String, rows: [DetailFieldRow]) -> some View {
@@ -207,7 +212,7 @@ private extension TunnelDetailView {
             HStack(spacing: SGSpacing.xSmall) {
                 Image(systemName: "trash.fill")
                     .font(.subheadline.weight(.bold))
-                Text(tr("deleteTunnelButtonTitle").uppercased())
+                Text(String(localized: "tunnel.delete", defaultValue: "Delete tunnel").uppercased())
                     .font(SGTypography.displayButton)
                     .tracking(1.0)
             }
@@ -228,10 +233,18 @@ private extension TunnelDetailView {
 
     func peerTransferStrip(_ peer: PeerDisplaySnapshot) -> some View {
         VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-            metricLine(label: tr("tunnelPeerRxBytes"), value: peer.rxBytesText ?? "0 B", accent: SGColor.popPurple)
-            metricLine(label: tr("tunnelPeerTxBytes"), value: peer.txBytesText ?? "0 B", accent: SGColor.popGreen)
             metricLine(
-                label: tr("tunnelPeerLastHandshakeTime"),
+                label: String(localized: "tunnel.peer.rxBytes", defaultValue: "Data received"),
+                value: peer.rxBytesText ?? "0 B",
+                accent: SGColor.popPurple
+            )
+            metricLine(
+                label: String(localized: "tunnel.peer.txBytes", defaultValue: "Data sent"),
+                value: peer.txBytesText ?? "0 B",
+                accent: SGColor.popGreen
+            )
+            metricLine(
+                label: String(localized: "tunnel.peer.lastHandshake", defaultValue: "Latest handshake"),
                 value: peer.lastHandshakeText ?? "No handshake yet",
                 accent: SGColor.popYellow
             )

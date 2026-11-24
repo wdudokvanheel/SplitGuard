@@ -83,7 +83,7 @@ struct RootView: View {
                 }
             case .failure(let error):
                 store.presentAlert(
-                    title: tr("alertCantOpenInputConfFileTitle"),
+                    title: String(localized: "alert.import.cantOpenFile.title", defaultValue: "Unable to import from file"),
                     message: error.localizedDescription
                 )
             }
@@ -99,7 +99,7 @@ struct RootView: View {
                 }
             )
         ) {
-            Button(tr("actionOK"), role: .cancel) {
+            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
                 store.dismissActiveAlert()
             }
         } message: {

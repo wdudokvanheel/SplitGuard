@@ -172,10 +172,13 @@ extension TunnelDetailViewModel {
     static func formatHandshake(_ date: Date, relativeTo now: Date = Date()) -> String {
         let elapsed = now.timeIntervalSince(date)
         if elapsed < 0 {
-            return tr("tunnelHandshakeTimestampSystemClockBackward")
+            return String(
+                localized: "tunnel.handshake.clockBackward",
+                defaultValue: "(System clock wound backwards)"
+            )
         }
         if elapsed < 1 {
-            return tr("tunnelHandshakeTimestampNow")
+            return String(localized: "tunnel.handshake.now", defaultValue: "Now")
         }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
@@ -277,7 +280,7 @@ private extension TunnelDetailViewModel {
             rows.append(makePeerRow(
                 .presharedKey,
                 index: index,
-                value: tr("tunnelPeerPresharedKeyEnabled"),
+                value: String(localized: "tunnel.peer.presharedKey.enabled", defaultValue: "enabled"),
                 monospaced: false,
                 copyable: false
             ))
@@ -298,7 +301,10 @@ private extension TunnelDetailViewModel {
             rows.append(makePeerRow(
                 .persistentKeepalive,
                 index: index,
-                value: tr(format: "tunnelPeerPersistentKeepaliveValue (%@)", String(keepalive)),
+                value: String(
+                    localized: "tunnel.peer.persistentKeepalive.value",
+                    defaultValue: "every \(Int(keepalive)) seconds"
+                ),
                 monospaced: false,
                 copyable: true
             ))

@@ -20,7 +20,7 @@ struct PasteConfigSheet: View {
                 title: "Paste Config",
                 leading: {
                     BrutalistHeaderButton(
-                        title: tr("actionCancel"),
+                        title: String(localized: "action.cancel", defaultValue: "Cancel"),
                         fill: SGColor.surfaceCard,
                         foreground: SGColor.textPrimary
                     ) {

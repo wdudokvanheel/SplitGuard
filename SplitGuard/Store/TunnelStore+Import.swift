@@ -103,7 +103,10 @@ extension TunnelStore {
             let profile = try TunnelProfileCodec.parse(text, name: trimmedName)
             return await addProfile(profile, named: trimmedName)
         } catch {
-            presentAlert(title: tr("alertBadConfigImportTitle"), message: error.localizedDescription)
+            presentAlert(
+                title: String(localized: "alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
+                message: error.localizedDescription
+            )
             return false
         }
     }
