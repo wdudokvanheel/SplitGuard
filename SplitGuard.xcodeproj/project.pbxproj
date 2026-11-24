@@ -78,6 +78,7 @@
 		B597480F7F68E9BABE5C3047 /* Phase2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 688A6C2D928EEBD9106831DA /* Phase2Tests.swift */; };
 		B696AF616F5136BB072B21DC /* NETunnelProviderProtocol+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE97DF84571F614B64B4BFD6 /* NETunnelProviderProtocol+Extension.swift */; };
 		BF9D12D4FB3F50481DC11AC8 /* ringlogger.c in Sources */ = {isa = PBXBuildFile; fileRef = B966673221473E73BA5E79D4 /* ringlogger.c */; };
+		C2888389E4E82A4D407F1AE4 /* InteropPing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DD032C3076414B283486C4 /* InteropPing.swift */; };
 		C3892C849C2A5C055AF61D0C /* SplitGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A46F4A365280CFED506CDC /* SplitGuardTests.swift */; };
 		CA1F19FCBC6E303F5B4FF3A1 /* WireGuardAppError.swift in Sources */ = {isa = PBXBuildFile; fileRef = D407625E036C514D9FCA4085 /* WireGuardAppError.swift */; };
 		CBDACD3A14D869B3603BE67D /* TunnelListCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1509232A600A9086FB51E73 /* TunnelListCards.swift */; };
@@ -166,6 +167,7 @@
 		1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerViewModel.swift; sourceTree = "<group>"; };
 		1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2365E931E05F09FB15944E43 /* TunnelStore+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Actions.swift"; sourceTree = "<group>"; };
+		23DD032C3076414B283486C4 /* InteropPing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteropPing.swift; sourceTree = "<group>"; };
 		27D9E727A436204948BE6DD3 /* FileManager+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FileManager+Extension.swift"; sourceTree = "<group>"; };
 		2875C00C2AD5E898AE254BCD /* TunnelEditorCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelEditorCards.swift; sourceTree = "<group>"; };
 		2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelEditorViewModel+SplitDNS.swift"; sourceTree = "<group>"; };
@@ -349,6 +351,7 @@
 			isa = PBXGroup;
 			children = (
 				693C67D6D915CA4D9EE61188 /* InteropCommand.swift */,
+				23DD032C3076414B283486C4 /* InteropPing.swift */,
 			);
 			name = Device;
 			path = "Tools/wg-interop/Device";
@@ -781,6 +784,7 @@
 				6AFA883392F8AB7531D0DA17 /* FirstRunOnboardingView.swift in Sources */,
 				D9814EDACFD043A9827A6877 /* FirstRunSplitDNSSheet.swift in Sources */,
 				F7E2DE5B6B428DD5EFE61529 /* InteropCommand.swift in Sources */,
+				C2888389E4E82A4D407F1AE4 /* InteropPing.swift in Sources */,
 				FF9554850AB0B3F150CF34E7 /* InteropTelemetry.swift in Sources */,
 				3474778B56A45132287F8AE1 /* Keychain.swift in Sources */,
 				8FF5FDD483C0DFAE6DF2DCC3 /* LocalizationHelper.swift in Sources */,
