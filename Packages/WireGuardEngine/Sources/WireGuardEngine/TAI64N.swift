@@ -37,7 +37,8 @@ struct TAI64N: Comparable {
 
     static func now() -> Self {
         var time = timespec()
-        precondition(clock_gettime(CLOCK_REALTIME, &time) == 0)
+        let status = clock_gettime(CLOCK_REALTIME, &time)
+        precondition(status == 0)
         return Self(unixSeconds: Int64(time.tv_sec), nanoseconds: Int64(time.tv_nsec))
     }
 
