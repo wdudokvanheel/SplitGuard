@@ -8,16 +8,8 @@ struct SplitGuardApp: App {
     @UIApplicationDelegateAdaptor(SplitGuardAppDelegate.self) private var appDelegate
     @State private var store: TunnelStore
 
-    #if DEBUG && !targetEnvironment(simulator)
-    private let interopRun = InteropCommand.Invocation(ProcessInfo.processInfo.arguments)
-    #endif
-
     init() {
-        #if DEBUG && !targetEnvironment(simulator)
-        _store = State(initialValue: TunnelStore(autoLoad: interopRun == nil))
-        #else
         _store = State(initialValue: TunnelStore())
-        #endif
         Log.configure(source: "APP", fileURL: AppGroup.appLogURL())
         Log.info("SplitGuard launched")
         Self.configureBrutalistNavigationAppearance()
@@ -49,20 +41,7 @@ struct SplitGuardApp: App {
 
     var body: some Scene {
         WindowGroup {
-            #if DEBUG && !targetEnvironment(simulator)
-            if let interopRun {
-                Text("WireGuard interoperability test")
-                    .task {
-                        UIApplication.shared.isIdleTimerDisabled = true
-                        defer { UIApplication.shared.isIdleTimerDisabled = false }
-                        await InteropCommand.serve(interopRun)
-                    }
-            } else {
-                rootView
-            }
-            #else
             rootView
-            #endif
         }
     }
 

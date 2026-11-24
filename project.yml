@@ -32,7 +32,6 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: SplitGuardNetworkExtension/PacketTunnelProvider.swift
-      - path: Tools/wg-interop/Shared
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
@@ -63,8 +62,6 @@ targets:
         excludes:
           - Info.plist
           - SplitGuard.entitlements
-      - path: Tools/wg-interop/Device
-      - path: Tools/wg-interop/Shared
     dependencies:
       - target: SplitGuardNetworkExtension
         embed: true
