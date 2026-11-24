@@ -4,7 +4,6 @@ included:
   - SplitGuardTests
 
 excluded:
-  - Vendor
   - docs
 
 disabled_rules:

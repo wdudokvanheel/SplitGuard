@@ -29,7 +29,7 @@
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).PacketTunnelProvider</string>
 	</dict>
-	<key>com.wireguard.ios.app_group_id</key>
+	<key>SplitGuardAppGroupID</key>
 	<string>group.com.bitechular.splitguard</string>
 </dict>
 </plist>

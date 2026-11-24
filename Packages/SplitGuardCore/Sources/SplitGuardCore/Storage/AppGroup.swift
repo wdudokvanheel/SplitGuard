@@ -4,19 +4,12 @@ import Foundation
 
 public enum AppGroup {
     public static let infoDictionaryKey = "SplitGuardAppGroupID"
-    public static let legacyInfoDictionaryKey = "com.wireguard.ios.app_group_id"
     public static let appLogFilename = "app.log"
     public static let tunnelLogFilename = "tunnel.log"
 
     public static func identifier(in bundle: Bundle = .main) -> String? {
         if let value = bundle.object(forInfoDictionaryKey: infoDictionaryKey) as? String {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                return trimmed
-            }
-        }
-        if let legacy = bundle.object(forInfoDictionaryKey: legacyInfoDictionaryKey) as? String {
-            let trimmed = legacy.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {
                 return trimmed
             }

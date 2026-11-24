@@ -157,7 +157,6 @@
 		411AB6DBB507C03E2A128A98 /* TunnelDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelDetailViewModel.swift; sourceTree = "<group>"; };
 		41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		422D8D8F7D5AFB0F2B33D537 /* Tunnel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tunnel.swift; sourceTree = "<group>"; };
-		4415DEBA4AC1294F90EC7E33 /* wireguard-apple */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wireguard-apple"; path = "Vendor/wireguard-apple"; sourceTree = SOURCE_ROOT; };
 		4488EBB7BD6BC5C04014B740 /* FirstRunSplitDNSSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunSplitDNSSheet.swift; sourceTree = "<group>"; };
 		453A1B77456556853BE24744 /* InteropTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteropTelemetry.swift; sourceTree = "<group>"; };
 		462AFBB205AEBAA7B8DA45DE /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
@@ -396,7 +395,6 @@
 			children = (
 				02E86110C584CFA275227351 /* SplitGuardCore */,
 				9CB75CE4153F5A27ECABD530 /* SplitGuardTunnel */,
-				4415DEBA4AC1294F90EC7E33 /* wireguard-apple */,
 				F155393E9987A5017EA37843 /* WireGuardEngine */,
 			);
 			path = Packages;
@@ -581,7 +579,6 @@
 				CA7AF77EDFB2356C44BE7E3C /* XCLocalSwiftPackageReference "Packages/SplitGuardCore" */,
 				180B531DFF2CE41723CF00EF /* XCLocalSwiftPackageReference "Packages/SplitGuardTunnel" */,
 				56F973E38AFAF9D278758CF2 /* XCLocalSwiftPackageReference "Packages/WireGuardEngine" */,
-				17D9BE1D6E5E2D5E6062530F /* XCLocalSwiftPackageReference "Vendor/wireguard-apple" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 688BCFEA26AA96A6935F0C9A /* Products */;
@@ -1049,10 +1046,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		17D9BE1D6E5E2D5E6062530F /* XCLocalSwiftPackageReference "Vendor/wireguard-apple" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "Vendor/wireguard-apple";
-		};
 		180B531DFF2CE41723CF00EF /* XCLocalSwiftPackageReference "Packages/SplitGuardTunnel" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SplitGuardTunnel;

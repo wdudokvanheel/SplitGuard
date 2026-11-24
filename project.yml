@@ -18,8 +18,6 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: NO
 
 packages:
-  WireGuardKit:
-    path: Vendor/wireguard-apple
   WireGuardEngine:
     path: Packages/WireGuardEngine
   SplitGuardCore:

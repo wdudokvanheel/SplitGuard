@@ -97,7 +97,7 @@
 			</dict>
 		</dict>
 	</array>
-	<key>com.wireguard.ios.app_group_id</key>
+	<key>SplitGuardAppGroupID</key>
 	<string>group.$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 </dict>
 </plist>

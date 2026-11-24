@@ -1,6 +1,3 @@
-# Reference upstream clone (vendored subset lives in Vendor/wireguard-apple/)
-docs/wireguard-apple/
-
 # Local Swift WireGuard migration notes and evidence
 /docs/swift-wireguard/
 
@@ -14,10 +11,6 @@ build/
 .build/
 .swiftpm/
 
-# Go bridge temporary build outputs
-Vendor/wireguard-apple/Sources/WireGuardKitGo/.tmp/
-Vendor/wireguard-apple/Sources/WireGuardKitGo/out/
-
 # Signing artifacts
 *.mobileprovision
 *.p12
@@ -25,7 +18,7 @@ Vendor/wireguard-apple/Sources/WireGuardKitGo/out/
 *.cer
 
 # Fastlane and release tooling
-vendor/bundle/
+.bundle/gems/
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/

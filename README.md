@@ -21,7 +21,7 @@ Split DNS rules are saved alongside the standard WireGuard configuration. When y
 
 ## What else it does
 
-- Import tunnels by scanning a QR code, opening a `.conf` file or `.zip` archive, pasting a configuration from the clipboard, or creating one from scratch with a generated keypair.
+- Import tunnels by scanning a QR code, opening a `.conf` file, pasting a configuration from the clipboard, or creating one from scratch with a generated keypair.
 - Keep multiple tunnels configured with one active at a time. You can pin a primary tunnel to the top of the screen to see its connection state, data sent and received, and latest handshake time.
 - Edit WireGuard tunnel and peer settings.
 - Connect automatically with on-demand rules for Wi-Fi and cellular, with optional rules to include or exclude specific Wi-Fi networks.
@@ -36,7 +36,8 @@ SplitGuard has no accounts, no analytics, no tracking, and no backend server. It
 
 ## WireGuard Engine
 
-SplitGuard's packet tunnel extension is powered by a pure-Swift WireGuard engine built from two local Swift packages with zero Go runtime dependency:
+SplitGuard is built entirely in pure Swift from three local Swift packages with zero vendored code and zero Go runtime or C dependencies:
 
 - [Packages/WireGuardEngine](Packages/WireGuardEngine) implements the WireGuard `Noise_IKpsk2` handshake, cookie MACs, AEAD transport, timers, allowed-IP routing, typed configuration, and typed status/event snapshots.
-- [Packages/SplitGuardTunnel](Packages/SplitGuardTunnel) bridges `NEPacketTunnelProvider` to `WireGuardEngine` with BSD dual-stack UDP sockets, backpressure-aware `NEPacketTunnelFlow` I/O, and in-place pause/resume across iOS network transitions.
+- [Packages/SplitGuardCore](Packages/SplitGuardCore) provides the unified tunnel profile model, `wg-quick` and `# SplitGuard:` codec, split DNS and kill-switch options, Keychain profile storage, app-to-extension IPC messages, and plain-text logging.
+- [Packages/SplitGuardTunnel](Packages/SplitGuardTunnel) bridges `NEPacketTunnelProvider` to `WireGuardEngine` with `NEPacketTunnelNetworkSettings` generation, endpoint and DNS64 resolution, BSD dual-stack UDP sockets, backpressure-aware `NEPacketTunnelFlow` I/O, and in-place pause/resume across iOS network transitions.
