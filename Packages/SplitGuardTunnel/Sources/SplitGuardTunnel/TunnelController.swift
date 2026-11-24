@@ -65,7 +65,10 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
                     callback(TunnelNetworkPath(
                         isSatisfiable: path.status.isSatisfiable,
                         summary: "\(path.status) route and interface order \(path.availableInterfaces)",
-                        physicalInterfaceIndex: Self.physicalInterfaceIndex(from: path.availableInterfaces)
+                        physicalInterfaceIndex: Self.physicalInterfaceIndex(
+                            from: path.availableInterfaces.map { ($0.type, $0.index, $0.name) },
+                            usesInterfaceType: path.usesInterfaceType
+                        )
                     ))
                 }
             } else {
@@ -82,7 +85,10 @@ final class SystemPathMonitor: PathMonitoring, @unchecked Sendable {
         monitor.cancel()
     }
 
-    static func physicalInterfaceIndex(from interfaces: [NWInterface]) -> UInt32? {
+    static func physicalInterfaceIndex(
+        from interfaces: [(type: NWInterface.InterfaceType, index: Int, name: String)],
+        usesInterfaceType _: (NWInterface.InterfaceType) -> Bool
+    ) -> UInt32? {
         if let primary = interfaces.first(where: {
             ($0.type == .wifi || $0.type == .cellular || $0.type == .wiredEthernet) && $0.index > 0
         }) {
