@@ -61,6 +61,9 @@ struct SettingsView: View {
             AppearanceSettingsSection(store: store)
             actionsSection
             aboutButton
+            #if DEBUG
+            debugVerificationSection
+            #endif
         }
         .padding(.horizontal, SGSpacing.medium)
         .padding(.top, SGSpacing.medium)
@@ -197,6 +200,42 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
     }
+
+    #if DEBUG
+    private var debugVerificationSection: some View {
+        VStack(spacing: SGSpacing.small) {
+            BrutalistSectionBar(title: "Debug Verification", trailingText: "DEBUG ONLY")
+
+            NavigationLink(value: AppRoute.debugVerificationWizard) {
+                HStack(spacing: SGSpacing.small) {
+                    Image(systemName: "checklist.checked")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(SGColor.pureWhite)
+                        .frame(width: 34, height: 34)
+                        .background(SGColor.popPink)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("DEBUG VERIFICATION WIZARD")
+                            .font(SGTypography.displayCompact)
+                            .tracking(0.8)
+                            .foregroundStyle(SGColor.textPrimary)
+                        Text("Run on-device diagnostics, iOS 26 quirk probes & manual checks")
+                            .font(SGTypography.caption)
+                            .foregroundStyle(SGColor.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(SGColor.textPrimary)
+                }
+                .padding(SGSpacing.medium)
+                .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    #endif
 
     private func exportConfigurationsAsZip() {
         Task {

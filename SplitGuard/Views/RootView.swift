@@ -12,6 +12,9 @@ enum AppRoute: Hashable {
     case about
     case logViewer
     case splitDNSSuggestion(SplitDNSSuggestionPrompt)
+    #if DEBUG
+    case debugVerificationWizard
+    #endif
 }
 
 struct RootView: View {
@@ -29,6 +32,10 @@ struct RootView: View {
             case .addTunnel, .qrScanner, .createTunnel, .editTunnel,
                  .pasteConfig, .settings, .about, .logViewer, .splitDNSSuggestion:
                 return true
+            #if DEBUG
+            case .debugVerificationWizard:
+                return true
+            #endif
             }
         }
     }
@@ -174,6 +181,10 @@ struct RootView: View {
             FirstRunSplitDNSSheet(store: store, prompt: prompt)
         case .settings, .about, .logViewer:
             utilityDestination(for: route)
+        #if DEBUG
+        case .debugVerificationWizard:
+            utilityDestination(for: route)
+        #endif
         }
     }
 
@@ -186,6 +197,10 @@ struct RootView: View {
             AboutView()
         case .logViewer:
             LogViewerView()
+        #if DEBUG
+        case .debugVerificationWizard:
+            DebugVerificationWizardView(store: store)
+        #endif
         default:
             EmptyView()
         }
@@ -227,8 +242,10 @@ struct RootView: View {
             onCompleted: { navigationPath.removeAll() }
         )
     }
+}
 
-    private func tunnelRemovedView(for tunnelID: Tunnel.ID) -> some View {
+private extension RootView {
+    func tunnelRemovedView(for tunnelID: Tunnel.ID) -> some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
                 title: "Tunnel Removed",
@@ -251,13 +268,13 @@ struct RootView: View {
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func removeTunnelRoutes(for tunnelID: Tunnel.ID) {
+    func removeTunnelRoutes(for tunnelID: Tunnel.ID) {
         navigationPath.removeAll { route in
             route == .tunnelDetail(tunnelID) || route == .editTunnel(tunnelID)
         }
     }
 
-    private func navigateToRequestedTunnelIfNeeded() {
+    func navigateToRequestedTunnelIfNeeded() {
         guard let tunnelID = store.consumeRequestedNavigationTunnelID() else { return }
         guard store.tunnel(for: tunnelID) != nil else { return }
         if navigationPath.last != .tunnelDetail(tunnelID) {
@@ -265,7 +282,7 @@ struct RootView: View {
         }
     }
 
-    private func scheduleSplitDNSPromptPresentationIfReady(delay: TimeInterval = 0.05) {
+    func scheduleSplitDNSPromptPresentationIfReady(delay: TimeInterval = 0.05) {
         guard let pending = store.pendingSplitDNSSuggestion,
               !isBlockingRouteActive else { return }
         let targetID = pending.id
