@@ -74,50 +74,6 @@ actor SystemTunnelBackend: TunnelBackend {
         }
     }
 
-    func loadAll() async throws -> [TunnelRecord] {
-        try await withSerializedPreferences {
-            try await performLoadAll()
-        }
-    }
-
-    private func performLoadAll() async throws -> [TunnelRecord] {
-        installNotificationObserversIfNeeded()
-        let referencedManagers = try await loadReferencedManagersFromPreferences()
-        let activeReferences = Set(referencedManagers.map(\.reference))
-
-        var nextManagersByID: [UUID: NETunnelProviderManager] = [:]
-        var nextIDByRef: [Data: UUID] = [:]
-        var nextIDByObjID: [ObjectIdentifier: UUID] = [:]
-        var claimedIDs: Set<UUID> = []
-        var records: [TunnelRecord] = []
-
-        for (manager, passwordRef) in referencedManagers {
-            let name = manager.localizedDescription ?? ""
-            let profile = loadStoredProfile(reference: passwordRef, name: name)
-            let id = resolveStableID(
-                for: manager,
-                passwordReference: passwordRef,
-                name: profile?.name ?? name,
-                claimedIDs: &claimedIDs
-            )
-            nextManagersByID[id] = manager
-            nextIDByRef[passwordRef] = id
-            nextIDByObjID[ObjectIdentifier(manager)] = id
-            guard let profile else { continue }
-            records.append(makeRecord(id: id, profile: profile, manager: manager))
-        }
-
-        if !configurationChangeObservationPaused {
-            profileStore.deleteOrphaned(keeping: activeReferences.union(pendingKeychainReferences))
-        }
-        managersByID = nextManagersByID
-        idByPasswordReference = nextIDByRef
-        idByObjectID = nextIDByObjID
-
-        records.sort { $0.profile.name.localizedStandardCompare($1.profile.name) == .orderedAscending }
-        return records
-    }
-
     func save(
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
@@ -296,5 +252,63 @@ actor SystemTunnelBackend: TunnelBackend {
     private func handleConfigurationChange() {
         guard !configurationChangeObservationPaused else { return }
         eventHub.yield(.configurationsChanged)
+    }
+}
+
+extension SystemTunnelBackend {
+    func loadAll() async throws -> [TunnelRecord] {
+        try await loadSnapshot().records
+    }
+
+    func loadSnapshot() async throws -> TunnelLoadSnapshot {
+        try await withSerializedPreferences {
+            try await performLoadAll()
+        }
+    }
+
+    private func performLoadAll() async throws -> TunnelLoadSnapshot {
+        installNotificationObserversIfNeeded()
+        let managers = try await loadManagersFromPreferences()
+        // NetworkExtension returns managers created by this app. Protect all their references before decoding profiles.
+        let referencedManagers = managers.map { (manager: $0, reference: $0.protocolConfiguration?.passwordReference) }
+        let activeReferences = Set(referencedManagers.compactMap(\.reference))
+
+        var nextManagersByID: [UUID: NETunnelProviderManager] = [:]
+        var nextIDByRef: [Data: UUID] = [:]
+        var nextIDByObjID: [ObjectIdentifier: UUID] = [:]
+        var claimedIDs: Set<UUID> = []
+        var snapshot = TunnelLoadSnapshot()
+
+        for (manager, passwordRef) in referencedManagers {
+            let name = manager.localizedDescription ?? ""
+            let profile = loadStoredProfile(reference: passwordRef, name: name)
+            let id = resolveStableID(
+                for: manager,
+                passwordReference: passwordRef,
+                name: (try? profile.get().name) ?? name,
+                claimedIDs: &claimedIDs
+            )
+            nextManagersByID[id] = manager
+            if let passwordRef {
+                nextIDByRef[passwordRef] = id
+            }
+            nextIDByObjID[ObjectIdentifier(manager)] = id
+            switch profile {
+            case .success(let profile):
+                snapshot.records.append(makeRecord(id: id, profile: profile, manager: manager))
+            case .failure(let reason):
+                snapshot.issues.insert(TunnelLoadIssue(tunnelID: id, tunnelName: name, reason: reason))
+            }
+        }
+
+        if !configurationChangeObservationPaused {
+            profileStore.deleteOrphaned(keeping: activeReferences.union(pendingKeychainReferences))
+        }
+        managersByID = nextManagersByID
+        idByPasswordReference = nextIDByRef
+        idByObjectID = nextIDByObjID
+
+        snapshot.records.sort { $0.profile.name.localizedStandardCompare($1.profile.name) == .orderedAscending }
+        return snapshot
     }
 }

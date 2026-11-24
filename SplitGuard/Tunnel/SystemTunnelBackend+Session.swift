@@ -183,37 +183,33 @@ extension SystemTunnelBackend {
         }
     }
 
-    func loadReferencedManagersFromPreferences() async throws -> [(manager: NETunnelProviderManager, reference: Data)] {
-        let managers: [NETunnelProviderManager]
+    func loadManagersFromPreferences() async throws -> [NETunnelProviderManager] {
         do {
-            managers = try await loadPreferenceManagers()
+            return try await loadPreferenceManagers()
         } catch {
             Log.error("Failed to load tunnel provider managers: \(error)")
             throw TunnelError.loadFailed(TunnelError.describeSystemError(error))
         }
-        // NetworkExtension returns managers created by this app. Collect their references
-        // before attempting any Keychain reads or decoding.
-        return managers.compactMap { manager in
-            guard let reference = (manager.protocolConfiguration as? NETunnelProviderProtocol)?.passwordReference else {
-                Log.warning("Unable to load tunnel '\(manager.localizedDescription ?? "")': Missing Keychain reference.")
-                return nil
-            }
-            return (manager, reference)
-        }
     }
 
-    func loadStoredProfile(reference: Data, name: String) -> TunnelProfile? {
+    func loadStoredProfile(reference: Data?, name: String) -> Result<TunnelProfile, TunnelLoadIssue.Reason> {
+        guard let reference else {
+            Log.warning("Unable to load tunnel '\(name)': Missing Keychain reference.")
+            return .failure(.missingReference)
+        }
         do {
-            return try profileStore.load(reference: reference, name: name)
+            return .success(try profileStore.load(reference: reference, name: name))
         } catch ProfileStoreError.keychainLoadFailed(errSecItemNotFound) {
             Log.warning("Unable to load tunnel '\(name)': Keychain item is missing.")
-        } catch let error as ProfileStoreError {
-            Log.error("Unable to load tunnel '\(name)': \(error.localizedDescription)")
+            return .failure(.missingItem)
+        } catch ProfileStoreError.keychainLoadFailed(let status) {
+            Log.error("Unable to load tunnel '\(name)': Keychain read failed (OSStatus \(status)).")
+            return .failure(.keychainUnavailable)
         } catch {
             // A parser error can contain parts of the stored configuration.
             Log.error("Unable to load tunnel '\(name)': Stored profile could not be decoded.")
+            return .failure(.invalidProfile)
         }
-        return nil
     }
 
     func resolveManagerForSave(replacing id: UUID?) throws -> NETunnelProviderManager {
@@ -295,11 +291,11 @@ extension SystemTunnelBackend {
 
     func resolveStableID(
         for manager: NETunnelProviderManager,
-        passwordReference: Data,
+        passwordReference: Data?,
         name: String,
         claimedIDs: inout Set<UUID>
     ) -> UUID {
-        if let existing = idByPasswordReference[passwordReference], claimedIDs.insert(existing).inserted {
+        if let passwordReference, let existing = idByPasswordReference[passwordReference], claimedIDs.insert(existing).inserted {
             return existing
         }
         if let existing = idByObjectID[ObjectIdentifier(manager)], claimedIDs.insert(existing).inserted {

@@ -26,6 +26,38 @@ struct TunnelRecord: Equatable, Sendable {
     }
 }
 
+struct TunnelLoadIssue: Hashable, Sendable {
+    enum Reason: Error, Hashable, Sendable {
+        case missingReference
+        case missingItem
+        case keychainUnavailable
+        case invalidProfile
+    }
+
+    let tunnelID: UUID
+    let tunnelName: String
+    let reason: Reason
+
+    var message: String {
+        let name = tunnelName.isEmpty ? "Unnamed tunnel" : tunnelName
+        switch reason {
+        case .missingReference:
+            return "“\(name)” is missing its Keychain reference."
+        case .missingItem:
+            return "The saved profile for “\(name)” is missing from the Keychain."
+        case .keychainUnavailable:
+            return "The Keychain could not be read for “\(name)”. Try again later."
+        case .invalidProfile:
+            return "The saved profile for “\(name)” could not be decoded."
+        }
+    }
+}
+
+struct TunnelLoadSnapshot: Sendable {
+    var records: [TunnelRecord] = []
+    var issues: Set<TunnelLoadIssue> = []
+}
+
 enum BackendEvent: Equatable, Sendable {
     case statusChanged(tunnelID: UUID, status: TunnelStatus)
     case configurationsChanged
@@ -35,6 +67,7 @@ protocol TunnelBackend: Sendable {
     var saveNewDeactivatesActiveTunnel: Bool { get }
 
     func loadAll() async throws -> [TunnelRecord]
+    func loadSnapshot() async throws -> TunnelLoadSnapshot
     func save(
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
@@ -55,6 +88,11 @@ protocol TunnelBackend: Sendable {
 
 extension TunnelBackend {
     var saveNewDeactivatesActiveTunnel: Bool { false }
+
+    func loadSnapshot() async throws -> TunnelLoadSnapshot {
+        let records = try await loadAll()
+        return TunnelLoadSnapshot(records: records)
+    }
 
     func setConfigurationChangeObservationPaused(_ paused: Bool) async {}
 }

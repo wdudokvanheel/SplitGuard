@@ -58,6 +58,7 @@ final class TunnelStore {
     var mutationEpoch = 0
     private var isReloadingFromBackend = false
     private var needsAnotherReload = false
+    @ObservationIgnored private var lastLoadIssues: Set<TunnelLoadIssue> = []
 
     @ObservationIgnored nonisolated(unsafe) var eventTask: Task<Void, Never>?
     @ObservationIgnored nonisolated(unsafe) var transitionPollTask: Task<Void, Never>?
@@ -253,14 +254,8 @@ extension TunnelStore {
     func loadTunnels() async {
         setLoadingState(isLoading: true)
         do {
-            let records = try await backend.loadAll()
-            applyLoadedRecords(records)
-            setLoadingState(isLoading: false, hasLoaded: true)
-            RecentTunnelsTracker.cleanupTunnels(
-                except: Set(tunnels.map(\.name)),
-                userDefaults: recentTunnelsUserDefaults
-            )
-            updateQuickActions()
+            let snapshot = try await backend.loadSnapshot()
+            applyLoadSnapshot(snapshot)
             flushPendingQuickAction()
             await flushPendingOpenedURLs()
         } catch {
@@ -281,22 +276,33 @@ extension TunnelStore {
             needsAnotherReload = false
             let startEpoch = mutationEpoch
             do {
-                let records = try await backend.loadAll()
+                let snapshot = try await backend.loadSnapshot()
                 if mutationEpoch != startEpoch {
                     needsAnotherReload = true
                     continue
                 }
-                applyLoadedRecords(records)
-                setLoadingState(isLoading: false, hasLoaded: true)
-                RecentTunnelsTracker.cleanupTunnels(
-                    except: Set(tunnels.map(\.name)),
-                    userDefaults: recentTunnelsUserDefaults
-                )
-                updateQuickActions()
+                applyLoadSnapshot(snapshot)
             } catch {
                 Log.error("Failed to reload tunnels after configuration change: \(error)")
             }
         } while needsAnotherReload
+    }
+
+    private func applyLoadSnapshot(_ snapshot: TunnelLoadSnapshot) {
+        applyLoadedRecords(snapshot.records, preservingIDs: Set(snapshot.issues.map(\.tunnelID)))
+        setLoadingState(isLoading: false, hasLoaded: true)
+        RecentTunnelsTracker.cleanupTunnels(
+            except: Set(tunnels.map(\.name)).union(snapshot.issues.map(\.tunnelName)),
+            userDefaults: recentTunnelsUserDefaults
+        )
+        updateQuickActions()
+
+        let newIssues = snapshot.issues.subtracting(lastLoadIssues)
+        lastLoadIssues = snapshot.issues
+        guard !newIssues.isEmpty else { return }
+
+        let messages = newIssues.map(\.message).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        presentAlert(title: "Some tunnels could not be loaded", message: messages.joined(separator: "\n\n"))
     }
 
     func refreshStatuses() async {
@@ -339,20 +345,18 @@ extension TunnelStore {
         }
     }
 
-    func applyLoadedRecords(_ records: [TunnelRecord]) {
+    private func applyLoadedRecords(_ records: [TunnelRecord], preservingIDs: Set<Tunnel.ID>) {
         let existingByID = Dictionary(tunnels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let sortedRecords = records.sorted { Self.tunnelNameIsLessThan($0.profile.name, $1.profile.name) }
-        let activeIDs = Set(sortedRecords.map(\.id))
+        let loadedIDs = Set(records.map(\.id))
 
-        let removedIDs = Set(existingByID.keys).subtracting(activeIDs)
+        let removedIDs = Set(existingByID.keys).subtracting(loadedIDs).subtracting(preservingIDs)
         for removedID in removedIDs {
             cleanupState(forRemovedID: removedID)
         }
 
-        var updatedTunnels: [Tunnel] = []
-        updatedTunnels.reserveCapacity(sortedRecords.count)
+        var updatedTunnels = tunnels.filter { preservingIDs.contains($0.id) && !loadedIDs.contains($0.id) }
 
-        for record in sortedRecords {
+        for record in records {
             if let existing = existingByID[record.id] {
                 let preserveSyntheticStatus =
                     (restartingTunnelIDs.contains(record.id) && record.status != .inactive)
@@ -364,7 +368,7 @@ extension TunnelStore {
             }
         }
 
-        setTunnelsList(updatedTunnels)
+        setTunnelsList(updatedTunnels.sorted { Self.tunnelNameIsLessThan($0.name, $1.name) })
         bumpRevision()
         updateTransitionPolling()
     }
