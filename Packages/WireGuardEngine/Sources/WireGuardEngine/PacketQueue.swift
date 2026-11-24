@@ -13,7 +13,8 @@ struct PacketQueue<Element> {
     mutating func append(_ item: Element) -> Bool {
         guard count < capacity else { return false }
         if count == ring.count {
-            let newSize = min(capacity, max(4, count * 2))
+            let doubled = count <= Int.max / 2 ? count * 2 : Int.max
+            let newSize = min(capacity, max(4, doubled))
             var expanded = [Element?](repeating: nil, count: newSize)
             for index in 0..<count {
                 expanded[index] = ring[(head + index) % ring.count]
@@ -106,18 +107,20 @@ final class PacketLane<Element> {
     }
 }
 
-/// Ready peers take turns on the outbound lane. Only peers with staged packets
-/// can enter this queue, so the global staged buffer budget bounds its size.
+/// Ready peers take turns on the outbound lane. Expands dynamically with active peer count
+/// rather than tying its capacity to the global staged buffer budget.
 struct ReadyPeers {
-    private var peers = PacketQueue<WireGuardPeer>(capacity: WireGuardDevice.stagedBufferLimit)
+    private var peers = PacketQueue<WireGuardPeer>(capacity: Int.max)
     private var queued: Set<ObjectIdentifier> = []
 
     var isEmpty: Bool { peers.count == 0 }
 
     mutating func append(_ peer: WireGuardPeer) {
-        guard queued.insert(ObjectIdentifier(peer)).inserted else { return }
-        let appended = peers.append(peer)
-        precondition(appended)
+        let id = ObjectIdentifier(peer)
+        guard queued.insert(id).inserted else { return }
+        if !peers.append(peer) {
+            queued.remove(id)
+        }
     }
 
     mutating func popFirst() -> WireGuardPeer? {

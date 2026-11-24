@@ -32,6 +32,7 @@ public protocol TunnelDevice: AnyObject {
 /// local send errors via throws. A successful send means the datagram was handed to the transport.
 public protocol UDPTransport: AnyObject {
     func bind(port: UInt16, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16
+    func bind(port: UInt16, interfaceIndex: UInt32?, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16
     func unbind() throws
     func send(_ datagram: Data, to destination: IPEndpoint) throws
     func setFirewallMark(_ mark: UInt32) throws
@@ -39,6 +40,10 @@ public protocol UDPTransport: AnyObject {
 }
 
 public extension UDPTransport {
+    func bind(port: UInt16, interfaceIndex: UInt32?, receive: @escaping (Data, IPEndpoint) -> Bool) throws -> UInt16 {
+        try bind(port: port, receive: receive)
+    }
+
     // Apple's reference bind has neither a firewall mark nor a cached source address.
     func setFirewallMark(_ mark: UInt32) throws {}
     func clearSource(for destination: IPEndpoint) {}

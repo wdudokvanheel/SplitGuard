@@ -30,6 +30,11 @@ extension WireGuardDevice {
                 io.stagedCount -= 1
                 io.stagedDrops += 1
             }
+        }
+        if io.stagedCount >= Self.stagedBufferLimit {
+            evictLongestStagedPeer(excluding: peer, io: io)
+        }
+        peer.withState {
             guard io.stagedCount < Self.stagedBufferLimit, $0.staged.append(packet) else {
                 io.stagedDrops += 1
                 return
@@ -37,6 +42,28 @@ extension WireGuardDevice {
             io.stagedCount += 1
             io.stagedPeak = max(io.stagedPeak, io.stagedCount)
             io.peerStagedPeak = max(io.peerStagedPeak, $0.staged.count)
+        }
+    }
+
+    private func evictLongestStagedPeer(excluding current: WireGuardPeer, io: DeviceIO) {
+        var victim: WireGuardPeer?
+        var longest = 0
+        for candidate in peers.values where candidate !== current {
+            let count = candidate.withState { $0.staged.count }
+            if count > longest {
+                victim = candidate
+                longest = count
+            }
+        }
+        guard let victim else { return }
+        let emptied = victim.withState { state -> Bool in
+            guard state.staged.popFirst() != nil else { return false }
+            io.stagedCount -= 1
+            io.stagedDrops += 1
+            return state.staged.count == 0
+        }
+        if emptied {
+            io.readyPeers.remove(victim)
         }
     }
 
@@ -252,7 +279,7 @@ extension WireGuardDevice {
             guard let packet = HandshakePacket(packet: incoming.data), checkHandshakeMAC1(packet) else { return }
             if underLoad(io) {
                 if !checkHandshakeMAC2(packet, from: incoming.source) {
-                    if let reply = try? createCookieReply(for: packet, from: incoming.source) {
+                    if let reply = try? createCookieReply(for: packet, from: incoming.source, mac1Verified: true) {
                         try? io.transport.send(reply.bytes, to: incoming.source)
                     }
                     return
@@ -262,7 +289,7 @@ extension WireGuardDevice {
 
             switch packet.kind {
             case .initiation:
-                guard let peer = try? consumeHandshakeInitiation(packet) else { return }
+                guard let peer = try? consumeHandshakeInitiation(packet, mac1Verified: true) else { return }
                 if canRun(peer, io: io) {
                     timerAuthenticatedTraversal(peer, io: io)
                     timerAuthenticatedReceived(peer, io: io)
@@ -272,7 +299,7 @@ extension WireGuardDevice {
                 sendHandshakeResponse(peer, io: io)
 
             case .response:
-                guard let (peer, _) = try? consumeHandshakeResponse(packet), canRun(peer, io: io) else { return }
+                guard let (peer, _) = try? consumeHandshakeResponse(packet, mac1Verified: true), canRun(peer, io: io) else { return }
                 roam(peer, from: incoming.source)
                 accountReceived(peer, bytes: incoming.data.count)
                 timerAuthenticatedTraversal(peer, io: io)

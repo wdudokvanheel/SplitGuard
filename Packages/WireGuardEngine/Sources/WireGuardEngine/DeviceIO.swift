@@ -188,6 +188,7 @@ extension WireGuardDevice {
             // The limiter is device-wide and can finish collecting after down.
             armNextDeadline(io)
         }
+        boundPort = 0
         try io.transport.unbind()
     }
 
@@ -203,6 +204,7 @@ extension WireGuardDevice {
         guard io.state != .closed else { return }
         io.inbound.register(nil)
         io.handshake.register(nil)
+        boundPort = 0
         try io.transport.unbind()
         guard io.state == .up else { return }
         io.bindGeneration &+= 1
@@ -211,11 +213,11 @@ extension WireGuardDevice {
         io.inbound.register(generation)
         io.handshake.register(generation)
         do {
-            port = try io.transport.bind(port: port) { [weak self] data, source in
+            boundPort = try io.transport.bind(port: configuredPort) { [weak self] data, source in
                 self?.admitDatagram(.init(data: data, source: source, run: run), generation: generation) ?? false
             }
         } catch {
-            port = 0
+            boundPort = 0
             io.inbound.register(nil)
             io.handshake.register(nil)
             throw error

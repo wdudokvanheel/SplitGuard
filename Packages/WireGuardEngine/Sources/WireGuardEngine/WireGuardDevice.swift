@@ -95,7 +95,8 @@ public final class WireGuardDevice {
     private var cookieChecker = CookieChecker(for: .zero)
     let protocolNow: () -> ProtocolInstant
     private let timestampNow: () -> TAI64N
-    var port: UInt16 = 0
+    var configuredPort: UInt16 = 0
+    var boundPort: UInt16 = 0
     var mark: UInt32 = 0
     var peers: [NoisePublicKey: WireGuardPeer] = [:]
     let allowedIPs = AllowedIPs<WireGuardPeer>()
@@ -117,7 +118,7 @@ public final class WireGuardDevice {
     }
 
     var staticIdentity: StaticIdentity { lock.withLock { identity } }
-    public var listenPort: UInt16 { lock.withLock { port } }
+    public var listenPort: UInt16 { lock.withLock { io == nil ? configuredPort : boundPort } }
     var firewallMark: UInt32 { lock.withLock { mark } }
 
     func peer(for key: NoisePublicKey) -> WireGuardPeer? {
@@ -190,7 +191,8 @@ public final class WireGuardDevice {
         lock.withLock {
             var result = ""
             if !identity.privateKey.isZero { result += "private_key=\(identity.privateKey.hex)\n" }
-            if port != 0 { result += "listen_port=\(port)\n" }
+            let activePort = io == nil ? configuredPort : boundPort
+            if activePort != 0 { result += "listen_port=\(activePort)\n" }
             if mark != 0 { result += "fwmark=\(mark)\n" }
 
             // Go map iteration leaves cross-peer order unspecified.
@@ -245,7 +247,7 @@ public final class WireGuardDevice {
             }
         case "listen_port":
             guard let port = parseUnsignedDecimal(value, as: UInt16.self) else { throw invalid }
-            self.port = port
+            configuredPort = port
             if let io {
                 do { try rebindLocked(io) } catch { throw UAPIError.portInUse }
             }
@@ -386,13 +388,15 @@ extension WireGuardDevice {
         }
     }
 
-    func consumeHandshakeInitiation(_ packet: HandshakePacket) throws -> WireGuardPeer {
+    func consumeHandshakeInitiation(_ packet: HandshakePacket, mac1Verified: Bool = false) throws -> WireGuardPeer {
         try lock.withLock {
             try requireIdentity()
             guard let encryptedStatic = packet.encryptedStatic, let encryptedTimestamp = packet.encryptedTimestamp else {
                 throw NoiseHandshakeError.invalidState
             }
-            guard cookieChecker.checkMAC1(packet) else { throw NoiseHandshakeError.invalidMAC1 }
+            if !mac1Verified {
+                guard cookieChecker.checkMAC1(packet) else { throw NoiseHandshakeError.invalidMAC1 }
+            }
             let ephemeral = packet.ephemeral
             var transcript = NoiseTranscript(responder: identity.publicKey, ephemeral: ephemeral)
             defer { transcript.clear() }
@@ -467,13 +471,17 @@ extension WireGuardDevice {
     }
 
     /// Authenticates the response and installs its session in the initiator's current slot.
-    func consumeHandshakeResponse(_ packet: HandshakePacket) throws -> (WireGuardPeer, SessionKeypair) {
+    func consumeHandshakeResponse(
+        _ packet: HandshakePacket, mac1Verified: Bool = false
+    ) throws -> (WireGuardPeer, SessionKeypair) {
         try lock.withLock {
             try requireIdentity()
             guard let index = packet.receiver, let empty = packet.encryptedEmpty else {
                 throw NoiseHandshakeError.invalidState
             }
-            guard cookieChecker.checkMAC1(packet) else { throw NoiseHandshakeError.invalidMAC1 }
+            if !mac1Verified {
+                guard cookieChecker.checkMAC1(packet) else { throw NoiseHandshakeError.invalidMAC1 }
+            }
             guard case .handshake(let peer)? = indices.lookup(index), peers[peer.publicKey] === peer else {
                 throw NoiseHandshakeError.invalidState
             }
@@ -538,10 +546,14 @@ extension WireGuardDevice {
         lock.withLock { cookieChecker.checkMAC2(packet, from: source, at: protocolNow()) }
     }
 
-    func createCookieReply(for packet: HandshakePacket, from source: IPEndpoint) throws -> CookieReply {
+    func createCookieReply(
+        for packet: HandshakePacket, from source: IPEndpoint, mac1Verified: Bool = false
+    ) throws -> CookieReply {
         try lock.withLock {
             try requireIdentity()
-            guard cookieChecker.checkMAC1(packet) else { throw NoiseHandshakeError.invalidMAC1 }
+            if !mac1Verified {
+                guard cookieChecker.checkMAC1(packet) else { throw NoiseHandshakeError.invalidMAC1 }
+            }
             return try cookieChecker.createReply(packet, from: source, at: protocolNow())
         }
     }

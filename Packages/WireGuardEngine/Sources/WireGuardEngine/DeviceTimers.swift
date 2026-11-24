@@ -17,10 +17,15 @@ extension WireGuardDevice {
 
     func armNextDeadline(_ io: DeviceIO) {
         guard let alarm = io.alarm else { return }
-        let next = io.deadlines.first?.time
-        guard next != io.armedDeadline else { return }
+        guard let next = io.deadlines.first?.time else {
+            guard io.armedDeadline != nil else { return }
+            io.armedDeadline = nil
+            alarm.arm(after: nil)
+            return
+        }
+        if let armed = io.armedDeadline, armed <= next { return }
         io.armedDeadline = next
-        alarm.arm(after: next.map { $0.elapsed(since: protocolNow()) })
+        alarm.arm(after: next.elapsed(since: protocolNow()))
     }
 
     private func timer(_ kind: PeerTimer, for peer: WireGuardPeer?, after delay: UInt64?, io: DeviceIO) {

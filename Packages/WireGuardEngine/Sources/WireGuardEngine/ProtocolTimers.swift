@@ -108,6 +108,8 @@ final class ContinuousAlarm {
     private let fd: Int32
     private let readable: DispatchSourceRead
     private let fallback: DispatchSourceTimer
+    private(set) var armCount = 0
+    private(set) var disarmCount = 0
 
     init(queue: DispatchQueue) throws {
         fd = kqueue()
@@ -127,6 +129,11 @@ final class ContinuousAlarm {
     }
 
     func arm(after delay: UInt64?) {
+        if delay == nil {
+            disarmCount += 1
+        } else {
+            armCount += 1
+        }
         let flags = delay == nil ? EV_DELETE : EV_ADD | EV_ONESHOT
         var change = kevent64_s(
             ident: 1, filter: Int16(EVFILT_TIMER), flags: UInt16(flags),
