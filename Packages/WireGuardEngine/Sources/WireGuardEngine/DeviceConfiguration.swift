@@ -41,6 +41,32 @@ public struct DeviceConfiguration: Equatable, Sendable {
         self.firewallMark = firewallMark
         self.peers = peers
     }
+
+    /// Check all configuration invariants that do not require binding a live socket.
+    public func validate() throws {
+        _ = try validatedKeys()
+    }
+
+    fileprivate func validatedKeys() throws -> (WireGuardPublicKey, Set<WireGuardPublicKey>) {
+        guard !privateKey.isZero, let publicKey = try? privateKey.publicKey() else {
+            throw DeviceConfigurationError.invalidPrivateKey
+        }
+        guard peers.count <= WireGuardDevice.maxPeers else {
+            throw DeviceConfigurationError.tooManyPeers
+        }
+
+        var seen = Set<WireGuardPublicKey>()
+        seen.reserveCapacity(peers.count)
+        for peer in peers {
+            guard !peer.publicKey.matches(publicKey) else {
+                throw DeviceConfigurationError.peerMatchesDeviceKey(peer.publicKey)
+            }
+            guard seen.insert(peer.publicKey).inserted else {
+                throw DeviceConfigurationError.duplicatePeer(peer.publicKey)
+            }
+        }
+        return (publicKey, seen)
+    }
 }
 
 public enum DeviceConfigurationError: Error, Equatable, Sendable {
@@ -84,24 +110,7 @@ extension WireGuardDevice {
             if io?.state == .closed {
                 throw DeviceConfigurationError.deviceClosed
             }
-            guard !configuration.privateKey.isZero,
-                  let publicKey = try? configuration.privateKey.publicKey() else {
-                throw DeviceConfigurationError.invalidPrivateKey
-            }
-            guard configuration.peers.count <= Self.maxPeers else {
-                throw DeviceConfigurationError.tooManyPeers
-            }
-
-            var seenKeys = Set<WireGuardPublicKey>()
-            seenKeys.reserveCapacity(configuration.peers.count)
-            for peerConfig in configuration.peers {
-                if peerConfig.publicKey.matches(publicKey) {
-                    throw DeviceConfigurationError.peerMatchesDeviceKey(peerConfig.publicKey)
-                }
-                if !seenKeys.insert(peerConfig.publicKey).inserted {
-                    throw DeviceConfigurationError.duplicatePeer(peerConfig.publicKey)
-                }
-            }
+            let (publicKey, seenKeys) = try configuration.validatedKeys()
 
             // 2. Apply listen port & firewall mark first so bind/mark failures roll back cleanly
             //    without leaving identity or peers half-mutated.

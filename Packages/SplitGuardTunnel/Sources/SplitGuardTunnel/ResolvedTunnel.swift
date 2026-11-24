@@ -36,12 +36,14 @@ public struct ResolvedTunnel: Equatable, Sendable {
             )
         }
 
-        return DeviceConfiguration(
+        let configuration = DeviceConfiguration(
             privateKey: profile.interface.privateKey,
             listenPort: profile.interface.listenPort,
             firewallMark: nil,
             peers: devicePeers
         )
+        try configuration.validate()
+        return configuration
     }
 
     public func reresolveEndpoints(
