@@ -11,7 +11,9 @@ public enum NetworkSettingsBuilder {
     public static let defaultMTU = 1280
     private static let maxIPv6InterfacePrefixLength = 120
 
-    public static func build(for profile: TunnelProfile) -> NEPacketTunnelNetworkSettings {
+    public static func build(for profile: TunnelProfile) throws -> NEPacketTunnelNetworkSettings {
+        try profile.interface.validateMTU()
+
         /* iOS requires a tunnel endpoint, whereas in WireGuard it's valid for
          * a tunnel to have no endpoint, or for there to be many endpoints, in
          * which case displaying a single one in settings doesn't really

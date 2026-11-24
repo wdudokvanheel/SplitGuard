@@ -524,8 +524,9 @@ public final class TunnelController: @unchecked Sendable {
         for profile: TunnelProfile,
         policy: EndpointResolutionPolicy
     ) throws -> PreparedConfiguration {
+        let networkSettings: NEPacketTunnelNetworkSettings
         do {
-            try profile.interface.validateMTU()
+            networkSettings = try NetworkSettingsBuilder.build(for: profile)
         } catch {
             throw TunnelControllerError.configuration(error)
         }
@@ -538,7 +539,7 @@ public final class TunnelController: @unchecked Sendable {
             throw TunnelControllerError.configuration(error)
         }
         return PreparedConfiguration(
-            networkSettings: NetworkSettingsBuilder.build(for: profile),
+            networkSettings: networkSettings,
             deviceConfiguration: deviceConfiguration,
             profile: profile,
             pendingHostnameIndices: pendingIndices,
