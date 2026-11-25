@@ -78,6 +78,7 @@ actor SystemTunnelBackend: TunnelBackend {
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
         isOnDemandEnabled: Bool,
+        localSettings: TunnelLocalSettings,
         replacing id: UUID?
     ) async throws -> TunnelRecord {
         try await withSerializedPreferences {
@@ -85,6 +86,7 @@ actor SystemTunnelBackend: TunnelBackend {
                 profile,
                 onDemandPolicy: onDemandPolicy,
                 isOnDemandEnabled: isOnDemandEnabled,
+                localSettings: localSettings,
                 replacing: id
             )
         }
@@ -94,6 +96,7 @@ actor SystemTunnelBackend: TunnelBackend {
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
         isOnDemandEnabled: Bool,
+        localSettings: TunnelLocalSettings,
         replacing id: UUID?
     ) async throws -> TunnelRecord {
         installNotificationObserversIfNeeded()
@@ -115,11 +118,14 @@ actor SystemTunnelBackend: TunnelBackend {
         let tunnelID = id ?? UUID()
         configure(
             manager: manager,
-            tunnelID: tunnelID,
-            profile: profile,
-            passwordReference: newReference,
-            onDemandPolicy: normalizedPolicy,
-            isOnDemandEnabled: effectiveOnDemand
+            with: ManagerConfiguration(
+                tunnelID: tunnelID,
+                profile: profile,
+                passwordReference: newReference,
+                onDemandPolicy: normalizedPolicy,
+                isOnDemandEnabled: effectiveOnDemand,
+                localSettings: localSettings
+            )
         )
         try await commitManagerPreferences(
             manager,

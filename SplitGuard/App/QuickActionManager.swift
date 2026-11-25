@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 
 enum QuickActionItem {
     struct Target: Equatable {
@@ -83,7 +84,15 @@ final class QuickActionCoordinator {
     }
 }
 
-final class SplitGuardAppDelegate: NSObject, UIApplicationDelegate {
+final class SplitGuardAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
     func application(
         _ application: UIApplication,
         configurationForConnecting connectingSceneSession: UISceneSession,
@@ -97,6 +106,31 @@ final class SplitGuardAppDelegate: NSObject, UIApplicationDelegate {
         let configuration = UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
         configuration.delegateClass = SplitGuardSceneDelegate.self
         return configuration
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let tunnelID = (response.notification.request.content.userInfo[NotificationNavigationCoordinator.tunnelIDUserInfoKey] as? String)
+            .flatMap(UUID.init(uuidString:))
+        Task { @MainActor in
+            if let tunnelID {
+                _ = NotificationNavigationCoordinator.shared.handle(
+                    userInfo: [NotificationNavigationCoordinator.tunnelIDUserInfoKey: tunnelID.uuidString]
+                )
+            }
+            completionHandler()
+        }
     }
 }
 

@@ -17,12 +17,13 @@ struct PeerDisplaySnapshot: Identifiable, Equatable {
     let id: String
     let index: Int
     let configRows: [DetailFieldRow]
+    let healthState: TunnelHealthState?
     let rxBytesText: String?
     let txBytesText: String?
     let lastHandshakeText: String?
 
     var hasLiveStats: Bool {
-        rxBytesText != nil || txBytesText != nil || lastHandshakeText != nil
+        healthState != nil || rxBytesText != nil || txBytesText != nil || lastHandshakeText != nil
     }
 }
 
@@ -39,6 +40,7 @@ final class TunnelDetailViewModel {
     private(set) var onDemandSelectedSSIDs: [String] = []
     private(set) var splitDNSConfiguration: SplitDNSConfiguration = .allDomains
     private(set) var tunnelOptions: TunnelOptions = .default
+    private(set) var localSettings: TunnelLocalSettings = .default
     private(set) var deviceStatus: DeviceStatus?
     private(set) var dnsServers: [IPAddress] = []
     private(set) var splitDNSWarnings: [SplitDNSConfiguration.ValidationWarning] = []
@@ -49,11 +51,18 @@ final class TunnelDetailViewModel {
 
     private var pollingTask: Task<Void, Never>?
 
-    var killSwitchBlockState: KillSwitchBlockState? {
-        KillSwitchBlockState.evaluate(
+    var healthState: TunnelHealthState? {
+        TunnelHealthState.evaluate(
             killSwitchEnabled: tunnelOptions.killSwitch.isEnabled,
             deviceStatus: deviceStatus
         )
+    }
+
+    var killSwitchBlockState: KillSwitchBlockState? {
+        if case .blocking(let state) = healthState {
+            return state
+        }
+        return nil
     }
 
     init(tunnel: Tunnel, store: TunnelStore) {
@@ -128,6 +137,7 @@ final class TunnelDetailViewModel {
         updateOnDemandSummary(from: tunnel.onDemandPolicy)
         updateSplitDNSSummary(from: profile)
         tunnelOptions = profile.options
+        localSettings = tunnel.localSettings
     }
 
     private func updateLiveSummary(from status: DeviceStatus?, now: Date) {
@@ -260,6 +270,7 @@ private extension TunnelDetailViewModel {
                 id: peer.publicKey.base64,
                 index: index,
                 configRows: rows,
+                healthState: livePeer.map(TunnelHealthState.init(peer:)),
                 rxBytesText: rxText,
                 txBytesText: txText,
                 lastHandshakeText: handshakeText

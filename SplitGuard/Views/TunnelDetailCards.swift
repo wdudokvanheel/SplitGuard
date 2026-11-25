@@ -1,3 +1,4 @@
+import SplitGuardCore
 import SwiftUI
 
 struct TunnelDetailHeroCard: View {
@@ -18,12 +19,23 @@ struct TunnelDetailHeroCard: View {
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 HStack(alignment: .top, spacing: SGSpacing.small) {
                     VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
-                        SGStatusBadge(
-                            title: displayState.statusText,
-                            color: SGColor.pureWhite,
-                            isAnimated: displayState.status.isTransitioning,
-                            isInactive: false
-                        )
+                        HStack(spacing: SGSpacing.xSmall) {
+                            SGStatusBadge(
+                                title: displayState.statusText,
+                                color: SGColor.pureWhite,
+                                isAnimated: displayState.status.isTransitioning,
+                                isInactive: false
+                            )
+
+                            if let health = displayState.secondaryHealthBadgeState {
+                                SGStatusBadge(
+                                    title: health.shortLabel,
+                                    color: health.badgeColor,
+                                    isAnimated: health.isAnimated,
+                                    isInactive: health.isNeutral
+                                )
+                            }
+                        }
 
                         Text(tunnelName.uppercased())
                             .font(SGTypography.displayHero)
@@ -78,6 +90,10 @@ struct TunnelDetailHeroCard: View {
             }
 
             if displayState.status == .active {
+                if let health = displayState.activeHealthState, let detail = health.detailMessage {
+                    Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.regular)
+                    TunnelHealthBannerStrip(health: health, message: detail)
+                }
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.regular)
                 liveStatsStrip
             }
@@ -220,6 +236,53 @@ struct TunnelDetailKillSwitchCard: View {
                             .foregroundStyle(SGColor.textSecondary)
                         Spacer()
                         Text(allowLocalNetwork ? "Allowed (AirPlay, AirDrop, printers)" : "Blocked")
+                            .font(SGTypography.subheadline)
+                            .foregroundStyle(SGColor.textPrimary)
+                    }
+                }
+            }
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+}
+
+struct TunnelDetailHealthAlertsCard: View {
+    let healthAlerts: TunnelLocalSettings.HealthAlerts
+
+    var body: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: "Health Alerts",
+                trailingText: healthAlerts.isEnabled ? "ON" : "OFF",
+                trailingFill: healthAlerts.isEnabled ? SGColor.popGreen : SGColor.surfaceElevated,
+                trailingForeground: healthAlerts.isEnabled ? SGColor.inkOnPop : SGColor.textPrimary
+            )
+            VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+                HStack {
+                    Text("STATUS")
+                        .font(SGTypography.metricLabel)
+                        .foregroundStyle(SGColor.textSecondary)
+                    Spacer()
+                    Text(healthAlerts.isEnabled ? "ENABLED" : "OFF")
+                        .font(SGTypography.badge)
+                        .foregroundStyle(healthAlerts.isEnabled ? SGColor.inkOnPop : SGColor.textPrimary)
+                        .padding(.horizontal, SGSpacing.xSmall)
+                        .padding(.vertical, 3)
+                        .background(healthAlerts.isEnabled ? SGColor.popGreen : SGColor.surfaceElevated)
+                        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
+                }
+
+                if healthAlerts.isEnabled {
+                    Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+                    HStack {
+                        Text("ALERT AFTER")
+                            .font(SGTypography.metricLabel)
+                            .foregroundStyle(SGColor.textSecondary)
+                        Spacer()
+                        Text(HealthAlertsEditorCard.longDelayLabel(healthAlerts.delaySeconds))
                             .font(SGTypography.subheadline)
                             .foregroundStyle(SGColor.textPrimary)
                     }

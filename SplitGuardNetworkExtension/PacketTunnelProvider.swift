@@ -31,7 +31,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private let startErrorLock = NSLock()
     private var lastStartErrorStorage: TunnelStartError?
     private var activeTunnelIDStorage: UUID?
+    private var healthAlertMonitorStorage: HealthAlertMonitor?
     private let statusSnapshotStore = TunnelStatusSnapshotStore.shared()
+    private let healthAlertPoster = UserNotificationHealthAlertPoster()
 
     private var lastStartError: TunnelStartError? {
         get { startErrorLock.withLock { lastStartErrorStorage } }
@@ -41,6 +43,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     private var activeTunnelID: UUID? {
         get { startErrorLock.withLock { activeTunnelIDStorage } }
         set { startErrorLock.withLock { activeTunnelIDStorage = newValue } }
+    }
+
+    private var healthAlertMonitor: HealthAlertMonitor? {
+        get { startErrorLock.withLock { healthAlertMonitorStorage } }
+        set { startErrorLock.withLock { healthAlertMonitorStorage = newValue } }
     }
 
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
@@ -78,6 +85,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
         logConfiguration(profile)
+        let displayName = installHealthAlertMonitor(
+            tunnelID: tunnelID,
+            protocolConfiguration: tunnelProviderProtocol,
+            profile: profile
+        )
 
         #if DEBUG && !targetEnvironment(simulator)
         configureCacheProbe(options: options, configuration: tunnelProviderProtocol, profile: profile)
@@ -85,13 +97,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         controller.start(profile: profile) { [weak self] controllerError in
             guard let controllerError else {
                 Log.info("Tunnel started with WireGuard engine \(TunnelController.engineVersion)")
-                self?.recordSnapshot(tunnelID: tunnelID, fallbackName: profile.name, status: .active)
+                self?.recordSnapshot(tunnelID: tunnelID, fallbackName: displayName, status: .active)
                 completionHandler(nil)
                 return
             }
+            self?.stopHealthAlertMonitor()
             let startError = Self.logAndMapStartError(controllerError)
             self?.lastStartError = startError
-            self?.recordSnapshot(tunnelID: tunnelID, fallbackName: profile.name, status: .inactive)
+            self?.recordSnapshot(tunnelID: tunnelID, fallbackName: displayName, status: .inactive)
             completionHandler(startError)
         }
     }
@@ -99,6 +112,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         Log.info("Stopping tunnel")
         lastStartError = nil
+        stopHealthAlertMonitor()
         let tunnelID = activeTunnelID ?? (protocolConfiguration as? NETunnelProviderProtocol)?.tunnelID
 
         controller.stop { [weak self] error in
@@ -142,6 +156,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             }
         case .lastStartError:
             completionHandler(try? ProviderReply.lastStartError(lastStartError).encode())
+        case .updateLocalSettings(let settings):
+            healthAlertMonitor?.updateSettings(settings.healthAlerts)
+            Log.info(
+                "Updated local settings (healthAlerts=\(settings.healthAlerts.isEnabled), delay=\(settings.healthAlerts.delaySeconds)s)"
+            )
+            completionHandler(try? ProviderReply.acknowledged.encode())
         case .debugPhysicalDNSProbe(let name):
             #if DEBUG
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -158,6 +178,58 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 }
 
 private extension PacketTunnelProvider {
+    func installHealthAlertMonitor(
+        tunnelID: UUID?,
+        protocolConfiguration: NETunnelProviderProtocol,
+        profile: TunnelProfile
+    ) -> String {
+        let localSettings = protocolConfiguration.localSettings
+        let displayName = resolveDisplayName(tunnelID: tunnelID, fallback: protocolConfiguration.serverAddress)
+        let monitor = HealthAlertMonitor(
+            tunnelID: tunnelID ?? UUID(),
+            tunnelName: displayName,
+            killSwitchEnabled: profile.options.killSwitch.isEnabled,
+            peerPublicKeys: profile.peers.map(\.publicKey),
+            settings: localSettings.healthAlerts,
+            poster: healthAlertPoster,
+            logHandler: { level, message in
+                switch level {
+                case .verbose:
+                    Log.info(message)
+                case .error:
+                    Log.error(message)
+                }
+            }
+        )
+        healthAlertMonitor?.stop()
+        healthAlertMonitor = monitor
+        controller.onEvent = { [weak monitor] event in
+            monitor?.handle(event)
+        }
+        if localSettings.healthAlerts.isEnabled {
+            Log.info("Health alerts enabled (delay=\(localSettings.healthAlerts.delaySeconds)s) for '\(displayName)'")
+        }
+        return displayName
+    }
+
+    func resolveDisplayName(tunnelID: UUID?, fallback: String?) -> String {
+        if let tunnelID,
+           let snapshotName = statusSnapshotStore.load().entry(for: tunnelID)?.name,
+           !snapshotName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return snapshotName
+        }
+        if let fallback, !fallback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return fallback
+        }
+        return "VPN Tunnel"
+    }
+
+    func stopHealthAlertMonitor() {
+        controller.onEvent = nil
+        healthAlertMonitor?.stop()
+        healthAlertMonitor = nil
+    }
+
     func recordSnapshot(tunnelID: UUID?, fallbackName: String?, status: TunnelSnapshotStatus) {
         guard let tunnelID else { return }
         statusSnapshotStore.upsertEntry(id: tunnelID, fallbackName: fallbackName, status: status)

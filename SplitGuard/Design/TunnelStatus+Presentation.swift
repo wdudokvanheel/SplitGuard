@@ -1,7 +1,7 @@
 import SwiftUI
 import WireGuardEngine
 
-enum KillSwitchBlockState: Equatable {
+enum KillSwitchBlockState: Equatable, Sendable {
     case noNetwork
     case serverUnreachable
 
@@ -11,6 +11,15 @@ enum KillSwitchBlockState: Equatable {
             return "Blocking traffic — no network"
         case .serverUnreachable:
             return "Blocking traffic — server unreachable"
+        }
+    }
+
+    var detailMessage: String {
+        switch self {
+        case .noNetwork:
+            return "No network connection. Traffic is blocked by the kill switch."
+        case .serverUnreachable:
+            return "Server unreachable. Traffic is blocked by the kill switch."
         }
     }
 
@@ -24,6 +33,143 @@ enum KillSwitchBlockState: Equatable {
             $0.health == .healthy || $0.health == .idle
         }
         return hasWorkingOrIdlePeer ? nil : .serverUnreachable
+    }
+}
+
+enum TunnelHealthState: Equatable, Sendable {
+    case blocking(KillSwitchBlockState)
+    case noHandshake(attempts: Int)
+    case stalled
+    case connecting
+    case idle
+    case healthy
+
+    init(peer: PeerStatus) {
+        switch peer.health {
+        case .connecting:
+            self = .connecting
+        case .noHandshake:
+            self = .noHandshake(attempts: peer.handshakeAttempts)
+        case .stalled:
+            self = .stalled
+        case .idle:
+            self = .idle
+        case .healthy:
+            self = .healthy
+        }
+    }
+
+    /// Combines multiple peers into one tunnel health value:
+    /// the worst peer that is not idle, or idle if all peers are idle.
+    static func combine(peers: [PeerStatus]) -> TunnelHealthState? {
+        guard !peers.isEmpty else { return nil }
+        let noHandshakePeers = peers.filter { $0.health == .noHandshake }
+        if !noHandshakePeers.isEmpty {
+            let maxAttempts = noHandshakePeers.map(\.handshakeAttempts).max() ?? 0
+            return .noHandshake(attempts: maxAttempts)
+        }
+        if peers.contains(where: { $0.health == .stalled }) {
+            return .stalled
+        }
+        if peers.contains(where: { $0.health == .connecting }) {
+            return .connecting
+        }
+        if peers.contains(where: { $0.health == .healthy }) {
+            return .healthy
+        }
+        return .idle
+    }
+
+    static func evaluate(killSwitchEnabled: Bool, deviceStatus: DeviceStatus?) -> TunnelHealthState? {
+        guard let deviceStatus else { return nil }
+        if let blockState = KillSwitchBlockState.evaluate(
+            killSwitchEnabled: killSwitchEnabled,
+            deviceStatus: deviceStatus
+        ) {
+            return .blocking(blockState)
+        }
+        guard deviceStatus.state == .up else { return nil }
+        return combine(peers: deviceStatus.peers)
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .blocking(let state):
+            return state.displayText
+        case .connecting:
+            return "Connecting"
+        case .noHandshake:
+            return "No handshake"
+        case .stalled:
+            return "Stalled"
+        case .idle:
+            return "Idle"
+        case .healthy:
+            return "Healthy"
+        }
+    }
+
+    var detailMessage: String? {
+        switch self {
+        case .blocking(let state):
+            return state.detailMessage
+        case .connecting:
+            return "No handshake yet."
+        case .noHandshake(let attempts):
+            if attempts > 0 {
+                let word = attempts == 1 ? "attempt" : "attempts"
+                return "No response after \(attempts) handshake \(word). "
+                    + "Usual causes: a wrong key, a wrong endpoint, or a blocked port."
+            }
+            return "No handshake response. Usual causes: a wrong key, a wrong endpoint, or a blocked port."
+        case .stalled:
+            return "Sent traffic gets no answer."
+        case .idle:
+            return "No traffic. This is normal without persistent keepalive."
+        case .healthy:
+            return nil
+        }
+    }
+
+    var isProblem: Bool {
+        switch self {
+        case .blocking, .noHandshake, .stalled:
+            return true
+        case .connecting, .idle, .healthy:
+            return false
+        }
+    }
+
+    var isNeutral: Bool {
+        self == .idle
+    }
+
+    var isAnimated: Bool {
+        self == .connecting
+    }
+
+    var badgeColor: Color {
+        switch self {
+        case .blocking, .noHandshake, .stalled:
+            return SGColor.popRed
+        case .connecting:
+            return SGColor.popYellow
+        case .idle:
+            return SGColor.surfaceElevated
+        case .healthy:
+            return SGColor.popGreen
+        }
+    }
+
+    var heroBannerColor: Color {
+        switch self {
+        case .blocking, .noHandshake, .stalled:
+            return SGColor.popRed
+        case .connecting:
+            return SGColor.popYellow
+        case .idle, .healthy:
+            return SGColor.popGreen
+        }
     }
 }
 
@@ -94,7 +240,52 @@ struct TunnelDisplayState: Equatable {
     let status: TunnelStatus
     let hasOnDemandRules: Bool
     let isOnDemandEnabled: Bool
-    var killSwitchBlockState: KillSwitchBlockState?
+    var healthState: TunnelHealthState?
+
+    init(
+        status: TunnelStatus,
+        hasOnDemandRules: Bool,
+        isOnDemandEnabled: Bool,
+        healthState: TunnelHealthState? = nil
+    ) {
+        self.status = status
+        self.hasOnDemandRules = hasOnDemandRules
+        self.isOnDemandEnabled = isOnDemandEnabled
+        self.healthState = healthState
+    }
+
+    init(
+        status: TunnelStatus,
+        hasOnDemandRules: Bool,
+        isOnDemandEnabled: Bool,
+        killSwitchBlockState: KillSwitchBlockState?
+    ) {
+        self.init(
+            status: status,
+            hasOnDemandRules: hasOnDemandRules,
+            isOnDemandEnabled: isOnDemandEnabled,
+            healthState: killSwitchBlockState.map(TunnelHealthState.blocking)
+        )
+    }
+
+    var killSwitchBlockState: KillSwitchBlockState? {
+        if case .blocking(let state) = healthState {
+            return state
+        }
+        return nil
+    }
+
+    var activeHealthState: TunnelHealthState? {
+        status == .active ? healthState : nil
+    }
+
+    var secondaryHealthBadgeState: TunnelHealthState? {
+        guard let activeHealthState else { return nil }
+        if case .blocking = activeHealthState {
+            return nil
+        }
+        return activeHealthState
+    }
 
     var isSwitchOn: Bool {
         status == .activating || status == .active || isOnDemandEnabled
@@ -111,15 +302,20 @@ struct TunnelDisplayState: Equatable {
         if isOnDemandEnabled && !(status == .activating || status == .active) {
             return SGColor.statusOnDemand
         }
-        if status == .active && killSwitchBlockState != nil {
+        if let activeHealthState, activeHealthState.isProblem {
             return SGColor.statusError
         }
         return SGColor.statusActive
     }
 
     var statusColor: Color {
-        if status == .active && killSwitchBlockState != nil {
-            return SGColor.statusError
+        if let activeHealthState {
+            if activeHealthState.isProblem {
+                return SGColor.statusError
+            }
+            if activeHealthState == .connecting {
+                return SGColor.statusTransitioning
+            }
         }
         if isOnDemandEnabled && status == .inactive {
             return SGColor.statusOnDemand
@@ -130,7 +326,7 @@ struct TunnelDisplayState: Equatable {
     var heroBannerColor: Color {
         switch status {
         case .active:
-            return killSwitchBlockState != nil ? SGColor.popRed : SGColor.popGreen
+            return healthState?.heroBannerColor ?? SGColor.popGreen
         case .deactivating:
             return SGColor.popRed
         case .activating, .reasserting, .restarting, .waiting:

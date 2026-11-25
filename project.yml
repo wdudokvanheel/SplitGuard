@@ -32,6 +32,7 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: SplitGuardNetworkExtension/PacketTunnelProvider.swift
+      - path: SplitGuardNetworkExtension/HealthAlertNotificationPoster.swift
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
         buildPhase: resources
     dependencies:
@@ -39,6 +40,7 @@ targets:
       - package: SplitGuardTunnel
       - package: WireGuardEngine
       - sdk: NetworkExtension.framework
+      - sdk: UserNotifications.framework
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bitechular.splitguard.network-extension

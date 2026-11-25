@@ -147,6 +147,8 @@ struct BrutalistButtonStyle: ButtonStyle {
 struct BrutalistSectionBar: View {
     let title: String
     var trailingText: String?
+    var trailingFill: Color = SGColor.popYellow
+    var trailingForeground: Color = SGColor.inkOnPop
 
     var body: some View {
         HStack(spacing: SGSpacing.small) {
@@ -161,10 +163,10 @@ struct BrutalistSectionBar: View {
                 Text(trailingText.uppercased())
                     .font(SGTypography.metricLabel)
                     .tracking(0.8)
-                    .foregroundStyle(SGColor.inkOnPop)
+                    .foregroundStyle(trailingForeground)
                     .padding(.horizontal, SGSpacing.xSmall)
                     .padding(.vertical, 3)
-                    .background(SGColor.popYellow)
+                    .background(trailingFill)
                     .overlay(
                         Rectangle()
                             .strokeBorder(SGColor.pureBlack, lineWidth: 1.5)
@@ -205,5 +207,55 @@ struct BrutalistTagStrip: View {
                     .lineLimit(1)
             }
         }
+    }
+}
+
+struct TunnelHealthBannerStrip: View {
+    let health: TunnelHealthState
+    let message: String
+
+    private var stripFill: Color {
+        if health.isProblem {
+            return SGColor.popRed.opacity(0.14)
+        }
+        if health == .connecting {
+            return SGColor.popYellow.opacity(0.22)
+        }
+        return SGColor.surfaceElevated
+    }
+
+    private var iconName: String {
+        if health.isProblem {
+            return "exclamationmark.triangle.fill"
+        }
+        if health == .connecting {
+            return "arrow.triangle.2.circlepath"
+        }
+        return "info.circle.fill"
+    }
+
+    private var iconColor: Color {
+        if health.isProblem {
+            return SGColor.statusError
+        }
+        return SGColor.textSecondary
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: SGSpacing.xSmall) {
+            Image(systemName: iconName)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(iconColor)
+                .padding(.top, 2)
+
+            Text(message)
+                .font(SGTypography.caption)
+                .foregroundStyle(SGColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, SGSpacing.small)
+        .padding(.vertical, SGSpacing.xSmall)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(stripFill)
     }
 }

@@ -10,19 +10,22 @@ struct TunnelRecord: Equatable, Sendable {
     var status: TunnelStatus
     var onDemandPolicy: OnDemandPolicy
     var isOnDemandEnabled: Bool
+    var localSettings: TunnelLocalSettings
 
     init(
         id: UUID = UUID(),
         profile: TunnelProfile,
         status: TunnelStatus = .inactive,
         onDemandPolicy: OnDemandPolicy = .off,
-        isOnDemandEnabled: Bool = false
+        isOnDemandEnabled: Bool = false,
+        localSettings: TunnelLocalSettings = .default
     ) {
         self.id = id
         self.profile = profile
         self.status = status
         self.onDemandPolicy = onDemandPolicy.normalized()
         self.isOnDemandEnabled = onDemandPolicy.hasRules && isOnDemandEnabled
+        self.localSettings = localSettings
     }
 }
 
@@ -72,6 +75,7 @@ protocol TunnelBackend: Sendable {
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
         isOnDemandEnabled: Bool,
+        localSettings: TunnelLocalSettings,
         replacing id: UUID?
     ) async throws -> TunnelRecord
     func setOnDemandEnabled(_ isEnabled: Bool, for id: UUID) async throws -> TunnelRecord
@@ -88,6 +92,21 @@ protocol TunnelBackend: Sendable {
 
 extension TunnelBackend {
     var saveNewDeactivatesActiveTunnel: Bool { false }
+
+    func save(
+        _ profile: TunnelProfile,
+        onDemandPolicy: OnDemandPolicy,
+        isOnDemandEnabled: Bool,
+        replacing id: UUID?
+    ) async throws -> TunnelRecord {
+        try await save(
+            profile,
+            onDemandPolicy: onDemandPolicy,
+            isOnDemandEnabled: isOnDemandEnabled,
+            localSettings: .default,
+            replacing: id
+        )
+    }
 
     func loadSnapshot() async throws -> TunnelLoadSnapshot {
         let records = try await loadAll()

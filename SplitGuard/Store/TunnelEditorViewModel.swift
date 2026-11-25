@@ -31,13 +31,22 @@ final class TunnelEditorViewModel {
     var isKillSwitchEnabled = false
     var allowLocalNetworkWithKillSwitch = false
 
+    var isHealthAlertsEnabled = false
+    var healthAlertDelaySeconds = TunnelLocalSettings.HealthAlerts.defaultDelaySeconds
+    private(set) var notificationAuthorizationState: HealthAlertAuthorizationState = .notDetermined
+
     var validationAlert: AlertItem?
     var isSaving = false
 
+    private let permissionManager: any HealthAlertPermissionManaging
     private var previousDNSValue = ""
 
-    init(tunnel: Tunnel? = nil) {
+    init(
+        tunnel: Tunnel? = nil,
+        permissionManager: any HealthAlertPermissionManaging = SystemHealthAlertPermissionManager()
+    ) {
         self.existingTunnel = tunnel
+        self.permissionManager = permissionManager
         self.draft = tunnel.map { TunnelDraft(profile: $0.profile) } ?? TunnelDraft()
 
         loadInitialState()
@@ -191,7 +200,28 @@ final class TunnelEditorViewModel {
     struct ValidatedPayload: Equatable, Sendable {
         let profile: TunnelProfile
         let onDemandPolicy: OnDemandPolicy
+        let localSettings: TunnelLocalSettings
         let postSaveNotice: AlertItem?
+    }
+
+    var localSettings: TunnelLocalSettings {
+        TunnelLocalSettings(
+            healthAlerts: TunnelLocalSettings.HealthAlerts(
+                isEnabled: isHealthAlertsEnabled,
+                delaySeconds: healthAlertDelaySeconds
+            )
+        )
+    }
+
+    func refreshNotificationAuthorization() async {
+        notificationAuthorizationState = await permissionManager.authorizationState()
+    }
+
+    func setHealthAlertsEnabled(_ enabled: Bool) async {
+        isHealthAlertsEnabled = enabled
+        if enabled {
+            notificationAuthorizationState = await permissionManager.requestAuthorization()
+        }
     }
 
     func buildValidatedPayload() -> Result<ValidatedPayload, AlertItem> {
@@ -217,6 +247,7 @@ final class TunnelEditorViewModel {
             return .success(ValidatedPayload(
                 profile: profile,
                 onDemandPolicy: onDemandPolicy.normalized(),
+                localSettings: localSettings,
                 postSaveNotice: postSaveNotice
             ))
         }
@@ -235,7 +266,8 @@ final class TunnelEditorViewModel {
                 let savedTunnel = try await store.saveTunnel(
                     existing: existingTunnel,
                     profile: payload.profile,
-                    onDemandPolicy: payload.onDemandPolicy
+                    onDemandPolicy: payload.onDemandPolicy,
+                    localSettings: payload.localSettings
                 )
                 if let notice = payload.postSaveNotice {
                     store.presentAlert(title: notice.title, message: notice.message)
@@ -270,6 +302,10 @@ final class TunnelEditorViewModel {
         let existingOptions = existingTunnel?.options ?? .default
         isKillSwitchEnabled = existingOptions.killSwitch.isEnabled
         allowLocalNetworkWithKillSwitch = existingOptions.killSwitch.allowLocalNetwork
+
+        let existingLocalSettings = existingTunnel?.localSettings ?? .default
+        isHealthAlertsEnabled = existingLocalSettings.healthAlerts.isEnabled
+        healthAlertDelaySeconds = existingLocalSettings.healthAlerts.delaySeconds
     }
 }
 

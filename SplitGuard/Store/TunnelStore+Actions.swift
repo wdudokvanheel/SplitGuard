@@ -9,7 +9,8 @@ extension TunnelStore {
     @discardableResult
     func addTunnel(
         _ profile: TunnelProfile,
-        onDemandPolicy: OnDemandPolicy = .off
+        onDemandPolicy: OnDemandPolicy = .off,
+        localSettings: TunnelLocalSettings = .default
     ) async throws -> Tunnel {
         let trimmedName = try validateNewTunnelName(profile.name, excludingID: nil)
         var normalizedProfile = profile
@@ -26,6 +27,7 @@ extension TunnelStore {
                 normalizedProfile,
                 onDemandPolicy: normalizedPolicy,
                 isOnDemandEnabled: false,
+                localSettings: localSettings,
                 replacing: nil
             )
         } catch {
@@ -49,13 +51,15 @@ extension TunnelStore {
     func updateTunnel(
         _ tunnel: Tunnel,
         profile: TunnelProfile,
-        onDemandPolicy: OnDemandPolicy
+        onDemandPolicy: OnDemandPolicy,
+        localSettings: TunnelLocalSettings? = nil
     ) async throws -> Tunnel {
         let trimmedName = try validateNewTunnelName(profile.name, excludingID: tunnel.id)
         let isRenamed = tunnel.name != trimmedName
         var normalizedProfile = profile
         normalizedProfile.name = trimmedName
         let normalizedPolicy = onDemandPolicy.normalized()
+        let effectiveLocalSettings = localSettings ?? tunnel.localSettings
 
         // Quirk #2: Introducing on-demand rules on a running tunnel requires stopping it first.
         let shouldEnsureOnDemandEnabled = try await prepareForOnDemandIntroductionIfNeeded(
@@ -64,6 +68,7 @@ extension TunnelStore {
         )
 
         let isConfigurationChanged = tunnel.profile != normalizedProfile
+        let isLocalSettingsChanged = tunnel.localSettings != effectiveLocalSettings
         let targetOnDemandEnabled = normalizedPolicy.hasRules && (
             shouldEnsureOnDemandEnabled || tunnel.isOnDemandEnabled
         )
@@ -75,6 +80,7 @@ extension TunnelStore {
                 normalizedProfile,
                 onDemandPolicy: normalizedPolicy,
                 isOnDemandEnabled: targetOnDemandEnabled,
+                localSettings: effectiveLocalSettings,
                 replacing: tunnel.id
             )
         } catch {
@@ -84,9 +90,11 @@ extension TunnelStore {
 
         applyUpdateResult(tunnel: tunnel, record: record, isRenamed: isRenamed)
 
-        if isConfigurationChanged,
-           tunnel.status == .active || tunnel.status == .activating || tunnel.status == .reasserting {
+        let isRunning = tunnel.status == .active || tunnel.status == .activating || tunnel.status == .reasserting
+        if isConfigurationChanged, isRunning {
             await restartEditedTunnel(tunnel)
+        } else if isLocalSettingsChanged, isRunning {
+            _ = await backend.sendProviderMessage(.updateLocalSettings(effectiveLocalSettings), to: tunnel.id)
         }
 
         return tunnel
@@ -96,12 +104,22 @@ extension TunnelStore {
     func saveTunnel(
         existing tunnel: Tunnel?,
         profile: TunnelProfile,
-        onDemandPolicy: OnDemandPolicy = .off
+        onDemandPolicy: OnDemandPolicy = .off,
+        localSettings: TunnelLocalSettings = .default
     ) async throws -> Tunnel {
         if let tunnel {
-            return try await updateTunnel(tunnel, profile: profile, onDemandPolicy: onDemandPolicy)
+            return try await updateTunnel(
+                tunnel,
+                profile: profile,
+                onDemandPolicy: onDemandPolicy,
+                localSettings: localSettings
+            )
         }
-        return try await addTunnel(profile, onDemandPolicy: onDemandPolicy)
+        return try await addTunnel(
+            profile,
+            onDemandPolicy: onDemandPolicy,
+            localSettings: localSettings
+        )
     }
 
     @discardableResult

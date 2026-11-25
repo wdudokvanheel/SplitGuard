@@ -76,6 +76,10 @@ struct KillSwitchEditorCard: View {
                                 "a DNS server on the local network is only reachable with Allow local network on."
                         )
                     }
+
+                    if !viewModel.isHealthAlertsEnabled {
+                        healthAlertOfferBox
+                    }
                 }
 
                 Text("To sign in to a hotel or café Wi-Fi, turn the tunnel off first.")
@@ -87,6 +91,44 @@ struct KillSwitchEditorCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+
+    private var healthAlertOfferBox: some View {
+        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
+            HStack(alignment: .top, spacing: SGSpacing.xSmall) {
+                Image(systemName: "bell.badge.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(SGColor.textPrimary)
+                    .padding(.top, 2)
+                Text("Turn on health alerts to be notified if the server becomes unreachable while traffic is blocked.")
+                    .font(SGTypography.caption)
+                    .foregroundStyle(SGColor.textPrimary)
+            }
+
+            Button {
+                Task {
+                    await viewModel.setHealthAlertsEnabled(true)
+                }
+            } label: {
+                Text("TURN ON HEALTH ALERTS")
+                    .font(SGTypography.displayCompact)
+                    .tracking(0.8)
+                    .padding(.horizontal, SGSpacing.small)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(
+                BrutalistButtonStyle(
+                    fill: SGColor.popYellow,
+                    foreground: SGColor.inkOnPop,
+                    borderWidth: SGBorder.thin,
+                    shadowOffset: SGShadow.small
+                )
+            )
+        }
+        .padding(SGSpacing.xSmall)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SGColor.surfaceElevated)
+        .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
     }
 
     private func noteBox(_ message: String) -> some View {

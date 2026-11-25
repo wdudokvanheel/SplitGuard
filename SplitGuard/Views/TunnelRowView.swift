@@ -31,6 +31,9 @@ struct TunnelRowView: View {
         var result: [String] = []
         if displayState.status != .inactive {
             result.append(displayState.statusText)
+            if let health = displayState.secondaryHealthBadgeState {
+                result.append(health.shortLabel)
+            }
         }
         if tunnel.splitDNS.mode == .onlyDomains {
             let count = tunnel.splitDNS.normalizedDomainNames.count
@@ -64,7 +67,7 @@ struct TunnelRowView: View {
             Rectangle()
                 .fill(
                     displayState.status == .active
-                        ? (displayState.killSwitchBlockState != nil ? SGColor.popRed : SGColor.popGreen)
+                        ? displayState.heroBannerColor
                         : accentColor
                 )
                 .frame(width: 8)

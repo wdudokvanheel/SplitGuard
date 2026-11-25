@@ -41,6 +41,7 @@ struct TunnelEditorView: View {
                         showSSIDEditor = true
                     }
                     KillSwitchEditorCard(viewModel: viewModel)
+                    HealthAlertsEditorCard(viewModel: viewModel)
                 }
                 .padding(.horizontal, SGSpacing.medium)
                 .padding(.top, SGSpacing.medium)

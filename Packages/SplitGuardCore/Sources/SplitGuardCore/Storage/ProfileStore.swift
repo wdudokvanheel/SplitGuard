@@ -215,6 +215,7 @@ public struct ProfileStore: Sendable {
         for profile: TunnelProfile,
         providerBundleIdentifier: String,
         tunnelID: UUID,
+        localSettings: TunnelLocalSettings = .default,
         replacing oldReference: Data? = nil
     ) throws -> NETunnelProviderProtocol {
         let reference = try save(profile, replacing: oldReference)
@@ -222,7 +223,8 @@ public struct ProfileStore: Sendable {
             profile: profile,
             passwordReference: reference,
             providerBundleIdentifier: providerBundleIdentifier,
-            tunnelID: tunnelID
+            tunnelID: tunnelID,
+            localSettings: localSettings
         )
     }
 

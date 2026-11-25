@@ -148,12 +148,14 @@ extension SystemTunnelBackend {
     }
 
     func makeRecord(id: UUID, profile: TunnelProfile, manager: NETunnelProviderManager) -> TunnelRecord {
-        TunnelRecord(
+        let localSettings = (manager.protocolConfiguration as? NETunnelProviderProtocol)?.localSettings ?? .default
+        return TunnelRecord(
             id: id,
             profile: profile,
             status: TunnelStatus(from: manager.connection.status),
             onDemandPolicy: OnDemandPolicy(from: manager.onDemandRules),
-            isOnDemandEnabled: manager.isOnDemandEnabled && manager.isEnabled
+            isOnDemandEnabled: manager.isOnDemandEnabled && manager.isEnabled,
+            localSettings: localSettings
         )
     }
 
@@ -238,24 +240,27 @@ extension SystemTunnelBackend {
         }
     }
 
-    func configure(
-        manager: NETunnelProviderManager,
-        tunnelID: UUID,
-        profile: TunnelProfile,
-        passwordReference: Data,
-        onDemandPolicy: OnDemandPolicy,
-        isOnDemandEnabled: Bool
-    ) {
-        manager.localizedDescription = profile.name
+    struct ManagerConfiguration {
+        let tunnelID: UUID
+        let profile: TunnelProfile
+        let passwordReference: Data
+        let onDemandPolicy: OnDemandPolicy
+        let isOnDemandEnabled: Bool
+        let localSettings: TunnelLocalSettings
+    }
+
+    func configure(manager: NETunnelProviderManager, with configuration: ManagerConfiguration) {
+        manager.localizedDescription = configuration.profile.name
         manager.protocolConfiguration = NETunnelProviderProtocol(
-            profile: profile,
-            passwordReference: passwordReference,
+            profile: configuration.profile,
+            passwordReference: configuration.passwordReference,
             providerBundleIdentifier: providerBundleIdentifier,
-            tunnelID: tunnelID
+            tunnelID: configuration.tunnelID,
+            localSettings: configuration.localSettings
         )
         manager.isEnabled = true
-        onDemandPolicy.apply(to: manager)
-        manager.isOnDemandEnabled = isOnDemandEnabled
+        configuration.onDemandPolicy.apply(to: manager)
+        manager.isOnDemandEnabled = configuration.isOnDemandEnabled
     }
 
     /// Writes `id` into a configuration that lacks it (or carries another one), so the ID

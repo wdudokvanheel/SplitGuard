@@ -20,11 +20,23 @@ final class TunnelLiveMetricsMonitor {
     private weak var store: TunnelStore?
     private var pollingTask: Task<Void, Never>?
 
-    var killSwitchBlockState: KillSwitchBlockState? {
-        KillSwitchBlockState.evaluate(
+    var healthState: TunnelHealthState? {
+        TunnelHealthState.evaluate(
             killSwitchEnabled: monitoredTunnel?.options.killSwitch.isEnabled ?? false,
             deviceStatus: deviceStatus
         )
+    }
+
+    func healthState(for tunnel: Tunnel) -> TunnelHealthState? {
+        guard tunnel.id == monitoredTunnelID else { return nil }
+        return healthState
+    }
+
+    var killSwitchBlockState: KillSwitchBlockState? {
+        if case .blocking(let state) = healthState {
+            return state
+        }
+        return nil
     }
 
     func killSwitchBlockState(for tunnel: Tunnel) -> KillSwitchBlockState? {
@@ -42,6 +54,22 @@ final class TunnelLiveMetricsMonitor {
 
     var handshakeAgeText: String? {
         Self.formatHandshakeAge(from: latestHandshakeDate, now: now)
+    }
+
+    func handshakeSummaryText(for tunnel: Tunnel) -> String {
+        if tunnel.id == monitoredTunnelID, let ageText = handshakeAgeText {
+            return ageText
+        }
+        switch healthState(for: tunnel) {
+        case .noHandshake(let attempts) where attempts > 0:
+            return attempts == 1 ? "1 attempt" : "\(attempts) attempts"
+        case .noHandshake:
+            return "None"
+        case .idle:
+            return "Idle"
+        case .connecting, .stalled, .blocking, .healthy, .none:
+            return "Pending"
+        }
     }
 
     func update(tunnel: Tunnel?, status: TunnelStatus, store: TunnelStore, isVisible: Bool) {

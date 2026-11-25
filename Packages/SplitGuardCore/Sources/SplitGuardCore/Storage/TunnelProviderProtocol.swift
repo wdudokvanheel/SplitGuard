@@ -10,19 +10,27 @@ public extension NETunnelProviderProtocol {
     /// imported copies never share it.
     static let tunnelIDKey = "id"
 
+    /// Key of the encoded `TunnelLocalSettings` JSON blob in `providerConfiguration`.
+    static let localSettingsKey = "localSettings"
+
     /// The single builder for SplitGuard protocol configurations. Every path that
     /// creates a tunnel configuration goes through here, so none can drop the ID.
     convenience init(
         profile: TunnelProfile,
         passwordReference: Data,
         providerBundleIdentifier: String,
-        tunnelID: UUID
+        tunnelID: UUID,
+        localSettings: TunnelLocalSettings = .default
     ) {
         self.init()
         self.providerBundleIdentifier = providerBundleIdentifier
         self.passwordReference = passwordReference
         self.serverAddress = ProfileStore.serverAddress(for: profile)
-        self.providerConfiguration = [Self.tunnelIDKey: tunnelID.uuidString]
+        var configuration: [String: Any] = [Self.tunnelIDKey: tunnelID.uuidString]
+        if !localSettings.isDefault, let encoded = try? JSONEncoder().encode(localSettings) {
+            configuration[Self.localSettingsKey] = encoded
+        }
+        self.providerConfiguration = configuration
         applyKillSwitch(profile.options.sanitized(for: profile))
     }
 
@@ -36,6 +44,26 @@ public extension NETunnelProviderProtocol {
         var configuration = providerConfiguration ?? [:]
         configuration[Self.tunnelIDKey] = id.uuidString
         providerConfiguration = configuration
+    }
+
+    /// Device-local settings for this tunnel, falling back to `.default` if absent or unreadable.
+    var localSettings: TunnelLocalSettings {
+        guard let data = providerConfiguration?[Self.localSettingsKey] as? Data,
+              let decoded = try? JSONDecoder().decode(TunnelLocalSettings.self, from: data) else {
+            return .default
+        }
+        return decoded
+    }
+
+    /// Stores device-local settings while keeping any other `providerConfiguration` entries.
+    func setLocalSettings(_ settings: TunnelLocalSettings) {
+        var configuration = providerConfiguration ?? [:]
+        if settings.isDefault {
+            configuration.removeValue(forKey: Self.localSettingsKey)
+        } else if let encoded = try? JSONEncoder().encode(settings) {
+            configuration[Self.localSettingsKey] = encoded
+        }
+        providerConfiguration = configuration.isEmpty ? nil : configuration
     }
 
     func applyKillSwitch(_ options: TunnelOptions) {

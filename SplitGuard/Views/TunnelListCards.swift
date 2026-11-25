@@ -64,6 +64,12 @@ struct FeaturedTunnelHeroCardView: View {
     var body: some View {
         VStack(spacing: 0) {
             heroTopBand
+            if let health = displayState.activeHealthState, let detail = health.detailMessage {
+                TunnelHealthBannerStrip(health: health, message: detail)
+                Rectangle()
+                    .fill(SGColor.borderInk)
+                    .frame(height: SGBorder.regular)
+            }
             metricsStrip
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
@@ -90,6 +96,15 @@ struct FeaturedTunnelHeroCardView: View {
                     isAnimated: displayState.status.isTransitioning,
                     isInactive: false
                 )
+
+                if let health = displayState.secondaryHealthBadgeState {
+                    SGStatusBadge(
+                        title: health.shortLabel,
+                        color: health.badgeColor,
+                        isAnimated: health.isAnimated,
+                        isInactive: health.isNeutral
+                    )
+                }
 
                 Spacer(minLength: SGSpacing.xxSmall)
 

@@ -6,6 +6,7 @@ import WireGuardEngine
 public enum ProviderMessage: Codable, Equatable, Sendable {
     case status
     case lastStartError
+    case updateLocalSettings(TunnelLocalSettings)
     case debugPhysicalDNSProbe(name: String)
 
     public func encode() throws -> Data {
@@ -42,6 +43,7 @@ public struct PhysicalDNSProbeResult: Codable, Equatable, Sendable {
 public enum ProviderReply: Codable, Equatable, Sendable {
     case status(DeviceStatus)
     case lastStartError(TunnelStartError?)
+    case acknowledged
     case debugPhysicalDNSProbe(PhysicalDNSProbeResult)
 
     public func encode() throws -> Data {

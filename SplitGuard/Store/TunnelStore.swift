@@ -164,14 +164,21 @@ final class TunnelStore {
 
     func displayState(
         for tunnel: Tunnel,
-        killSwitchBlockState: KillSwitchBlockState? = nil
+        healthState: TunnelHealthState? = nil
     ) -> TunnelDisplayState {
         TunnelDisplayState(
             status: tunnel.status,
             hasOnDemandRules: tunnel.hasOnDemandRules,
             isOnDemandEnabled: tunnel.isOnDemandEnabled,
-            killSwitchBlockState: killSwitchBlockState
+            healthState: healthState
         )
+    }
+
+    func displayState(
+        for tunnel: Tunnel,
+        killSwitchBlockState: KillSwitchBlockState?
+    ) -> TunnelDisplayState {
+        displayState(for: tunnel, healthState: killSwitchBlockState.map(TunnelHealthState.blocking))
     }
 
     func recordActivationError(tunnelName: String, error: TunnelError) {

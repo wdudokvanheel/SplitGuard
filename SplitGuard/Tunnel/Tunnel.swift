@@ -12,19 +12,22 @@ final class Tunnel: Identifiable, Hashable {
     var status: TunnelStatus
     var onDemandPolicy: OnDemandPolicy
     var isOnDemandEnabled: Bool
+    var localSettings: TunnelLocalSettings
 
     init(
         id: UUID,
         profile: TunnelProfile,
         status: TunnelStatus = .inactive,
         onDemandPolicy: OnDemandPolicy = .off,
-        isOnDemandEnabled: Bool = false
+        isOnDemandEnabled: Bool = false,
+        localSettings: TunnelLocalSettings = .default
     ) {
         self.id = id
         self.profile = profile
         self.status = status
         self.onDemandPolicy = onDemandPolicy
         self.isOnDemandEnabled = isOnDemandEnabled
+        self.localSettings = localSettings
     }
 
     convenience init(record: TunnelRecord) {
@@ -33,7 +36,8 @@ final class Tunnel: Identifiable, Hashable {
             profile: record.profile,
             status: record.status,
             onDemandPolicy: record.onDemandPolicy,
-            isOnDemandEnabled: record.isOnDemandEnabled
+            isOnDemandEnabled: record.isOnDemandEnabled,
+            localSettings: record.localSettings
         )
     }
 
@@ -68,6 +72,7 @@ final class Tunnel: Identifiable, Hashable {
         profile = record.profile
         onDemandPolicy = record.onDemandPolicy
         isOnDemandEnabled = record.isOnDemandEnabled
+        localSettings = record.localSettings
         if !preservingStatus {
             status = record.status
         }

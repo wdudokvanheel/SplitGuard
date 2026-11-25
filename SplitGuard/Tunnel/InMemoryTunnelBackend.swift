@@ -84,6 +84,7 @@ actor InMemoryTunnelBackend: TunnelBackend {
         _ profile: TunnelProfile,
         onDemandPolicy: OnDemandPolicy,
         isOnDemandEnabled: Bool,
+        localSettings: TunnelLocalSettings,
         replacing id: UUID?
     ) async throws -> TunnelRecord {
         let normalizedPolicy = onDemandPolicy.normalized()
@@ -116,7 +117,8 @@ actor InMemoryTunnelBackend: TunnelBackend {
             profile: profile,
             status: currentStatus,
             onDemandPolicy: normalizedPolicy,
-            isOnDemandEnabled: effectiveOnDemand
+            isOnDemandEnabled: effectiveOnDemand,
+            localSettings: localSettings
         )
         recordsByID[targetID] = record
 
@@ -225,6 +227,12 @@ actor InMemoryTunnelBackend: TunnelBackend {
             case .disconnectError, .none:
                 reply = .lastStartError(nil)
             }
+        case .updateLocalSettings(let settings):
+            if var record = recordsByID[id] {
+                record.localSettings = settings
+                recordsByID[id] = record
+            }
+            reply = .acknowledged
         case .debugPhysicalDNSProbe(let name):
             reply = .debugPhysicalDNSProbe(PhysicalDNSProbeResult(name: name))
         }

@@ -51,6 +51,9 @@ struct SplitGuardApp: App {
                 QuickActionCoordinator.shared.register { tunnelID in
                     store.handleQuickAction(tunnelID: tunnelID)
                 }
+                NotificationNavigationCoordinator.shared.register { tunnelID in
+                    store.requestedNavigationTunnelID = tunnelID
+                }
             }
     }
 }

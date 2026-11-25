@@ -156,12 +156,12 @@ private extension TunnelListView {
                             tunnel: featured,
                             displayState: store.displayState(
                                 for: featured,
-                                killSwitchBlockState: liveMetrics.killSwitchBlockState(for: featured)
+                                healthState: liveMetrics.healthState(for: featured)
                             ),
                             isFavorite: store.isFavorite(featured),
                             rxText: liveMetrics.hasLiveStats ? liveMetrics.rxFormatted : "0 B",
                             txText: liveMetrics.hasLiveStats ? liveMetrics.txFormatted : "0 B",
-                            handshakeText: liveMetrics.handshakeAgeText ?? "Pending",
+                            handshakeText: liveMetrics.handshakeSummaryText(for: featured),
                             onOpenDetail: { onSelectTunnel(featured) },
                             onToggleConnection: { isOn in
                                 Task {
@@ -188,7 +188,7 @@ private extension TunnelListView {
                                 tunnel: tunnel,
                                 displayState: store.displayState(
                                     for: tunnel,
-                                    killSwitchBlockState: liveMetrics.killSwitchBlockState(for: tunnel)
+                                    healthState: liveMetrics.healthState(for: tunnel)
                                 ),
                                 rowIndex: index,
                                 isFavorite: store.isFavorite(tunnel),

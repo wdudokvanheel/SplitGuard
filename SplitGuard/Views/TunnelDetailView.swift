@@ -27,7 +27,23 @@ struct TunnelDetailView: View {
     }
 
     private var displayState: TunnelDisplayState {
-        store.displayState(for: tunnel, killSwitchBlockState: viewModel.killSwitchBlockState)
+        store.displayState(for: tunnel, healthState: viewModel.healthState)
+    }
+
+    private var heroHandshakeText: String {
+        if let latest = viewModel.latestHandshakeText {
+            return latest
+        }
+        switch viewModel.healthState {
+        case .noHandshake(let attempts) where attempts > 0:
+            return attempts == 1 ? "1 attempt" : "\(attempts) attempts"
+        case .noHandshake:
+            return "None"
+        case .idle:
+            return "Idle"
+        case .connecting, .stalled, .blocking, .healthy, .none:
+            return "Pending"
+        }
     }
 
     var body: some View {
@@ -69,7 +85,7 @@ struct TunnelDetailView: View {
                         isFavorite: store.isFavorite(tunnel),
                         rxText: viewModel.hasAnyLiveStats ? viewModel.totalRxFormatted : "0 B",
                         txText: viewModel.hasAnyLiveStats ? viewModel.totalTxFormatted : "0 B",
-                        handshakeText: viewModel.latestHandshakeText ?? "Pending",
+                        handshakeText: heroHandshakeText,
                         onToggle: { isOn in
                             Task {
                                 await store.setTunnelActive(isOn, for: tunnel)
@@ -109,6 +125,10 @@ struct TunnelDetailView: View {
                     TunnelDetailKillSwitchCard(
                         isEnabled: viewModel.tunnelOptions.killSwitch.isEnabled,
                         allowLocalNetwork: viewModel.tunnelOptions.killSwitch.allowLocalNetwork
+                    )
+
+                    TunnelDetailHealthAlertsCard(
+                        healthAlerts: viewModel.localSettings.healthAlerts
                     )
 
                     deleteButton
@@ -183,8 +203,18 @@ private extension TunnelDetailView {
     }
 
     func peerCard(_ peer: PeerDisplaySnapshot) -> some View {
-        VStack(spacing: 0) {
-            BrutalistSectionBar(title: peerSectionTitle(for: peer))
+        let peerHealth = displayState.status == .active ? peer.healthState : nil
+        return VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: peerSectionTitle(for: peer),
+                trailingText: peerHealth?.shortLabel,
+                trailingFill: peerHealth?.badgeColor ?? SGColor.popYellow,
+                trailingForeground: (peerHealth?.isNeutral ?? false) ? SGColor.textPrimary : SGColor.inkOnPop
+            )
+            if let peerHealth, let detail = peerHealth.detailMessage {
+                TunnelHealthBannerStrip(health: peerHealth, message: detail)
+                Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
+            }
             VStack(spacing: 0) {
                 if displayState.status == .active || peer.hasLiveStats {
                     peerTransferStrip(peer)
