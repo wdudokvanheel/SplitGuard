@@ -7,61 +7,65 @@ enum DebugVerificationLiveChecks {
     static func runLiveConnectMetricsDisconnect(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceLiveConnectMetricsDisconnect(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorLiveOutcome(
             id: .liveConnectMetricsDisconnect,
             detail: "Requires physical iOS 26 device with PacketTunnelProvider to connect bundled ServerTest.conf.",
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceLiveConnectMetricsDisconnect(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runLiveSwitchAndEditConnected(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceLiveSwitchAndEditConnected(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorLiveOutcome(
             id: .liveSwitchAndEditConnected,
             detail: "Requires physical iOS 26 device to switch ServerTest -> TestCert and edit while active.",
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceLiveSwitchAndEditConnected(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runLiveSplitDNSAndProbe(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceLiveSplitDNSAndProbe(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorLiveOutcome(
             id: .liveSplitDNSAndProbe,
             detail: "Requires physical iOS 26 device to connect TestCert with Split DNS & probe physical DNS.",
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceLiveSplitDNSAndProbe(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runLiveKillSwitchAndEndpointCache(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceLiveKillSwitchAndEndpointCache(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorLiveOutcome(
             id: .liveKillSwitchAndEndpointCache,
             detail: "Requires physical iOS 26 device to verify strict Kill Switch, endpoint cache reconnect & Allow LAN.",
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceLiveKillSwitchAndEndpointCache(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runLiveMergedLogsCheck() -> NetworkCheckOutcome {

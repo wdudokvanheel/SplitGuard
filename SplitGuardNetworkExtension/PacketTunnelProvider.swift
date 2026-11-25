@@ -30,10 +30,17 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private let startErrorLock = NSLock()
     private var lastStartErrorStorage: TunnelStartError?
+    private var activeTunnelIDStorage: UUID?
+    private let statusSnapshotStore = TunnelStatusSnapshotStore.shared()
 
     private var lastStartError: TunnelStartError? {
         get { startErrorLock.withLock { lastStartErrorStorage } }
         set { startErrorLock.withLock { lastStartErrorStorage = newValue } }
+    }
+
+    private var activeTunnelID: UUID? {
+        get { startErrorLock.withLock { activeTunnelIDStorage } }
+        set { startErrorLock.withLock { activeTunnelIDStorage = newValue } }
     }
 
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
@@ -52,6 +59,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
+        let tunnelID = tunnelProviderProtocol.tunnelID
+        activeTunnelID = tunnelID
+
         let profile: TunnelProfile
         do {
             profile = try ProfileStore().loadProfile(
@@ -61,6 +71,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         } catch {
             let startError = TunnelStartError.invalidConfiguration
             lastStartError = startError
+            recordSnapshot(tunnelID: tunnelID, fallbackName: nil, status: .inactive)
             Log.error("Starting tunnel failed: unable to load saved profile: \(error.localizedDescription)")
             completionHandler(startError)
             return
@@ -74,11 +85,13 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         controller.start(profile: profile) { [weak self] controllerError in
             guard let controllerError else {
                 Log.info("Tunnel started with WireGuard engine \(TunnelController.engineVersion)")
+                self?.recordSnapshot(tunnelID: tunnelID, fallbackName: profile.name, status: .active)
                 completionHandler(nil)
                 return
             }
             let startError = Self.logAndMapStartError(controllerError)
             self?.lastStartError = startError
+            self?.recordSnapshot(tunnelID: tunnelID, fallbackName: profile.name, status: .inactive)
             completionHandler(startError)
         }
     }
@@ -86,11 +99,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         Log.info("Stopping tunnel")
         lastStartError = nil
+        let tunnelID = activeTunnelID ?? (protocolConfiguration as? NETunnelProviderProtocol)?.tunnelID
 
-        controller.stop { error in
+        controller.stop { [weak self] error in
             if let error {
                 Log.error("Failed to stop tunnel controller: \(error)")
             }
+            self?.recordSnapshot(tunnelID: tunnelID, fallbackName: nil, status: .inactive)
+            self?.activeTunnelID = nil
             Log.flush()
             completionHandler()
         }
@@ -142,6 +158,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 }
 
 private extension PacketTunnelProvider {
+    func recordSnapshot(tunnelID: UUID?, fallbackName: String?, status: TunnelSnapshotStatus) {
+        guard let tunnelID else { return }
+        statusSnapshotStore.upsertEntry(id: tunnelID, fallbackName: fallbackName, status: status)
+    }
+
     #if DEBUG && !targetEnvironment(simulator)
     func configureCacheProbe(options: [String: NSObject]?, configuration: NETunnelProviderProtocol, profile: TunnelProfile) {
         let requestedRef = options?[DebugCacheProbeMessage.startOption] as? Data

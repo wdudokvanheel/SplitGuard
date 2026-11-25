@@ -19,107 +19,115 @@ enum DebugVerificationNetworkChecks {
     }
 
     static func runProfileRecovery(store: TunnelStore) async -> NetworkCheckOutcome {
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceProfileRecovery(store: store)
+        }
+        #endif
         return NetworkCheckOutcome(result: AutomatedCheckResult(id: .transientProfileRead, status: .info,
                                                                  summary: "Requires device VPN preferences and Keychain"))
-        #else
-        return await runDeviceProfileRecovery(store: store)
-        #endif
     }
 
     static func runManagerCRUDAndSortCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
-        return await runSimulatorCRUDCheck(start: start, clock: clock)
-        #else
-        return await runDeviceCRUDCheck(store: store, start: start, clock: clock)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceCRUDCheck(store: store, start: start, clock: clock)
+        }
         #endif
+        return await runSimulatorCRUDCheck(start: start, clock: clock)
     }
 
     static func runStartErrorProbe(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
-        return simulatorStartErrorOutcome(start: start, clock: clock)
-        #else
-        return await runDeviceStartErrorProbe(store: store, start: start, clock: clock)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceStartErrorProbe(store: store, start: start, clock: clock)
+        }
         #endif
+        return simulatorStartErrorOutcome(start: start, clock: clock)
     }
 
     static func runQuirk6BulkSaveCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceQuirk6(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorQuirkOutcome(
             checkID: .quirk6BulkSaveNotifications,
             quirkID: .bulkSaveNotificationPerItem,
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceQuirk6(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runQuirk4FreshStartAndEnabledCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceQuirk4(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorQuirkOutcome(
             checkID: .quirk4FreshStartAndEnabled,
             quirkID: .startStaleOrDisabledManager,
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceQuirk4(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runQuirk3OnDemandReloadCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceQuirk3(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorQuirkOutcome(
             checkID: .quirk3OnDemandReload,
             quirkID: .enableOnDemandNeedsReload,
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceQuirk3(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runQuirk1ActiveTunnelSaveCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceQuirk1(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorQuirkOutcome(
             checkID: .quirk1ActiveTunnelSave,
             quirkID: .saveNewDeactivatesActive,
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceQuirk1(store: store, start: start, clock: clock)
-        #endif
     }
 
     static func runQuirk2AddOnDemandRunningCheck(store: TunnelStore) async -> NetworkCheckOutcome {
         let clock = ContinuousClock()
         let start = clock.now
-        #if targetEnvironment(simulator)
+        #if !targetEnvironment(simulator)
+        if store.backend is SystemTunnelBackend {
+            return await runDeviceQuirk2(store: store, start: start, clock: clock)
+        }
+        #endif
         return simulatorQuirkOutcome(
             checkID: .quirk2AddOnDemandRunning,
             quirkID: .onDemandOnRunningNeedsStop,
             start: start,
             clock: clock
         )
-        #else
-        return await runDeviceQuirk2(store: store, start: start, clock: clock)
-        #endif
     }
 
     @discardableResult

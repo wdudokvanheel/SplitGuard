@@ -6,6 +6,7 @@ public enum AppGroup {
     public static let infoDictionaryKey = "SplitGuardAppGroupID"
     public static let appLogFilename = "app.log"
     public static let tunnelLogFilename = "tunnel.log"
+    public static let statusSnapshotFilename = "tunnel-status.json"
 
     public static func identifier(in bundle: Bundle = .main) -> String? {
         if let value = bundle.object(forInfoDictionaryKey: infoDictionaryKey) as? String {
@@ -41,12 +42,23 @@ public enum AppGroup {
         containerURL(in: bundle, fileManager: fileManager).map(tunnelLogURL(inDirectory:))
     }
 
+    public static func statusSnapshotURL(
+        in bundle: Bundle = .main,
+        fileManager: FileManager = .default
+    ) -> URL? {
+        containerURL(in: bundle, fileManager: fileManager).map(statusSnapshotURL(inDirectory:))
+    }
+
     public static func appLogURL(inDirectory directoryURL: URL) -> URL {
         directoryURL.appendingPathComponent(appLogFilename, isDirectory: false)
     }
 
     public static func tunnelLogURL(inDirectory directoryURL: URL) -> URL {
         directoryURL.appendingPathComponent(tunnelLogFilename, isDirectory: false)
+    }
+
+    public static func statusSnapshotURL(inDirectory directoryURL: URL) -> URL {
+        directoryURL.appendingPathComponent(statusSnapshotFilename, isDirectory: false)
     }
 
     public static func logFileURLs(inDirectory directoryURL: URL) -> [URL] {

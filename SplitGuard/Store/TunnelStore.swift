@@ -29,10 +29,10 @@ struct SplitDNSSuggestionPrompt: Identifiable, Equatable, Hashable, Sendable {
 @MainActor
 @Observable
 final class TunnelStore {
-    private(set) var tunnels: [Tunnel] = []
+    let activationService: TunnelActivationService
+    let backend: any TunnelBackend
+
     private(set) var isLoading = true
-    private(set) var hasLoaded = false
-    private(set) var revision = 0
     private(set) var lastActivationError: ActivationErrorBanner?
 
     var activeAlert: AlertItem?
@@ -44,46 +44,59 @@ final class TunnelStore {
     var pendingOpenedURLs: [URL] = []
     var pendingQuickActionTunnelID: Tunnel.ID?
 
-    let backend: any TunnelBackend
-    let recentTunnelsUserDefaults: UserDefaults?
     private let userDefaults: UserDefaults
-    let transitionPollInterval: Duration
     private var alertQueue: [AlertItem] = []
-
-    var attemptingActivationIDs: Set<Tunnel.ID> = []
-    var restartingTunnelIDs: Set<Tunnel.ID> = []
-    var waitingTunnelID: Tunnel.ID?
-    var waiteeTunnelID: Tunnel.ID?
-    var pendingDeactivationActions: [Tunnel.ID: @MainActor () async -> Void] = [:]
-    var mutationEpoch = 0
-    private var isReloadingFromBackend = false
-    private var needsAnotherReload = false
     @ObservationIgnored private var lastLoadIssues: Set<TunnelLoadIssue> = []
-
-    @ObservationIgnored nonisolated(unsafe) var eventTask: Task<Void, Never>?
-    @ObservationIgnored nonisolated(unsafe) var transitionPollTask: Task<Void, Never>?
 
     private static let favoriteTunnelDefaultsKey = "splitguard.favoriteTunnelID"
 
+    var tunnels: [Tunnel] {
+        activationService.tunnels
+    }
+
+    var hasLoaded: Bool {
+        activationService.hasLoaded
+    }
+
+    var revision: Int {
+        activationService.revision
+    }
+
+    var recentTunnelsUserDefaults: UserDefaults? {
+        activationService.recentTunnelsUserDefaults
+    }
+
+    var pendingDeactivationActions: [Tunnel.ID: @MainActor () async -> Void] {
+        get { activationService.pendingDeactivationActions }
+        set { activationService.pendingDeactivationActions = newValue }
+    }
+
     init(
+        activationService: TunnelActivationService? = nil,
         backend: (any TunnelBackend)? = nil,
         autoLoad: Bool = true,
         userDefaults: UserDefaults = .standard,
         recentTunnelsUserDefaults: UserDefaults? = nil,
         transitionPollInterval: Duration = .seconds(5)
     ) {
-        #if targetEnvironment(simulator)
-        self.backend = backend ?? InMemoryTunnelBackend()
-        #else
-        self.backend = backend ?? SystemTunnelBackend()
-        #endif
+        if let activationService {
+            self.activationService = activationService
+        } else if let backend {
+            self.activationService = TunnelActivationService(
+                backend: backend,
+                snapshotStore: nil,
+                recentTunnelsUserDefaults: recentTunnelsUserDefaults,
+                transitionPollInterval: transitionPollInterval
+            )
+        } else {
+            self.activationService = TunnelActivationService.shared
+        }
+        self.backend = self.activationService.backend
         self.userDefaults = userDefaults
-        self.recentTunnelsUserDefaults = recentTunnelsUserDefaults
-        self.transitionPollInterval = transitionPollInterval
         self.favoriteTunnelID = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey).flatMap(UUID.init(uuidString:))
         self.appearanceMode = AppAppearanceMode.load(from: userDefaults)
 
-        startEventStream()
+        self.activationService.observer = self
 
         if autoLoad {
             Task { [weak self] in
@@ -94,11 +107,6 @@ final class TunnelStore {
         }
     }
 
-    deinit {
-        eventTask?.cancel()
-        transitionPollTask?.cancel()
-    }
-
     func setAppearanceMode(_ mode: AppAppearanceMode) {
         guard appearanceMode != mode else { return }
         appearanceMode = mode
@@ -106,7 +114,7 @@ final class TunnelStore {
     }
 
     var activeTunnel: Tunnel? {
-        tunnels.first { $0.status != .inactive }
+        activationService.activeTunnel
     }
 
     var favoriteTunnel: Tunnel? {
@@ -135,11 +143,11 @@ final class TunnelStore {
     }
 
     func tunnel(for id: Tunnel.ID) -> Tunnel? {
-        tunnels.first { $0.id == id }
+        activationService.tunnel(for: id)
     }
 
     func tunnel(named name: String) -> Tunnel? {
-        tunnels.first { $0.name == name }
+        activationService.tunnel(named: name)
     }
 
     func status(for tunnel: Tunnel) -> TunnelStatus {
@@ -206,186 +214,88 @@ final class TunnelStore {
         activeAlert = alertQueue.isEmpty ? nil : alertQueue.removeFirst()
     }
 
-    func setTunnelsList(_ newTunnels: [Tunnel]) {
-        tunnels = newTunnels
-    }
-
-    func appendTunnel(_ tunnel: Tunnel) {
-        tunnels.append(tunnel)
-    }
-
-    func removeTunnelFromList(id: Tunnel.ID) {
-        tunnels.removeAll { $0.id == id }
-    }
-
     func sortTunnels() {
-        tunnels.sort { Self.tunnelNameIsLessThan($0.name, $1.name) }
+        activationService.sortTunnels()
     }
 
     func bumpRevision() {
-        revision += 1
-    }
-
-    func setLoadingState(isLoading: Bool, hasLoaded: Bool? = nil) {
-        self.isLoading = isLoading
-        if let hasLoaded {
-            self.hasLoaded = hasLoaded
-        }
+        activationService.bumpRevision()
     }
 
     static func tunnelNameIsLessThan(_ lhs: String, _ rhs: String) -> Bool {
-        lhs.localizedStandardCompare(rhs) == .orderedAscending
+        TunnelActivationService.tunnelNameIsLessThan(lhs, rhs)
     }
 
     func wrapError(_ error: Error, fallback: (String) -> TunnelError) -> TunnelError {
-        if let tunnelError = error as? TunnelError {
-            return tunnelError
-        }
-        return fallback(TunnelError.describeSystemError(error))
+        activationService.wrapError(error, fallback: fallback)
     }
 }
 
 extension TunnelStore {
     func loadTunnels() async {
-        setLoadingState(isLoading: true)
+        isLoading = true
         do {
-            let snapshot = try await backend.loadSnapshot()
-            applyLoadSnapshot(snapshot)
+            _ = try await activationService.loadSnapshot()
+            isLoading = false
             flushPendingQuickAction()
             await flushPendingOpenedURLs()
         } catch {
-            setLoadingState(isLoading: false)
+            isLoading = false
             present(error: wrapError(error, fallback: TunnelError.loadFailed))
         }
     }
 
     func reloadFromBackend() async {
-        if isReloadingFromBackend {
-            needsAnotherReload = true
-            return
-        }
-        isReloadingFromBackend = true
-        defer { isReloadingFromBackend = false }
-
-        repeat {
-            needsAnotherReload = false
-            let startEpoch = mutationEpoch
-            do {
-                let snapshot = try await backend.loadSnapshot()
-                if mutationEpoch != startEpoch {
-                    needsAnotherReload = true
-                    continue
-                }
-                applyLoadSnapshot(snapshot)
-            } catch {
-                Log.error("Failed to reload tunnels after configuration change: \(error)")
-            }
-        } while needsAnotherReload
-    }
-
-    private func applyLoadSnapshot(_ snapshot: TunnelLoadSnapshot) {
-        applyLoadedRecords(snapshot.records, preservingIDs: Set(snapshot.issues.map(\.tunnelID)))
-        setLoadingState(isLoading: false, hasLoaded: true)
-        RecentTunnelsTracker.cleanupTunnels(
-            except: Set(tunnels.map(\.id)).union(snapshot.issues.map(\.tunnelID)),
-            userDefaults: recentTunnelsUserDefaults
-        )
-        updateQuickActions()
-
-        let newIssues = snapshot.issues.subtracting(lastLoadIssues)
-        lastLoadIssues = snapshot.issues
-        guard !newIssues.isEmpty else { return }
-
-        let messages = newIssues.map(\.message).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-        presentAlert(title: "Some tunnels could not be loaded", message: messages.joined(separator: "\n\n"))
+        await activationService.reloadFromBackend()
     }
 
     func refreshStatuses() async {
-        let statuses = await backend.refreshStatuses()
-        for (id, status) in statuses {
-            guard let tunnel = tunnel(for: id) else { continue }
-            if id == waitingTunnelID && status == .inactive {
-                continue
-            }
-            let hasPendingTransition = status == .inactive && (
-                attemptingActivationIDs.contains(id)
-                    || restartingTunnelIDs.contains(id)
-                    || pendingDeactivationActions[id] != nil
-                    || waiteeTunnelID == id
-            )
-            if status != tunnel.status || hasPendingTransition {
-                await handleStatusChange(tunnelID: id, status: status)
-            }
-        }
-        updateTransitionPolling()
+        await activationService.refreshStatuses()
     }
 
     func fetchDeviceStatus(for tunnel: Tunnel) async -> DeviceStatus? {
         guard tunnel.status != .inactive else { return nil }
         return await backend.fetchDeviceStatus(for: tunnel.id)
     }
+}
 
-    private func startEventStream() {
-        let stream = backend.events()
-        eventTask = Task { @MainActor [weak self] in
-            for await event in stream {
-                guard let self, !Task.isCancelled else { return }
-                switch event {
-                case .statusChanged(let tunnelID, let status):
-                    await self.handleStatusChange(tunnelID: tunnelID, status: status)
-                case .configurationsChanged:
-                    await self.reloadFromBackend()
-                }
-            }
+extension TunnelStore: TunnelActivationObserver {
+    func activationService(
+        _ service: TunnelActivationService,
+        didRecordActivationError error: TunnelError,
+        forTunnelNamed name: String
+    ) {
+        recordActivationError(tunnelName: name, error: error)
+    }
+
+    func activationService(
+        _ service: TunnelActivationService,
+        didClearActivationErrorForTunnelNamed name: String
+    ) {
+        clearActivationError(for: name)
+    }
+
+    func activationService(_ service: TunnelActivationService, didEncounterControlError error: TunnelError) {
+        present(error: error)
+    }
+
+    func activationService(_ service: TunnelActivationService, didFinishLoadWithIssues issues: Set<TunnelLoadIssue>) {
+        isLoading = false
+        let newIssues = issues.subtracting(lastLoadIssues)
+        lastLoadIssues = issues
+        guard !newIssues.isEmpty else { return }
+
+        let messages = newIssues.map(\.message).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        presentAlert(title: "Some tunnels could not be loaded", message: messages.joined(separator: "\n\n"))
+    }
+
+    func activationService(_ service: TunnelActivationService, didRemoveTunnelWithID id: Tunnel.ID) {
+        if favoriteTunnelID == id {
+            setFavorite(nil)
         }
     }
 
-    private func applyLoadedRecords(_ records: [TunnelRecord], preservingIDs: Set<Tunnel.ID>) {
-        let existingByID = Dictionary(tunnels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let loadedIDs = Set(records.map(\.id))
-
-        let removedIDs = Set(existingByID.keys).subtracting(loadedIDs).subtracting(preservingIDs)
-        for removedID in removedIDs {
-            cleanupState(forRemovedID: removedID)
-        }
-
-        var updatedTunnels = tunnels.filter { preservingIDs.contains($0.id) && !loadedIDs.contains($0.id) }
-
-        for record in records {
-            if let existing = existingByID[record.id] {
-                let preserveSyntheticStatus =
-                    (restartingTunnelIDs.contains(record.id) && record.status != .inactive)
-                    || (waitingTunnelID == record.id && record.status == .inactive)
-                existing.apply(record: record, preservingStatus: preserveSyntheticStatus)
-                updatedTunnels.append(existing)
-            } else {
-                updatedTunnels.append(Tunnel(record: record))
-            }
-        }
-
-        setTunnelsList(updatedTunnels.sorted { Self.tunnelNameIsLessThan($0.name, $1.name) })
-        bumpRevision()
-        updateTransitionPolling()
-    }
-
-    func cleanupState(forRemovedID id: Tunnel.ID) {
-        attemptingActivationIDs.remove(id)
-        restartingTunnelIDs.remove(id)
-        if waitingTunnelID == id {
-            waitingTunnelID = nil
-            waiteeTunnelID = nil
-        }
-        if waiteeTunnelID == id {
-            waiteeTunnelID = nil
-            if let nextID = waitingTunnelID, let nextTunnel = tunnel(for: nextID) {
-                waitingTunnelID = nil
-                nextTunnel.status = .inactive
-            }
-        }
-        if let action = pendingDeactivationActions.removeValue(forKey: id) {
-            Task { @MainActor in
-                await action()
-            }
-        }
+    func activationServiceDidUpdateTunnels(_ service: TunnelActivationService) {
+        updateQuickActions()
     }
 }

@@ -168,19 +168,8 @@ extension TunnelStore {
         guard let tunnel = tunnel(for: tunnelID) else { return }
         requestedNavigationTunnelID = tunnel.id
 
-        let state = displayState(for: tunnel)
-        if state.hasOnDemandRules {
-            Task { [weak self] in
-                await self?.setTunnelActive(!state.isOnDemandEnabled, for: tunnel)
-            }
-        } else if state.status == .inactive {
-            Task { [weak self] in
-                await self?.setTunnelActive(true, for: tunnel)
-            }
-        } else if state.status == .active {
-            Task { [weak self] in
-                await self?.setTunnelActive(false, for: tunnel)
-            }
+        Task { [weak self] in
+            await self?.toggleTunnel(tunnel)
         }
     }
 
@@ -264,17 +253,11 @@ extension TunnelStore {
 
     @discardableResult
     func upsertTunnel(from record: TunnelRecord) -> Tunnel {
-        if let existing = tunnel(for: record.id) {
-            existing.apply(record: record)
-            return existing
-        }
-        let created = Tunnel(record: record)
-        appendTunnel(created)
-        return created
+        activationService.upsertTunnel(from: record)
     }
 
     func markLocalMutation() {
-        mutationEpoch &+= 1
+        activationService.markLocalMutation()
     }
 }
 
@@ -309,21 +292,18 @@ private extension TunnelStore {
         tunnel.apply(record: record)
         if isRenamed {
             sortTunnels()
+        } else {
+            activationService.syncStatusSnapshot()
         }
         bumpRevision()
         updateQuickActions()
     }
 
     func removeDeletedTunnelLocally(_ tunnel: Tunnel) {
-        cleanupState(forRemovedID: tunnel.id)
-        removeTunnelFromList(id: tunnel.id)
+        activationService.removeTunnelLocally(id: tunnel.id)
         if favoriteTunnelID == tunnel.id {
             setFavorite(nil)
         }
         clearActivationError(for: tunnel.name)
-        RecentTunnelsTracker.handleTunnelRemoved(
-            tunnelID: tunnel.id,
-            userDefaults: recentTunnelsUserDefaults
-        )
     }
 }
