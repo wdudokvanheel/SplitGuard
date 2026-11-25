@@ -1,10 +1,8 @@
+![SplitGuard: WireGuard for iPhone. Screens of the tunnel list, onboarding, configuration editor and on-demand settings](docs/readme-header.png)
+
 # SplitGuard
 
 SplitGuard is a WireGuard VPN app for iPhone. It works with any WireGuard server and imports the same configuration files and QR codes as other WireGuard apps. On top of that it lets you decide which websites use the VPN's DNS, block traffic when the VPN drops, get notified when a server stops responding, and control your tunnels from Shortcuts. It runs on iOS 26 and later.
-
-<p align="center">
-  <img src="docs/screenshot.png" alt="Tunnel list with an active connection, live traffic counters, and handshake age" width="200" />
-</p>
 
 ## Split DNS
 
