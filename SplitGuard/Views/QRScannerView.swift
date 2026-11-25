@@ -14,6 +14,7 @@ struct QRScannerView: View {
     @State private var isScanningPaused = false
     @State private var scannedProfile: TunnelProfile?
     @State private var tunnelName = ""
+    @State private var isSaving = false
     @State private var scanError: AlertItem?
 
     private enum CameraAuthorizationState {
@@ -55,9 +56,14 @@ struct QRScannerView: View {
             .background(SGColor.surfacePrimary.ignoresSafeArea())
 
             if let scannedProfile {
-                QRNameScannedTunnelSheet(
+                NameImportedTunnelView(
+                    promptTitle: String(
+                        localized: "qr.scan.namePromptTitle",
+                        defaultValue: "Please name the scanned tunnel"
+                    ),
                     tunnelName: $tunnelName,
-                    scannedProfile: scannedProfile,
+                    profile: scannedProfile,
+                    isSaving: isSaving,
                     onCancel: {
                         withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
                             self.scannedProfile = nil
@@ -186,121 +192,20 @@ struct QRScannerView: View {
     }
 
     private func saveScannedTunnel() {
-        guard let profile = scannedProfile else { return }
+        guard !isSaving, let profile = scannedProfile else { return }
         let name = tunnelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        isSaving = true
         Task {
             let succeeded = await store.addProfile(profile, named: name)
-            scannedProfile = nil
+            isSaving = false
             if succeeded {
+                scannedProfile = nil
                 if let onCompleted {
                     onCompleted()
                 } else {
                     dismiss()
                 }
-            } else {
-                tunnelName = ""
-                isScanningPaused = false
             }
-        }
-    }
-}
-
-private struct QRNameScannedTunnelSheet: View {
-    @Binding var tunnelName: String
-    let scannedProfile: TunnelProfile
-    let onCancel: () -> Void
-    let onSave: () -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            BrutalistHeaderBar(
-                title: "Name Tunnel",
-                leading: {
-                    BrutalistHeaderButton(
-                        title: String(localized: "action.cancel", defaultValue: "Cancel"),
-                        fill: SGColor.surfaceCard,
-                        foreground: SGColor.textPrimary,
-                        action: onCancel
-                    )
-                },
-                trailing: {
-                    BrutalistHeaderButton(
-                        title: String(localized: "action.save", defaultValue: "Save"),
-                        fill: SGColor.popGreen,
-                        foreground: SGColor.inkOnPop,
-                        showGrain: true,
-                        action: onSave
-                    )
-                    .disabled(tunnelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            )
-
-            ScrollView {
-                VStack(spacing: SGSpacing.medium) {
-                    VStack(spacing: 0) {
-                        BrutalistSectionBar(
-                            title: String(
-                                localized: "qr.scan.namePromptTitle",
-                                defaultValue: "Please name the scanned tunnel"
-                            )
-                        )
-                        TextField("e.g. Home VPN", text: $tunnelName)
-                            .font(SGTypography.body)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .padding(.horizontal, SGSpacing.xSmall)
-                            .padding(.vertical, 10)
-                            .background(SGColor.surfaceElevated)
-                            .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
-                            .padding(SGSpacing.medium)
-                            .background(SGColor.surfaceCard)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
-                    .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
-
-                    VStack(spacing: 0) {
-                        BrutalistSectionBar(title: "Detected Configuration")
-                        VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-                            if let endpoint = scannedProfile.peers.first?.endpoint?.description {
-                                detectedInfoRow(label: "ENDPOINT", value: endpoint)
-                            }
-                            if !scannedProfile.interface.dnsServers.isEmpty {
-                                detectedInfoRow(
-                                    label: "DNS",
-                                    value: scannedProfile.interface.dnsServers.map(\.description).joined(separator: ", ")
-                                )
-                            }
-                            if scannedProfile.splitDNS.mode == .onlyDomains,
-                               !scannedProfile.splitDNS.normalizedDomainNames.isEmpty {
-                                detectedInfoRow(
-                                    label: "SPLIT DNS",
-                                    value: scannedProfile.splitDNS.normalizedDomainNames.joined(separator: ", ")
-                                )
-                            }
-                        }
-                        .padding(SGSpacing.medium)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(SGColor.surfaceCard)
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
-                    .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
-                }
-                .padding(SGSpacing.medium)
-            }
-            .background(SGColor.surfacePrimary.ignoresSafeArea())
-        }
-        .background(SGColor.surfacePrimary.ignoresSafeArea())
-    }
-
-    private func detectedInfoRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(SGTypography.metricLabel)
-                .foregroundStyle(SGColor.textSecondary)
-            Spacer()
-            Text(value)
-                .font(SGTypography.monoCompact.weight(.semibold))
-                .foregroundStyle(SGColor.textPrimary)
         }
     }
 }

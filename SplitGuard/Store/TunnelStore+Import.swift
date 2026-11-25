@@ -39,8 +39,6 @@ extension TunnelStore {
                 if backend.saveNewDeactivatesActiveTunnel, let activeTunnel = previouslyActiveTunnel {
                     await recoverActiveTunnelAfterAdd(activeTunnel)
                 }
-
-                evaluateSplitDNSSuggestion(for: addedTunnels)
             }
         }
 
@@ -82,8 +80,7 @@ extension TunnelStore {
         normalizedProfile.options = normalizedProfile.options.sanitized(for: normalizedProfile)
 
         do {
-            let created = try await addTunnel(normalizedProfile)
-            evaluateSplitDNSSuggestion(for: [created])
+            _ = try await addTunnel(normalizedProfile)
             return true
         } catch {
             present(error: wrapError(error, fallback: TunnelError.saveFailed))
@@ -113,6 +110,27 @@ extension TunnelStore {
 
     func exportAllTunnelsZip() async throws -> URL {
         try await TunnelExportService.export(profiles: tunnels.map(\.profile))
+    }
+
+    func presentImportFailures(_ failures: [ImportFailure], importedCount: Int, totalCount: Int) {
+        guard !failures.isEmpty else { return }
+
+        if failures.count == 1 && totalCount == 1 {
+            presentAlert(title: failures[0].title, message: failures[0].message)
+            return
+        }
+
+        let title: String
+        if importedCount > 0 {
+            title = "Imported \(importedCount) of \(totalCount) tunnels"
+        } else {
+            title = failures.count == 1 ? failures[0].title : "Unable to import tunnels"
+        }
+
+        let message = failures
+            .map { "\($0.fileName): \($0.message)" }
+            .joined(separator: "\n")
+        presentAlert(title: title, message: message)
     }
 }
 
@@ -161,26 +179,5 @@ private extension TunnelStore {
                 message: tunnelError.message
             ))
         }
-    }
-
-    func presentImportFailures(_ failures: [ImportFailure], importedCount: Int, totalCount: Int) {
-        guard !failures.isEmpty else { return }
-
-        if failures.count == 1 && totalCount == 1 {
-            presentAlert(title: failures[0].title, message: failures[0].message)
-            return
-        }
-
-        let title: String
-        if importedCount > 0 {
-            title = "Imported \(importedCount) of \(totalCount) tunnels"
-        } else {
-            title = failures.count == 1 ? failures[0].title : "Unable to import tunnels"
-        }
-
-        let message = failures
-            .map { "\($0.fileName): \($0.message)" }
-            .joined(separator: "\n")
-        presentAlert(title: title, message: message)
     }
 }

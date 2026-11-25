@@ -1,3 +1,4 @@
+import SplitGuardCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -8,10 +9,10 @@ enum AppRoute: Hashable {
     case createTunnel
     case editTunnel(Tunnel.ID)
     case pasteConfig
+    case nameImportedTunnel
     case settings
     case about
     case logViewer
-    case splitDNSSuggestion(SplitDNSSuggestionPrompt)
     #if DEBUG
     case debugVerificationWizard
     #endif
@@ -23,22 +24,7 @@ struct RootView: View {
 
     @State private var navigationPath: [AppRoute] = []
     @State private var showFileImporter = false
-
-    private var isBlockingRouteActive: Bool {
-        showFileImporter || navigationPath.contains { route in
-            switch route {
-            case .tunnelDetail:
-                return false
-            case .addTunnel, .qrScanner, .createTunnel, .editTunnel,
-                 .pasteConfig, .settings, .about, .logViewer, .splitDNSSuggestion:
-                return true
-            #if DEBUG
-            case .debugVerificationWizard:
-                return true
-            #endif
-            }
-        }
-    }
+    @State private var pendingImportedProfile: TunnelProfile?
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -84,9 +70,8 @@ struct RootView: View {
         ) { result in
             switch result {
             case .success(let urls):
-                navigationPath.removeAll { $0 == .addTunnel }
                 Task {
-                    await store.importFiles(from: urls)
+                    await handleFileImportSelection(urls)
                 }
             case .failure(let error):
                 store.presentAlert(
@@ -114,7 +99,7 @@ struct RootView: View {
         }
         .onOpenURL { url in
             Task {
-                await store.importFromOpenedURL(url)
+                await handleOpenedURL(url)
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -143,17 +128,8 @@ struct RootView: View {
         .onChange(of: store.requestedNavigationTunnelID) { _, _ in
             navigateToRequestedTunnelIfNeeded()
         }
-        .onChange(of: store.pendingSplitDNSSuggestion) { _, _ in
-            scheduleSplitDNSPromptPresentationIfReady()
-        }
-        .onChange(of: isBlockingRouteActive) { _, isActive in
-            if !isActive {
-                scheduleSplitDNSPromptPresentationIfReady(delay: 0.35)
-            }
-        }
         .onAppear {
             navigateToRequestedTunnelIfNeeded()
-            scheduleSplitDNSPromptPresentationIfReady()
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains(DebugVerificationWizardModel.autoRunLaunchFlag) {
                 if navigationPath.last != .debugVerificationWizard {
@@ -187,8 +163,8 @@ struct RootView: View {
             TunnelEditorView(store: store) { _ in navigationPath.removeAll() }
         case .pasteConfig:
             PasteConfigSheet(store: store) { navigationPath.removeAll() }
-        case .splitDNSSuggestion(let prompt):
-            FirstRunSplitDNSSheet(store: store, prompt: prompt)
+        case .nameImportedTunnel:
+            nameImportedTunnelDestination
         case .settings, .about, .logViewer:
             utilityDestination(for: route)
         #if DEBUG
@@ -236,6 +212,29 @@ struct RootView: View {
             TunnelEditorView(store: store, tunnel: tunnel)
         } else {
             tunnelRemovedView(for: tunnelID)
+        }
+    }
+
+    @ViewBuilder
+    private var nameImportedTunnelDestination: some View {
+        if let profile = pendingImportedProfile {
+            NameImportedTunnelRouteView(
+                store: store,
+                profile: profile,
+                onCancel: {
+                    pendingImportedProfile = nil
+                    navigationPath.removeAll { $0 == .nameImportedTunnel }
+                },
+                onSaved: {
+                    pendingImportedProfile = nil
+                    navigationPath.removeAll()
+                }
+            )
+        } else {
+            Color.clear
+                .onAppear {
+                    navigationPath.removeAll { $0 == .nameImportedTunnel }
+                }
         }
     }
 
@@ -292,16 +291,44 @@ private extension RootView {
         }
     }
 
-    func scheduleSplitDNSPromptPresentationIfReady(delay: TimeInterval = 0.05) {
-        guard let pending = store.pendingSplitDNSSuggestion,
-              !isBlockingRouteActive else { return }
-        let targetID = pending.id
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(delay))
-            guard !isBlockingRouteActive,
-                  let current = store.pendingSplitDNSSuggestion,
-                  current.id == targetID else { return }
-            navigationPath.append(.splitDNSSuggestion(current))
+    func handleFileImportSelection(_ urls: [URL]) async {
+        guard !urls.isEmpty else { return }
+        if urls.count == 1 {
+            let outcome = await TunnelImportService.importFiles(from: urls)
+            if outcome.profiles.count == 1, outcome.failures.isEmpty {
+                presentNamePrompt(for: outcome.profiles[0])
+            } else {
+                store.presentImportFailures(outcome.failures, importedCount: 0, totalCount: 1)
+            }
+            return
         }
+
+        navigationPath.removeAll { $0 == .addTunnel }
+        await store.importFiles(from: urls)
+    }
+
+    func handleOpenedURL(_ url: URL) async {
+        guard store.hasLoaded else {
+            await store.importFromOpenedURL(url)
+            return
+        }
+
+        let isInboxFile = url.pathComponents.contains("Inbox")
+        let outcome = await TunnelImportService.importFiles(from: [url])
+        if isInboxFile {
+            try? FileManager.default.removeItem(at: url)
+        }
+
+        if outcome.profiles.count == 1, outcome.failures.isEmpty {
+            presentNamePrompt(for: outcome.profiles[0])
+        } else {
+            store.presentImportFailures(outcome.failures, importedCount: 0, totalCount: 1)
+        }
+    }
+
+    func presentNamePrompt(for profile: TunnelProfile) {
+        pendingImportedProfile = profile
+        navigationPath.removeAll { $0 == .addTunnel || $0 == .nameImportedTunnel }
+        navigationPath.append(.nameImportedTunnel)
     }
 }

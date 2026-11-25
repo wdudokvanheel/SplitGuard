@@ -18,14 +18,6 @@ struct ActivationErrorBanner: Identifiable, Equatable, Sendable {
     let message: String
 }
 
-struct SplitDNSSuggestionPrompt: Identifiable, Equatable, Hashable, Sendable {
-    let id = UUID()
-    let tunnelID: Tunnel.ID
-    let tunnelName: String
-    let suggestedDomain: String
-    let dnsServers: [String]
-}
-
 @MainActor
 @Observable
 final class TunnelStore {
@@ -37,7 +29,6 @@ final class TunnelStore {
 
     var activeAlert: AlertItem?
     var requestedNavigationTunnelID: Tunnel.ID?
-    var pendingSplitDNSSuggestion: SplitDNSSuggestionPrompt?
     private(set) var favoriteTunnelID: Tunnel.ID?
     private(set) var appearanceMode: AppAppearanceMode
 
