@@ -61,14 +61,22 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
         let title: String
         let accent: Color
         let systemImage: String?
+        let showsAlert: Bool
 
         var id: Selection { value }
 
-        init(value: Selection, title: String, accent: Color, systemImage: String? = nil) {
+        init(
+            value: Selection,
+            title: String,
+            accent: Color,
+            systemImage: String? = nil,
+            showsAlert: Bool = false
+        ) {
             self.value = value
             self.title = title
             self.accent = accent
             self.systemImage = systemImage
+            self.showsAlert = showsAlert
         }
     }
 
@@ -101,6 +109,13 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
                             .tracking(0.6)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
+                        if option.showsAlert {
+                            Rectangle()
+                                .fill(SGColor.statusError)
+                                .frame(width: 7, height: 7)
+                                .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+                                .accessibilityHidden(true)
+                        }
                     }
                     .foregroundStyle(isSelected ? SGColor.inkOnPop : SGColor.textPrimary)
                     .frame(maxWidth: .infinity)
@@ -110,6 +125,7 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
+                .accessibilityValue(option.showsAlert ? Text("Needs attention") : Text(""))
 
                 if index < options.count - 1 {
                     Rectangle()

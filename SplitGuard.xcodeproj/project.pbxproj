@@ -20,6 +20,7 @@
 		1AD9A1E5ECFD6FA287F075EA /* SplitGuardApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 482C1B571E2E8767AC276171 /* SplitGuardApp.swift */; };
 		1C5F3887F4505EB3C16BA3FC /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9B663AAD5CAFE2E32DC6A0 /* RootView.swift */; };
 		1FD5BF2225DDF6A21CB39EFB /* TunnelFocusFilterIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D697FA459ED8610453B72AB /* TunnelFocusFilterIntent.swift */; };
+		201E6F79740DD6DEF7BDFC7C /* TunnelEditorViewModel+Sections.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC30D69F3C977C17F844D3C8 /* TunnelEditorViewModel+Sections.swift */; };
 		25504C2A119BF9A6263C2DDF /* InMemoryTunnelBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D99E97C6418F5F136187077 /* InMemoryTunnelBackend.swift */; };
 		27B077AB934FE6EEB224394F /* DebugManualStepToolboxExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2EA1A38FDBD89941908D3C1 /* DebugManualStepToolboxExtra.swift */; };
 		2903864294E413746AE3921E /* DebugBundledFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B061BDB1EAAF9E24FABAB0E8 /* DebugBundledFixtures.swift */; };
@@ -27,12 +28,15 @@
 		2D07EFCA4534FA38DC00922F /* OnDemandPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE6AC3D54CBED4658CBFE7D /* OnDemandPolicy.swift */; };
 		2D41CA8B8267602FFACF8BA4 /* HealthAlertNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66972A8BA46071DC7D18F061 /* HealthAlertNotifications.swift */; };
 		2E68C5299449768567CA56A2 /* LogViewerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */; };
+		2F090713D04C20729275E305 /* SplitDNSEditorComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 048A31F60FB82EF37487B942 /* SplitDNSEditorComponents.swift */; };
+		387B740F7C6E431365F07129 /* TunnelEditorViewModel+Behavior.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0798B5D3EB9AEAF045506AE /* TunnelEditorViewModel+Behavior.swift */; };
 		38C34CB39E040D4369D97A77 /* TunnelLiveMetricsMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D949C22A5EAB79B7914F4D3B /* TunnelLiveMetricsMonitor.swift */; };
 		3C836C1652ECEAF7111CC35B /* LogViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D11E4CBFFF5A3AA4FDD8A0D /* LogViewerView.swift */; };
 		3D70C18625D4D7389F4D80F8 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */; };
 		3DAD8F69E96E0AD988DDAB36 /* SplitGuardCore in Frameworks */ = {isa = PBXBuildFile; productRef = BD44F29E14B4E194ADBE454E /* SplitGuardCore */; };
 		3F0C408820AAD5431418A28F /* TunnelStore+Import.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E9EFF7A2B8250E862F8CA0 /* TunnelStore+Import.swift */; };
 		3F73AAA843A8D5B49F6EB29D /* TunnelDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88DC25A86D70CDECF4CB7E9 /* TunnelDetailView.swift */; };
+		40373A2E1547FB0394DD7D24 /* EditorTextRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F33AC17487CA67B69F2C905 /* EditorTextRow.swift */; };
 		41BC8D4DE1910026528C186E /* TunnelIntentRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6457092C12B65E5D39907678 /* TunnelIntentRuntime.swift */; };
 		42B67446132A62568414AA64 /* TunnelDetailCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 657D089C8282769C0D7FE83A /* TunnelDetailCards.swift */; };
 		470B878CA2F741DE6748D1A8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */; };
@@ -47,6 +51,7 @@
 		6627E8AF02A0CACFBAFF8328 /* TunnelEditorCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2875C00C2AD5E898AE254BCD /* TunnelEditorCards.swift */; };
 		66CC82E4AC17504CBBD6F06E /* QRCameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D12B41820538FC44A6C090F2 /* QRCameraController.swift */; };
 		6785477298CBF43D5EE40D66 /* TunnelActivationService+Activation.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB79661E3F2E12EA8D8E6295 /* TunnelActivationService+Activation.swift */; };
+		681AA9FFC7D30E4AF09EF121 /* SplitDNSExceptionsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F144FD9AB68E3D6028B9288 /* SplitDNSExceptionsCard.swift */; };
 		689D237BB62B1BA8DAC2DBD5 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BAE31FAF8762586763D26D62 /* NetworkExtension.framework */; };
 		6AFA883392F8AB7531D0DA17 /* FirstRunOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */; };
 		6AFD8E0C29F72D3E2FA41D8C /* TunnelStatus+Presentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8DAFD7AC9C8490A078F5B2 /* TunnelStatus+Presentation.swift */; };
@@ -78,7 +83,6 @@
 		B5B0399FD8897962C4A9F85C /* SplitGuardTunnel in Frameworks */ = {isa = PBXBuildFile; productRef = C539B74A4DA865A482C4CC89 /* SplitGuardTunnel */; };
 		B5BE3753E320F472CFBAFCDE /* DebugVerificationLiveChecks+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9CEC4CEE70C233E6631A3CB /* DebugVerificationLiveChecks+Helpers.swift */; };
 		B68FB72F18AAA2D7DB88D882 /* DebugVerificationReportBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8C8D2C59F11E47A90F843C /* DebugVerificationReportBuilder.swift */; };
-		B9A3BCDB7827C2D621AC61AE /* SplitDNSExclusionListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE63AA8796B065AF46154667 /* SplitDNSExclusionListView.swift */; };
 		BDEAB6B8BF2D235C74872722 /* AllowedIPHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 221A7AB63493E5342C1F3965 /* AllowedIPHelpers.swift */; };
 		C4ABB2C971D0D8D156146725 /* TunnelActivationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EB82D66A2CBC776C04573D /* TunnelActivationService.swift */; };
 		C96688E2CC19F2134AD3DC85 /* DebugVerificationLiveChecks+Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46F434EFECA38C8A925FC9A /* DebugVerificationLiveChecks+Device.swift */; };
@@ -101,6 +105,7 @@
 		DFDC9D4F66A97DB163C26194 /* SplitGuardNetworkExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2EB03D0F47E35C1E5D9AF252 /* SplitGuardNetworkExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E060A70D2FE6F6287FB929E2 /* DebugVerificationNetworkChecks+Device.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FF340A61B1FEE6A679E071 /* DebugVerificationNetworkChecks+Device.swift */; };
 		E0989F77741562BB02881EC9 /* PasteConfigSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81D4F3516E1C76A2E94CC214 /* PasteConfigSheet.swift */; };
+		E3D71BFE97899BE31DB0AAF0 /* SplitDNSDetailCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CB13815282E08AB330D8DE8 /* SplitDNSDetailCard.swift */; };
 		E850F5082D7867EF54138976 /* TunnelStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B058D862E3E81BB9988FC46B /* TunnelStatus.swift */; };
 		EA213D42FE3BAF2B07ABA351 /* QuickActionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C70D3913402F5D3142EC56 /* QuickActionManager.swift */; };
 		ED9611BF43A1B12BFF97B944 /* SplitDNSNameTesterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */; };
@@ -142,6 +147,7 @@
 		00C70D3913402F5D3142EC56 /* QuickActionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionManager.swift; sourceTree = "<group>"; };
 		02E86110C584CFA275227351 /* SplitGuardCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SplitGuardCore; path = Packages/SplitGuardCore; sourceTree = SOURCE_ROOT; };
 		04107F2E2D3D4F88A5E4AA60 /* DebugVerificationCoreChecks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationCoreChecks.swift; sourceTree = "<group>"; };
+		048A31F60FB82EF37487B942 /* SplitDNSEditorComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSEditorComponents.swift; sourceTree = "<group>"; };
 		0633B31E22E9FFB4E146B00D /* TunnelError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelError.swift; sourceTree = "<group>"; };
 		079A007D7314F7804514346C /* KillSwitchEditorCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KillSwitchEditorCard.swift; sourceTree = "<group>"; };
 		0996B07931BEE28F5DB2705B /* DebugVerificationWizardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationWizardView.swift; sourceTree = "<group>"; };
@@ -163,6 +169,8 @@
 		33976FE99F7DF11CBD3CE102 /* TunnelDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelDraft.swift; sourceTree = "<group>"; };
 		37952171AD20E2194392CBA2 /* SystemTunnelBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTunnelBackend.swift; sourceTree = "<group>"; };
 		3AAD145EEDE052ED9507AE12 /* TunnelExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelExportService.swift; sourceTree = "<group>"; };
+		3CB13815282E08AB330D8DE8 /* SplitDNSDetailCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSDetailCard.swift; sourceTree = "<group>"; };
+		3F144FD9AB68E3D6028B9288 /* SplitDNSExceptionsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSExceptionsCard.swift; sourceTree = "<group>"; };
 		411AB6DBB507C03E2A128A98 /* TunnelDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelDetailViewModel.swift; sourceTree = "<group>"; };
 		41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
 		422D8D8F7D5AFB0F2B33D537 /* Tunnel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tunnel.swift; sourceTree = "<group>"; };
@@ -191,6 +199,7 @@
 		790EFB2B653559AD88EC49F9 /* IBMPlexSans-Variable.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexSans-Variable.ttf"; sourceTree = "<group>"; };
 		7D99E97C6418F5F136187077 /* InMemoryTunnelBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryTunnelBackend.swift; sourceTree = "<group>"; };
 		7EE73D70DC971740A1DC47AA /* DebugVerificationWizardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationWizardModel.swift; sourceTree = "<group>"; };
+		7F33AC17487CA67B69F2C905 /* EditorTextRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorTextRow.swift; sourceTree = "<group>"; };
 		80FDD2266663749F240D22F5 /* DebugManualStepPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugManualStepPage.swift; sourceTree = "<group>"; };
 		81CDBBF10853A7A9E8CBBB9F /* DebugVerificationReviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationReviewFixtures.swift; sourceTree = "<group>"; };
 		81D4F3516E1C76A2E94CC214 /* PasteConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteConfigSheet.swift; sourceTree = "<group>"; };
@@ -207,6 +216,7 @@
 		AF60462C7787F71F621B086F /* DebugAutomatedChecksPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugAutomatedChecksPage.swift; sourceTree = "<group>"; };
 		B058D862E3E81BB9988FC46B /* TunnelStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelStatus.swift; sourceTree = "<group>"; };
 		B061BDB1EAAF9E24FABAB0E8 /* DebugBundledFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugBundledFixtures.swift; sourceTree = "<group>"; };
+		B0798B5D3EB9AEAF045506AE /* TunnelEditorViewModel+Behavior.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelEditorViewModel+Behavior.swift"; sourceTree = "<group>"; };
 		B5DF1A6231D4957C679DC35B /* DebugVerificationSummaryPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationSummaryPage.swift; sourceTree = "<group>"; };
 		B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunOnboardingView.swift; sourceTree = "<group>"; };
 		B7096639911D9721C0514859 /* TunnelStore+Activation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelStore+Activation.swift"; sourceTree = "<group>"; };
@@ -236,11 +246,11 @@
 		E89731EB9113CCD77B48C16E /* DebugVerificationCoreChecks+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DebugVerificationCoreChecks+Helpers.swift"; sourceTree = "<group>"; };
 		EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSNameTesterView.swift; sourceTree = "<group>"; };
 		EDA6060EE84E2358B934167F /* TunnelEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelEntity.swift; sourceTree = "<group>"; };
-		EE63AA8796B065AF46154667 /* SplitDNSExclusionListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDNSExclusionListView.swift; sourceTree = "<group>"; };
 		EE6F26C23D20B92B87D6177D /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		F155393E9987A5017EA37843 /* WireGuardEngine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WireGuardEngine; path = Packages/WireGuardEngine; sourceTree = SOURCE_ROOT; };
 		F2E641F17ED4B41C837A5933 /* TunnelActivationService+IntentOperations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelActivationService+IntentOperations.swift"; sourceTree = "<group>"; };
 		F7F4ABFCF6DF80093CC65422 /* DNSLookupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DNSLookupService.swift; sourceTree = "<group>"; };
+		FC30D69F3C977C17F844D3C8 /* TunnelEditorViewModel+Sections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TunnelEditorViewModel+Sections.swift"; sourceTree = "<group>"; };
 		FD489BC920428BE1B1A34FF3 /* TunnelBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunnelBackend.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -280,6 +290,8 @@
 				F2E641F17ED4B41C837A5933 /* TunnelActivationService+IntentOperations.swift */,
 				411AB6DBB507C03E2A128A98 /* TunnelDetailViewModel.swift */,
 				6EE8575BE590E8A1AE8CC1BB /* TunnelEditorViewModel.swift */,
+				B0798B5D3EB9AEAF045506AE /* TunnelEditorViewModel+Behavior.swift */,
+				FC30D69F3C977C17F844D3C8 /* TunnelEditorViewModel+Sections.swift */,
 				2919F0FD1300CB9E037B55A1 /* TunnelEditorViewModel+SplitDNS.swift */,
 				D949C22A5EAB79B7914F4D3B /* TunnelLiveMetricsMonitor.swift */,
 				CBD61FA8EC01D06D9B4EF132 /* TunnelStore.swift */,
@@ -356,6 +368,7 @@
 			children = (
 				462AFBB205AEBAA7B8DA45DE /* AboutView.swift */,
 				C98F809C92138DB32C35B2C6 /* ActivityShareSheet.swift */,
+				7F33AC17487CA67B69F2C905 /* EditorTextRow.swift */,
 				B6A65DE9D1100908E7DA5CE9 /* FirstRunOnboardingView.swift */,
 				4488EBB7BD6BC5C04014B740 /* FirstRunSplitDNSSheet.swift */,
 				88FDED757D93B7E12A12D7ED /* HealthAlertsEditorCard.swift */,
@@ -366,7 +379,9 @@
 				51829E4D1692EF4D887041CE /* QRScannerView.swift */,
 				5C9B663AAD5CAFE2E32DC6A0 /* RootView.swift */,
 				1C0D3E2BBA61EAB88E479A07 /* SettingsView.swift */,
-				EE63AA8796B065AF46154667 /* SplitDNSExclusionListView.swift */,
+				3CB13815282E08AB330D8DE8 /* SplitDNSDetailCard.swift */,
+				048A31F60FB82EF37487B942 /* SplitDNSEditorComponents.swift */,
+				3F144FD9AB68E3D6028B9288 /* SplitDNSExceptionsCard.swift */,
 				EB1EF4D8E4ED93F218690018 /* SplitDNSNameTesterView.swift */,
 				5075D58A63CA3AB1EA17300B /* SplitDNSSectionViews.swift */,
 				19A772A1AC6281A9CDF7E4FE /* SSIDOptionEditorView.swift */,
@@ -702,6 +717,7 @@
 				78A1DBFE35A1D2073B6B565C /* DebugVerificationWizardModel.swift in Sources */,
 				83F63B84AD354DEF74815670 /* DebugVerificationWizardView.swift in Sources */,
 				3D70C18625D4D7389F4D80F8 /* DesignTokens.swift in Sources */,
+				40373A2E1547FB0394DD7D24 /* EditorTextRow.swift in Sources */,
 				6AFA883392F8AB7531D0DA17 /* FirstRunOnboardingView.swift in Sources */,
 				D9814EDACFD043A9827A6877 /* FirstRunSplitDNSSheet.swift in Sources */,
 				2D41CA8B8267602FFACF8BA4 /* HealthAlertNotifications.swift in Sources */,
@@ -720,7 +736,9 @@
 				1C5F3887F4505EB3C16BA3FC /* RootView.swift in Sources */,
 				5160F0AF764BEF049F5128A3 /* SSIDOptionEditorView.swift in Sources */,
 				470B878CA2F741DE6748D1A8 /* SettingsView.swift in Sources */,
-				B9A3BCDB7827C2D621AC61AE /* SplitDNSExclusionListView.swift in Sources */,
+				E3D71BFE97899BE31DB0AAF0 /* SplitDNSDetailCard.swift in Sources */,
+				2F090713D04C20729275E305 /* SplitDNSEditorComponents.swift in Sources */,
+				681AA9FFC7D30E4AF09EF121 /* SplitDNSExceptionsCard.swift in Sources */,
 				ED9611BF43A1B12BFF97B944 /* SplitDNSNameTesterView.swift in Sources */,
 				97FEB316C673568B79DD8E8E /* SplitDNSSectionViews.swift in Sources */,
 				1AD9A1E5ECFD6FA287F075EA /* SplitGuardApp.swift in Sources */,
@@ -740,6 +758,8 @@
 				9B2D945E917E93CC23ECCF0C /* TunnelDraft.swift in Sources */,
 				6627E8AF02A0CACFBAFF8328 /* TunnelEditorCards.swift in Sources */,
 				038E7FBBAF9A4116CCD8E7E1 /* TunnelEditorView.swift in Sources */,
+				387B740F7C6E431365F07129 /* TunnelEditorViewModel+Behavior.swift in Sources */,
+				201E6F79740DD6DEF7BDFC7C /* TunnelEditorViewModel+Sections.swift in Sources */,
 				D01DAFD4914739F40D301BAC /* TunnelEditorViewModel+SplitDNS.swift in Sources */,
 				96CD8E49056A7108C847FDD9 /* TunnelEditorViewModel.swift in Sources */,
 				B4A19460DA83D1B7300E1CCB /* TunnelEntity.swift in Sources */,

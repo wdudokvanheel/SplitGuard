@@ -160,6 +160,53 @@ struct BrutalistFormToggleRow: View {
     }
 }
 
+/// Collapsible group for rarely changed fields, so cards stay short by default.
+struct BrutalistDisclosure<Content: View>: View {
+    let title: String
+    var summary: String?
+    @Binding var isExpanded: Bool
+    @ViewBuilder let content: () -> Content
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SGSpacing.small) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: SGSpacing.xSmall) {
+                    Text(title.uppercased())
+                        .font(SGTypography.metricLabel)
+                        .tracking(0.8)
+                        .foregroundStyle(SGColor.textSecondary)
+                    if let summary, !isExpanded {
+                        Text(summary)
+                            .font(SGTypography.caption)
+                            .foregroundStyle(SGColor.textTertiary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: SGSpacing.xSmall)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(SGColor.textPrimary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isExpanded ? Text("Expanded") : Text("Collapsed"))
+
+            if isExpanded {
+                content()
+            }
+        }
+    }
+}
+
 // MARK: - Brutalist Add Tunnel Page
 
 struct BrutalistAddTunnelSheet: View {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 
 import Foundation
-import NetworkExtension
 import Observation
 import SplitGuardCore
 import WireGuardEngine
@@ -35,6 +34,7 @@ final class TunnelEditorViewModel {
     var healthAlertDelaySeconds = TunnelLocalSettings.HealthAlerts.defaultDelaySeconds
     private(set) var notificationAuthorizationState: HealthAlertAuthorizationState = .notDetermined
 
+    var selectedSection: TunnelEditorSection = .interface
     var validationAlert: AlertItem?
     var isSaving = false
 
@@ -204,30 +204,11 @@ final class TunnelEditorViewModel {
         let postSaveNotice: AlertItem?
     }
 
-    var localSettings: TunnelLocalSettings {
-        TunnelLocalSettings(
-            healthAlerts: TunnelLocalSettings.HealthAlerts(
-                isEnabled: isHealthAlertsEnabled,
-                delaySeconds: healthAlertDelaySeconds
-            )
-        )
-    }
-
-    func refreshNotificationAuthorization() async {
-        notificationAuthorizationState = await permissionManager.authorizationState()
-    }
-
-    func setHealthAlertsEnabled(_ enabled: Bool) async {
-        isHealthAlertsEnabled = enabled
-        if enabled {
-            notificationAuthorizationState = await permissionManager.requestAuthorization()
-        }
-    }
-
     func buildValidatedPayload() -> Result<ValidatedPayload, AlertItem> {
         let validatedSplitDNS: SplitDNSConfiguration
         switch validateSplitDNSForSave() {
         case .failure(let alert):
+            selectedSection = .dns
             return .failure(alert)
         case .success(let config):
             validatedSplitDNS = config
@@ -237,6 +218,9 @@ final class TunnelEditorViewModel {
         case .failure(let error):
             interfaceErrorFields = error.interfaceFields
             peerErrorFieldsByID = error.peerFieldsByID
+            if let section = firstSectionWithErrors {
+                selectedSection = section
+            }
             return .failure(AlertItem(title: error.title, message: error.message))
         case .success(var profile):
             interfaceErrorFields = []
@@ -310,91 +294,23 @@ final class TunnelEditorViewModel {
 }
 
 extension TunnelEditorViewModel {
-    var onDemandPolicy: OnDemandPolicy {
-        let filter: OnDemandPolicy.SSIDFilter
-        if isWiFiOnDemandEnabled {
-            switch ssidOption {
-            case .any:
-                filter = .any
-            case .only:
-                filter = .only(selectedSSIDs)
-            case .except:
-                filter = .except(selectedSSIDs)
-            }
-        } else {
-            filter = .any
-        }
-        return OnDemandPolicy(
-            cellular: isCellularOnDemandEnabled,
-            wifi: isWiFiOnDemandEnabled,
-            ssidFilter: filter
-        )
-    }
-
-    var onDemandSSIDSummary: String {
-        onDemandPolicy.ssidDescription
-    }
-
-    func normalizeSSIDSettings() {
-        let normalized = onDemandPolicy.normalized()
-        isCellularOnDemandEnabled = normalized.cellular
-        isWiFiOnDemandEnabled = normalized.wifi
-        ssidOption = normalized.ssidOptionKind
-        selectedSSIDs = normalized.selectedSSIDs
-    }
-
-    var isOnDemandConfigured: Bool {
-        isCellularOnDemandEnabled || isWiFiOnDemandEnabled
-    }
-
-    var routesAllIPv4Traffic: Bool {
-        TunnelProfile.routesAllIPv4Traffic(allowedIPs: currentAllowedIPs)
-    }
-
-    var routesAllIPv6Traffic: Bool {
-        TunnelProfile.routesAllIPv6Traffic(allowedIPs: currentAllowedIPs)
-    }
-
-    var tunnelOptions: TunnelOptions {
-        guard isKillSwitchEnabled, routesAllIPv4Traffic else {
-            return .default
-        }
-        return TunnelOptions(
-            killSwitch: TunnelOptions.KillSwitch(
-                isEnabled: true,
-                allowLocalNetwork: allowLocalNetworkWithKillSwitch
+    var localSettings: TunnelLocalSettings {
+        TunnelLocalSettings(
+            healthAlerts: TunnelLocalSettings.HealthAlerts(
+                isEnabled: isHealthAlertsEnabled,
+                delaySeconds: healthAlertDelaySeconds
             )
         )
     }
 
-    func resolvedKillSwitchOptions(for profile: TunnelProfile) -> (TunnelOptions, AlertItem?) {
-        if isKillSwitchEnabled && !profile.routesAllIPv4Traffic {
-            isKillSwitchEnabled = false
-            allowLocalNetworkWithKillSwitch = false
-            let notice = AlertItem(
-                title: "Kill Switch Turned Off",
-                message: "The kill switch was turned off because this tunnel no longer routes all IPv4 traffic (0.0.0.0/0)."
-            )
-            return (.default, notice)
-        }
-        let options = TunnelOptions(
-            killSwitch: TunnelOptions.KillSwitch(
-                isEnabled: isKillSwitchEnabled,
-                allowLocalNetwork: isKillSwitchEnabled ? allowLocalNetworkWithKillSwitch : false
-            )
-        )
-        return (options, nil)
+    func refreshNotificationAuthorization() async {
+        notificationAuthorizationState = await permissionManager.authorizationState()
     }
 
-    static func fetchConnectedSSID() async -> String? {
-        #if targetEnvironment(simulator)
-        return "Simulator Wi-Fi"
-        #else
-        return await withCheckedContinuation { continuation in
-            NEHotspotNetwork.fetchCurrent { network in
-                continuation.resume(returning: network?.ssid)
-            }
+    func setHealthAlertsEnabled(_ enabled: Bool) async {
+        isHealthAlertsEnabled = enabled
+        if enabled {
+            notificationAuthorizationState = await permissionManager.requestAuthorization()
         }
-        #endif
     }
 }

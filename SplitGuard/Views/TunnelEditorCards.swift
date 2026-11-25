@@ -4,6 +4,7 @@ import UIKit
 struct InterfaceEditorCard: View {
     @Bindable var viewModel: TunnelEditorViewModel
     @State private var copiedPublicKey = false
+    @State private var showsAdvanced = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,32 +29,11 @@ struct InterfaceEditorCard: View {
                     hasError: viewModel.interfaceErrorFields.contains(.privateKey),
                     isMonospaced: true,
                     keyboardType: .asciiCapable
-                )
+                ) {
+                    generateKeyPairButton
+                }
 
                 publicKeyDisplayRow
-
-                Button {
-                    viewModel.generateKeyPair()
-                } label: {
-                    HStack(spacing: SGSpacing.xSmall) {
-                        Image(systemName: "key.fill")
-                            .font(.subheadline.weight(.bold))
-                        Text(String(localized: "tunnel.interface.generateKeypair", defaultValue: "Generate keypair").uppercased())
-                            .font(SGTypography.displayCompact)
-                            .tracking(0.8)
-                    }
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, SGSpacing.small)
-                }
-                .buttonStyle(
-                    BrutalistButtonStyle(
-                        fill: SGColor.popYellow,
-                        foreground: SGColor.inkOnPop,
-                        borderWidth: SGBorder.regular,
-                        shadowOffset: SGShadow.small,
-                        fullWidth: true
-                    )
-                )
 
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
@@ -69,43 +49,80 @@ struct InterfaceEditorCard: View {
                     keyboardType: .numbersAndPunctuation
                 )
 
-                EditorTextRow(
-                    label: InterfaceField.listenPort.localizedTitle,
-                    placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
-                    text: Binding(get: { viewModel.listenPort }, set: { viewModel.updateListenPort($0) }),
-                    hasError: viewModel.interfaceErrorFields.contains(.listenPort),
-                    isMonospaced: true,
-                    keyboardType: .numberPad
-                )
+                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
-                EditorTextRow(
-                    label: InterfaceField.mtu.localizedTitle,
-                    placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
-                    text: Binding(get: { viewModel.mtu }, set: { viewModel.updateMTU($0) }),
-                    hasError: viewModel.interfaceErrorFields.contains(.mtu),
-                    isMonospaced: true,
-                    keyboardType: .numberPad
-                )
+                BrutalistDisclosure(
+                    title: String(localized: "tunnel.editor.advanced", defaultValue: "Advanced"),
+                    summary: advancedSummary,
+                    isExpanded: $showsAdvanced
+                ) {
+                    EditorTextRow(
+                        label: InterfaceField.listenPort.localizedTitle,
+                        placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
+                        text: Binding(get: { viewModel.listenPort }, set: { viewModel.updateListenPort($0) }),
+                        hasError: viewModel.interfaceErrorFields.contains(.listenPort),
+                        isMonospaced: true,
+                        keyboardType: .numberPad
+                    )
 
-                EditorTextRow(
-                    label: InterfaceField.dns.localizedTitle,
-                    placeholder: viewModel.shouldStronglyRecommendDNS
-                        ? String(
-                            localized: "tunnel.editor.placeholder.stronglyRecommended",
-                            defaultValue: "Strongly recommended"
-                        )
-                        : String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
-                    text: Binding(get: { viewModel.dns }, set: { viewModel.updateDNS($0) }),
-                    hasError: viewModel.interfaceErrorFields.contains(.dns),
-                    isMonospaced: true,
-                    keyboardType: .numbersAndPunctuation
-                )
+                    EditorTextRow(
+                        label: InterfaceField.mtu.localizedTitle,
+                        placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
+                        text: Binding(get: { viewModel.mtu }, set: { viewModel.updateMTU($0) }),
+                        hasError: viewModel.interfaceErrorFields.contains(.mtu),
+                        isMonospaced: true,
+                        keyboardType: .numberPad
+                    )
+                }
             }
             .padding(SGSpacing.medium)
             .background(SGColor.surfaceCard)
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+        .onAppear {
+            showsAdvanced = viewModel.hasAdvancedInterfaceValues
+        }
+        .onChange(of: viewModel.interfaceErrorFields) { _, fields in
+            if !fields.isDisjoint(with: [.listenPort, .mtu]) {
+                showsAdvanced = true
+            }
+        }
+    }
+
+    private var advancedSummary: String {
+        var parts: [String] = []
+        if !viewModel.listenPort.isEmpty {
+            parts.append("Port \(viewModel.listenPort)")
+        }
+        if !viewModel.mtu.isEmpty {
+            parts.append("MTU \(viewModel.mtu)")
+        }
+        return parts.isEmpty ? "Listen port, MTU" : parts.joined(separator: " · ")
+    }
+
+    private var generateKeyPairButton: some View {
+        Button {
+            viewModel.generateKeyPair()
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "key.fill")
+                    .font(.system(size: 10, weight: .black))
+                Text(String(localized: "tunnel.interface.generateKeypair", defaultValue: "Generate keypair").uppercased())
+                    .font(SGTypography.metricLabel)
+                    .tracking(0.6)
+            }
+            .padding(.horizontal, SGSpacing.xSmall)
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(
+            BrutalistButtonStyle(
+                fill: SGColor.popYellow,
+                foreground: SGColor.inkOnPop,
+                borderWidth: SGBorder.thin,
+                shadowOffset: 2
+            )
+        )
     }
 
     private var publicKeyDisplayRow: some View {
@@ -169,6 +186,8 @@ struct PeerEditorCard: View {
     let peerCount: Int
     let onRequestDelete: () -> Void
 
+    @State private var showsAdvanced = false
+
     private var sectionTitle: String {
         if peerCount > 1 {
             let number = peerIndex + 1
@@ -185,11 +204,6 @@ struct PeerEditorCard: View {
                 peerFieldRow(
                     .publicKey,
                     placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
-                    keyboard: .asciiCapable
-                )
-                peerFieldRow(
-                    .presharedKey,
-                    placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
                     keyboard: .asciiCapable
                 )
                 peerFieldRow(
@@ -214,11 +228,24 @@ struct PeerEditorCard: View {
                     )
                 }
 
-                peerFieldRow(
-                    .persistentKeepalive,
-                    placeholder: String(localized: "tunnel.editor.placeholder.off", defaultValue: "Off"),
-                    keyboard: .numberPad
-                )
+                Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
+
+                BrutalistDisclosure(
+                    title: String(localized: "tunnel.editor.advanced", defaultValue: "Advanced"),
+                    summary: advancedSummary,
+                    isExpanded: $showsAdvanced
+                ) {
+                    peerFieldRow(
+                        .presharedKey,
+                        placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                        keyboard: .asciiCapable
+                    )
+                    peerFieldRow(
+                        .persistentKeepalive,
+                        placeholder: String(localized: "tunnel.editor.placeholder.off", defaultValue: "Off"),
+                        keyboard: .numberPad
+                    )
+                }
 
                 Button(action: onRequestDelete) {
                     HStack(spacing: SGSpacing.xSmall) {
@@ -246,6 +273,31 @@ struct PeerEditorCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+        .onAppear {
+            showsAdvanced = viewModel.hasAdvancedPeerValues(for: peerID)
+        }
+        .onChange(of: hasAdvancedErrors) { _, hasErrors in
+            if hasErrors {
+                showsAdvanced = true
+            }
+        }
+    }
+
+    private var hasAdvancedErrors: Bool {
+        viewModel.hasPeerError(for: peerID, field: .presharedKey)
+            || viewModel.hasPeerError(for: peerID, field: .persistentKeepalive)
+    }
+
+    private var advancedSummary: String {
+        var parts: [String] = []
+        if !viewModel.peerValue(for: peerID, field: .presharedKey).isEmpty {
+            parts.append("PSK set")
+        }
+        let keepalive = viewModel.peerValue(for: peerID, field: .persistentKeepalive)
+        if !keepalive.isEmpty {
+            parts.append("Keepalive \(keepalive)s")
+        }
+        return parts.isEmpty ? "Preshared key, keepalive" : parts.joined(separator: " · ")
     }
 
     private func peerFieldRow(
@@ -318,37 +370,5 @@ struct OnDemandEditorCard: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
-    }
-}
-
-struct EditorTextRow: View {
-    let label: String
-    let placeholder: String
-    @Binding var text: String
-    let hasError: Bool
-    let isMonospaced: Bool
-    let keyboardType: UIKeyboardType
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
-            Text(label.uppercased())
-                .font(SGTypography.metricLabel)
-                .tracking(0.6)
-                .foregroundStyle(hasError ? SGColor.statusError : SGColor.textSecondary)
-
-            TextField(placeholder, text: $text)
-                .font(isMonospaced ? SGTypography.monoValue : SGTypography.body)
-                .foregroundStyle(hasError ? SGColor.statusError : SGColor.textPrimary)
-                .keyboardType(keyboardType)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .padding(.horizontal, SGSpacing.xSmall)
-                .padding(.vertical, 9)
-                .background(SGColor.surfaceElevated)
-                .overlay(
-                    Rectangle()
-                        .strokeBorder(hasError ? SGColor.statusError : SGColor.borderInk, lineWidth: SGBorder.thin)
-                )
-        }
     }
 }

@@ -16,37 +16,24 @@ struct TunnelEditorView: View {
         _viewModel = State(initialValue: TunnelEditorViewModel(tunnel: tunnel))
     }
 
+    private var isTunnelActive: Bool {
+        viewModel.existingTunnel.map { store.status(for: $0) == .active } ?? false
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             editorHeader
+            sectionPicker
 
             ScrollView {
                 VStack(spacing: SGSpacing.medium) {
-                    InterfaceEditorCard(viewModel: viewModel)
-                    SplitDNSEditorSection(
-                        viewModel: viewModel,
-                        isTunnelActive: viewModel.existingTunnel.map { store.status(for: $0) == .active } ?? false
-                    )
-                    ForEach(Array(viewModel.peers.enumerated()), id: \.element.id) { index, peer in
-                        PeerEditorCard(
-                            viewModel: viewModel,
-                            peerID: peer.id,
-                            peerIndex: index,
-                            peerCount: viewModel.peers.count,
-                            onRequestDelete: { peerPendingDeleteID = peer.id }
-                        )
-                    }
-                    addPeerButton
-                    OnDemandEditorCard(viewModel: viewModel) {
-                        showSSIDEditor = true
-                    }
-                    KillSwitchEditorCard(viewModel: viewModel)
-                    HealthAlertsEditorCard(viewModel: viewModel)
+                    sectionContent
                 }
                 .padding(.horizontal, SGSpacing.medium)
                 .padding(.top, SGSpacing.medium)
                 .padding(.bottom, SGSpacing.xxLarge)
             }
+            .id(viewModel.selectedSection)
             .scrollDismissesKeyboard(.interactively)
             .background(SGColor.surfacePrimary.ignoresSafeArea())
         }
@@ -123,6 +110,88 @@ struct TunnelEditorView: View {
                 .disabled(viewModel.isSaving)
             }
         )
+    }
+
+    private var sectionPicker: some View {
+        VStack(spacing: 0) {
+            BrutalistSegmentedControl(
+                selection: Binding(
+                    get: { viewModel.selectedSection },
+                    set: { newValue in
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
+                        viewModel.selectedSection = newValue
+                    }
+                ),
+                options: TunnelEditorSection.allCases.map { section in
+                    .init(
+                        value: section,
+                        title: sectionTitle(section),
+                        accent: sectionAccent(section),
+                        showsAlert: viewModel.hasErrors(in: section)
+                    )
+                }
+            )
+            .padding(.horizontal, SGSpacing.medium)
+            .padding(.top, SGSpacing.small)
+            .padding(.bottom, SGSpacing.small + 3)
+
+            Rectangle()
+                .fill(SGColor.borderInk)
+                .frame(height: SGBorder.thin)
+        }
+        .background(SGColor.surfacePrimary)
+    }
+
+    private func sectionTitle(_ section: TunnelEditorSection) -> String {
+        if section == .peers, viewModel.peers.count > 1 {
+            return "\(section.title) \(viewModel.peers.count)"
+        }
+        return section.title
+    }
+
+    private func sectionAccent(_ section: TunnelEditorSection) -> Color {
+        switch section {
+        case .interface:
+            return SGColor.popYellow
+        case .peers:
+            return SGColor.popPurple
+        case .dns:
+            return SGColor.popBlue
+        case .behavior:
+            return SGColor.popGreen
+        }
+    }
+
+    @ViewBuilder
+    private var sectionContent: some View {
+        switch viewModel.selectedSection {
+        case .interface:
+            InterfaceEditorCard(viewModel: viewModel)
+        case .peers:
+            ForEach(Array(viewModel.peers.enumerated()), id: \.element.id) { index, peer in
+                PeerEditorCard(
+                    viewModel: viewModel,
+                    peerID: peer.id,
+                    peerIndex: index,
+                    peerCount: viewModel.peers.count,
+                    onRequestDelete: { peerPendingDeleteID = peer.id }
+                )
+            }
+            addPeerButton
+        case .dns:
+            SplitDNSEditorSection(viewModel: viewModel, isTunnelActive: isTunnelActive)
+        case .behavior:
+            OnDemandEditorCard(viewModel: viewModel) {
+                showSSIDEditor = true
+            }
+            KillSwitchEditorCard(viewModel: viewModel)
+            HealthAlertsEditorCard(viewModel: viewModel)
+        }
     }
 
     private var addPeerButton: some View {

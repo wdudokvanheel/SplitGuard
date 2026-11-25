@@ -103,7 +103,38 @@ extension TunnelEditorViewModel {
     func removeSplitDNSDomain(named name: String) {
         let normalized = SplitDNSConfiguration.normalizeDomain(name)
         splitDNSDomains.removeAll { $0.name == normalized }
+        // An exact-name exclusion only expressed this domain's "subdomains only" scope.
+        splitDNSExclusions.removeAll { $0.name == normalized && !$0.includesSubdomains }
         splitDNSInputError = nil
+    }
+
+    /// Sets whether a VPN DNS domain also covers the name itself, or only its subdomains.
+    func setSplitDNSDomainIncludesApex(_ includesApex: Bool, for domainName: String) {
+        guard isApexExcluded(for: domainName) == includesApex else { return }
+        toggleApexExclusion(for: domainName)
+    }
+
+    /// Exceptions shown in the editor. In "only these domains" mode, exact-name exclusions of a
+    /// listed domain are presented as that domain's scope instead of as a separate exception.
+    var visibleSplitDNSExceptions: [SplitDNSConfiguration.Exclusion] {
+        guard splitDNSMode == .onlyDomains else { return splitDNSExclusions }
+        let domainNames = Set(splitDNSDomains.map(\.name))
+        return splitDNSExclusions.filter { $0.includesSubdomains || !domainNames.contains($0.name) }
+    }
+
+    var dnsServerWarnings: [SplitDNSConfiguration.ValidationWarning] {
+        splitDNSWarnings.filter { warning in
+            switch warning {
+            case .noDNSServer, .dnsServerOutsideAllowedIPs:
+                return true
+            case .exclusionOutsideMatchDomains, .exclusionCancelsDomain:
+                return false
+            }
+        }
+    }
+
+    var exceptionWarnings: [SplitDNSConfiguration.ValidationWarning] {
+        splitDNSWarnings.filter { !dnsServerWarnings.contains($0) }
     }
 
     @discardableResult

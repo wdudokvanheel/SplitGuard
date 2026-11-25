@@ -233,7 +233,7 @@ public struct SplitDNSConfiguration: Codable, Equatable, Hashable, Sendable {
         public var message: String {
             switch self {
             case .noDNSServer:
-                return "Split DNS is enabled, but this tunnel has no DNS server configured in Interface."
+                return "Split DNS is enabled, but this tunnel has no DNS server. Add one under DNS servers."
             case .dnsServerOutsideAllowedIPs(let servers):
                 let joined = servers.joined(separator: ", ")
                 if servers.count == 1 {
