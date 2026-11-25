@@ -3,10 +3,7 @@
 SplitGuard is an iPhone client for WireGuard VPN tunnels with per-tunnel split DNS. It runs on iOS 26 and later.
 
 <p align="center">
-  <img src="appstore/screenshots/02_tunnel_list_active.png" alt="Tunnel list with an active connection, live traffic counters, and handshake age" width="200" />
-  <img src="appstore/screenshots/05_tunnel_detail_split_dns.png" alt="Split DNS settings with routing preview and a live hostname test" width="200" />
-  <img src="appstore/screenshots/08b_tunnel_editor_split_dns.png" alt="Tunnel editor showing split DNS mode and domain list" width="200" />
-  <img src="appstore/screenshots/10_settings.png" alt="Settings screen with appearance mode, zip export, and log viewer" width="200" />
+  <img src="docs/screenshot.png" alt="Tunnel list with an active connection, live traffic counters, and handshake age" width="200" />
 </p>
 
 ## Split DNS
