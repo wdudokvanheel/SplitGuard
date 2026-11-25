@@ -15,7 +15,6 @@ struct FirstRunOnboardingView: View {
                 masthead
                 FirstRunHeroFrame()
                 actionStack
-                FirstRunFeatureCards()
             }
             .padding(.horizontal, SGSpacing.medium)
             .padding(.top, SGSpacing.small)
@@ -193,7 +192,7 @@ private struct FirstRunHeroFrame: View {
 
                 Text(
                     "Scan a WireGuard QR code or import .conf files. " +
-                        "SplitGuard will offer to route only your private domains through VPN DNS."
+                        "Route private domains through VPN DNS while keeping everything else on your normal network."
                 )
                 .font(SGTypography.subheadline)
                 .foregroundStyle(SGColor.inkOnPop.opacity(0.88))
@@ -208,7 +207,16 @@ private struct FirstRunHeroFrame: View {
                 }
             }
 
-            BrutalistTickerBar(items: ["Step 1: Import", "Step 2: Split DNS", "Step 3: Connect", "Private & Local"])
+            BrutalistTickerBar(items: [
+                "Split DNS",
+                "Kill Switch",
+                "On-Demand Rules",
+                "Health Alerts",
+                "Shortcuts & Focus",
+                "Live Traffic Stats",
+                "DNS Tester",
+                "Private & Local"
+            ])
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
         .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.thick, shadowOffset: SGShadow.large)
@@ -255,51 +263,5 @@ private struct FirstRunHeroFrame: View {
             }
             .accessibilityHidden(true)
         }
-    }
-}
-
-private struct FirstRunFeatureCards: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var body: some View {
-        VStack(spacing: SGSpacing.small) {
-            BrutalistSectionBar(title: "How Split DNS Works")
-
-            let gridLayout = dynamicTypeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(spacing: SGSpacing.small))
-                : AnyLayout(HStackLayout(alignment: .top, spacing: SGSpacing.small))
-
-            gridLayout {
-                miniInfoCard(
-                    title: "PRIVATE DOMAINS",
-                    bodyText: "Only domains you choose use your VPN DNS server.",
-                    fill: SGColor.popGreen,
-                    onPopSurface: true
-                )
-                miniInfoCard(
-                    title: "EVERYTHING ELSE",
-                    bodyText: "Public websites stay on your normal network DNS.",
-                    fill: SGColor.surfaceCard,
-                    onPopSurface: false
-                )
-            }
-        }
-        .padding(.top, SGSpacing.xSmall)
-    }
-
-    private func miniInfoCard(title: String, bodyText: String, fill: Color, onPopSurface: Bool) -> some View {
-        VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
-            Text(title)
-                .font(SGTypography.displayCompact)
-                .tracking(0.8)
-                .foregroundStyle(onPopSurface ? SGColor.inkOnPop : SGColor.textPrimary)
-            Text(bodyText)
-                .font(SGTypography.caption)
-                .foregroundStyle(onPopSurface ? SGColor.inkOnPop.opacity(0.86) : SGColor.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(SGSpacing.small)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .brutalistCard(fill: fill, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small, showGrain: onPopSurface)
     }
 }

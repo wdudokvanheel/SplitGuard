@@ -153,6 +153,7 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
 struct BrutalistTickerBar: View {
     let items: [String]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var unitWidth: CGFloat = 0
     @State private var animate = false
 
     private var joinedLine: String {
@@ -171,24 +172,40 @@ struct BrutalistTickerBar: View {
                     .padding(.vertical, SGSpacing.xSmall)
                     .frame(maxWidth: .infinity)
             } else {
-                GeometryReader { proxy in
-                    HStack(spacing: 0) {
-                        tickerUnit
-                        tickerUnit
+                Color.clear
+                    .frame(height: 36)
+                    .overlay(alignment: .leading) {
+                        HStack(spacing: 0) {
+                            tickerUnit
+                                .onGeometryChange(for: CGFloat.self) { proxy in
+                                    proxy.size.width
+                                } action: { newWidth in
+                                    if abs(newWidth - unitWidth) > 0.5 {
+                                        unitWidth = newWidth
+                                    }
+                                }
+                            tickerUnit
+                            tickerUnit
+                        }
+                        .fixedSize(horizontal: true, vertical: false)
+                        .offset(x: animate ? -unitWidth : 0)
+                        .task(id: unitWidth) {
+                            guard unitWidth > 0 else { return }
+                            var transaction = Transaction()
+                            transaction.disablesAnimations = true
+                            withTransaction(transaction) {
+                                animate = false
+                            }
+                            await Task.yield()
+                            withAnimation(
+                                .linear(duration: max(Double(unitWidth) / 38.0, 10.0))
+                                    .repeatForever(autoreverses: false)
+                            ) {
+                                animate = true
+                            }
+                        }
                     }
-                    .fixedSize(horizontal: true, vertical: false)
-                    .offset(x: animate ? -max(proxy.size.width, 320) : 0)
-                    .animation(
-                        .linear(duration: 18).repeatForever(autoreverses: false),
-                        value: animate
-                    )
-                    .frame(height: proxy.size.height, alignment: .center)
-                    .onAppear {
-                        animate = true
-                    }
-                }
-                .frame(height: 36)
-                .clipped()
+                    .clipped()
             }
         }
         .background(SGColor.invertedBar)
@@ -201,7 +218,7 @@ struct BrutalistTickerBar: View {
     }
 
     private var tickerUnit: some View {
-        Text(joinedLine + joinedLine)
+        Text(joinedLine)
             .font(SGTypography.displayCompact)
             .tracking(1.2)
             .foregroundStyle(SGColor.invertedBarText)
