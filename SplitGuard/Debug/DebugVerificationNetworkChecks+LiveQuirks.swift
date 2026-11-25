@@ -174,7 +174,11 @@ private extension DebugVerificationNetworkChecks {
         profileStore: ProfileStore
     ) async throws -> NETunnelProviderManager {
         let profile = try DebugBundledFixtures.parsedProfile(for: fixture, named: name)
-        let proto = try profileStore.makeProtocol(for: profile, providerBundleIdentifier: providerBundleID)
+        let proto = try profileStore.makeProtocol(
+            for: profile,
+            providerBundleIdentifier: providerBundleID,
+            tunnelID: UUID()
+        )
         let manager = NETunnelProviderManager()
         manager.localizedDescription = name
         manager.protocolConfiguration = proto

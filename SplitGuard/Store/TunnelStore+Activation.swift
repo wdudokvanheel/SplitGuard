@@ -215,7 +215,7 @@ private extension TunnelStore {
         do {
             try await backend.start(id: tunnel.id)
             RecentTunnelsTracker.handleTunnelActivated(
-                tunnelName: tunnel.name,
+                tunnelID: tunnel.id,
                 userDefaults: recentTunnelsUserDefaults
             )
             updateQuickActions()

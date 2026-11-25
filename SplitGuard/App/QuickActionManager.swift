@@ -1,56 +1,50 @@
 import UIKit
 
 enum QuickActionItem {
+    struct Target: Equatable {
+        let id: UUID
+        let name: String
+    }
+
     static let shortcutType = "com.bitechular.splitguard.tunnel.toggle"
-    static let tunnelNameUserInfoKey = "tunnelName"
+    static let tunnelIDUserInfoKey = "tunnelID"
     static let maxItems = 10
 
+    /// Recently activated tunnels first, then the rest in list order.
     static func makeShortcutItems(
-        allTunnelNames: [String],
-        recentTunnelNames: [String]? = nil
+        tunnels: [Target],
+        recentTunnelIDs: [UUID]? = nil
     ) -> [UIApplicationShortcutItem] {
-        let validNames = Set(allTunnelNames)
-        let recent = (recentTunnelNames ?? RecentTunnelsTracker.recentlyActivatedTunnelNames(limit: maxItems))
-            .filter { validNames.contains($0) }
+        let tunnelsByID = Dictionary(tunnels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let recent = (recentTunnelIDs ?? RecentTunnelsTracker.recentlyActivatedTunnelIDs(limit: maxItems))
+            .compactMap { tunnelsByID[$0] }
 
-        var orderedNames: [String] = []
-        var seen = Set<String>()
-
-        for name in recent where !seen.contains(name) {
-            orderedNames.append(name)
-            seen.insert(name)
-            if orderedNames.count == maxItems {
+        var ordered: [Target] = []
+        var seen = Set<UUID>()
+        for tunnel in recent + tunnels where seen.insert(tunnel.id).inserted {
+            ordered.append(tunnel)
+            if ordered.count == maxItems {
                 break
             }
         }
 
-        if orderedNames.count < maxItems {
-            for name in allTunnelNames where !seen.contains(name) {
-                orderedNames.append(name)
-                seen.insert(name)
-                if orderedNames.count == maxItems {
-                    break
-                }
-            }
-        }
-
-        return orderedNames.map { tunnelName in
+        return ordered.map { tunnel in
             UIApplicationShortcutItem(
                 type: shortcutType,
-                localizedTitle: tunnelName,
+                localizedTitle: tunnel.name,
                 localizedSubtitle: "Toggle tunnel",
                 icon: UIApplicationShortcutIcon(systemImageName: "shield"),
-                userInfo: [tunnelNameUserInfoKey: tunnelName as NSSecureCoding]
+                userInfo: [tunnelIDUserInfoKey: tunnel.id.uuidString as NSSecureCoding]
             )
         }
     }
 
-    static func tunnelName(from shortcutItem: UIApplicationShortcutItem) -> String? {
-        guard shortcutItem.type == shortcutType else { return nil }
-        if let name = shortcutItem.userInfo?[tunnelNameUserInfoKey] as? String, !name.isEmpty {
-            return name
+    static func tunnelID(from shortcutItem: UIApplicationShortcutItem) -> UUID? {
+        guard shortcutItem.type == shortcutType,
+              let rawID = shortcutItem.userInfo?[tunnelIDUserInfoKey] as? String else {
+            return nil
         }
-        return shortcutItem.localizedTitle.isEmpty ? nil : shortcutItem.localizedTitle
+        return UUID(uuidString: rawID)
     }
 }
 
@@ -58,34 +52,34 @@ enum QuickActionItem {
 final class QuickActionCoordinator {
     static let shared = QuickActionCoordinator()
 
-    private var pendingTunnelName: String?
-    private var handler: ((String) -> Void)?
+    private var pendingTunnelID: UUID?
+    private var handler: ((UUID) -> Void)?
 
     private init() {}
 
-    func register(handler: @escaping (String) -> Void) {
+    func register(handler: @escaping (UUID) -> Void) {
         self.handler = handler
-        if let pending = pendingTunnelName {
-            pendingTunnelName = nil
+        if let pending = pendingTunnelID {
+            pendingTunnelID = nil
             handler(pending)
         }
     }
 
     @discardableResult
     func handle(_ shortcutItem: UIApplicationShortcutItem) -> Bool {
-        guard let tunnelName = QuickActionItem.tunnelName(from: shortcutItem) else {
+        guard let tunnelID = QuickActionItem.tunnelID(from: shortcutItem) else {
             return false
         }
         if let handler {
-            handler(tunnelName)
+            handler(tunnelID)
         } else {
-            pendingTunnelName = tunnelName
+            pendingTunnelID = tunnelID
         }
         return true
     }
 
-    func updateShortcutItems(allTunnelNames: [String]) {
-        UIApplication.shared.shortcutItems = QuickActionItem.makeShortcutItems(allTunnelNames: allTunnelNames)
+    func updateShortcutItems(tunnels: [QuickActionItem.Target]) {
+        UIApplication.shared.shortcutItems = QuickActionItem.makeShortcutItems(tunnels: tunnels)
     }
 }
 

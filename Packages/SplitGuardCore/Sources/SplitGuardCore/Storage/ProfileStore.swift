@@ -214,16 +214,16 @@ public struct ProfileStore: Sendable {
     public func makeProtocol(
         for profile: TunnelProfile,
         providerBundleIdentifier: String,
+        tunnelID: UUID,
         replacing oldReference: Data? = nil
     ) throws -> NETunnelProviderProtocol {
         let reference = try save(profile, replacing: oldReference)
-        let protocolConfiguration = NETunnelProviderProtocol()
-        protocolConfiguration.providerBundleIdentifier = providerBundleIdentifier
-        protocolConfiguration.passwordReference = reference
-        protocolConfiguration.providerConfiguration = nil
-        protocolConfiguration.serverAddress = Self.serverAddress(for: profile)
-        protocolConfiguration.applyKillSwitch(profile.options.sanitized(for: profile))
-        return protocolConfiguration
+        return NETunnelProviderProtocol(
+            profile: profile,
+            passwordReference: reference,
+            providerBundleIdentifier: providerBundleIdentifier,
+            tunnelID: tunnelID
+        )
     }
 
     public func loadProfile(
@@ -234,24 +234,5 @@ public struct ProfileStore: Sendable {
             throw ProfileStoreError.missingPasswordReference
         }
         return try load(reference: reference, name: name)
-    }
-}
-
-public extension NETunnelProviderProtocol {
-    func applyKillSwitch(_ options: TunnelOptions) {
-        if options.killSwitch.isEnabled {
-            includeAllNetworks = true
-            excludeLocalNetworks = options.killSwitch.allowLocalNetwork
-        } else {
-            includeAllNetworks = false
-            excludeLocalNetworks = false
-        }
-        if #available(iOS 16.4, macOS 13.3, *) {
-            excludeCellularServices = true
-            excludeAPNs = true
-        }
-        if #available(iOS 17.4, macOS 14.4, *) {
-            excludeDeviceCommunication = true
-        }
     }
 }

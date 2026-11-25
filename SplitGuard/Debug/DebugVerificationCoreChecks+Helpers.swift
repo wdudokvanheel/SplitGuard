@@ -171,10 +171,11 @@ extension DebugVerificationCoreChecks {
         createdRefs: inout [Data]
     ) throws {
         let bundleID = "com.bitechular.splitguard.network-extension"
-        let protoAllowLAN = try store.makeProtocol(for: profile, providerBundleIdentifier: bundleID)
+        let allowLANID = UUID()
+        let protoAllowLAN = try store.makeProtocol(for: profile, providerBundleIdentifier: bundleID, tunnelID: allowLANID)
         if let ref = protoAllowLAN.passwordReference { createdRefs.append(ref) }
         guard protoAllowLAN.passwordReference != nil,
-              protoAllowLAN.providerConfiguration == nil,
+              protoAllowLAN.tunnelID == allowLANID,
               protoAllowLAN.includeAllNetworks == true,
               protoAllowLAN.excludeLocalNetworks == true else {
             throw CheckError(message: "Kill-switch (allow LAN) protocol fields did not match expected values.")
@@ -184,18 +185,20 @@ extension DebugVerificationCoreChecks {
             name: "__SG_VERIFY_KC_STRICT",
             killSwitch: .init(isEnabled: true, allowLocalNetwork: false)
         )
-        let protoStrict = try store.makeProtocol(for: strictProfile, providerBundleIdentifier: bundleID)
+        let strictID = UUID()
+        let protoStrict = try store.makeProtocol(for: strictProfile, providerBundleIdentifier: bundleID, tunnelID: strictID)
         if let ref = protoStrict.passwordReference { createdRefs.append(ref) }
-        guard protoStrict.providerConfiguration == nil,
+        guard protoStrict.tunnelID == strictID,
               protoStrict.includeAllNetworks == true,
               protoStrict.excludeLocalNetworks == false else {
             throw CheckError(message: "Kill-switch (strict) protocol fields did not match expected values.")
         }
 
         let offProfile = try makeFullSampleProfile(name: "__SG_VERIFY_KC_OFF")
-        let protoOff = try store.makeProtocol(for: offProfile, providerBundleIdentifier: bundleID)
+        let offID = UUID()
+        let protoOff = try store.makeProtocol(for: offProfile, providerBundleIdentifier: bundleID, tunnelID: offID)
         if let ref = protoOff.passwordReference { createdRefs.append(ref) }
-        guard protoOff.providerConfiguration == nil,
+        guard protoOff.tunnelID == offID,
               protoOff.includeAllNetworks == false,
               protoOff.excludeLocalNetworks == false else {
             throw CheckError(message: "Kill-switch (off) protocol fields did not match expected values.")

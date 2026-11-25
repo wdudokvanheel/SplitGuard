@@ -286,10 +286,10 @@ struct QuickActionsAndLogToolboxView: View {
     }
 
     private func refreshSnapshot() {
-        recentNames = RecentTunnelsTracker.recentlyActivatedTunnelNames(
+        recentNames = RecentTunnelsTracker.recentlyActivatedTunnelIDs(
             limit: 4,
             userDefaults: store.recentTunnelsUserDefaults
-        )
+        ).map { store.tunnel(for: $0)?.name ?? $0.uuidString }
         shortcutTitles = (UIApplication.shared.shortcutItems ?? []).map(\.localizedTitle)
         guard let dir = AppGroup.containerURL() else {
             logStatusText = "App Group container unavailable."

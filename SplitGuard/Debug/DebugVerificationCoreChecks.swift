@@ -65,7 +65,7 @@ enum DebugVerificationCoreChecks {
 
             try verifyKeychainRoundTrip(store: activeStore, reference: savedRef, expected: sampleProfile)
             try verifyProtocolConfiguration(using: activeStore, profile: sampleProfile, createdRefs: &createdRefs)
-            notes.append("NETunnelProviderProtocol verified: passwordReference set, providerConfiguration == nil, kill-switch flags match.")
+            notes.append("NETunnelProviderProtocol verified: passwordReference set, tunnel ID persisted, kill-switch flags match.")
             try deleteAndVerifyKeychainCleanup(store: activeStore, references: &createdRefs)
             notes.append("Cleanup verified: all temporary keychain items deleted.")
 

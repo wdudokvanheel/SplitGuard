@@ -48,8 +48,8 @@ struct SplitGuardApp: App {
     private var rootView: some View {
         RootView(store: store)
             .onAppear {
-                QuickActionCoordinator.shared.register { tunnelName in
-                    store.handleQuickAction(tunnelName: tunnelName)
+                QuickActionCoordinator.shared.register { tunnelID in
+                    store.handleQuickAction(tunnelID: tunnelID)
                 }
             }
     }

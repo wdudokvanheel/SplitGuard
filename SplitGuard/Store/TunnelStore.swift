@@ -38,11 +38,11 @@ final class TunnelStore {
     var activeAlert: AlertItem?
     var requestedNavigationTunnelID: Tunnel.ID?
     var pendingSplitDNSSuggestion: SplitDNSSuggestionPrompt?
-    private(set) var favoriteTunnelName: String?
+    private(set) var favoriteTunnelID: Tunnel.ID?
     private(set) var appearanceMode: AppAppearanceMode
 
     var pendingOpenedURLs: [URL] = []
-    var pendingQuickActionTunnelName: String?
+    var pendingQuickActionTunnelID: Tunnel.ID?
 
     let backend: any TunnelBackend
     let recentTunnelsUserDefaults: UserDefaults?
@@ -63,7 +63,7 @@ final class TunnelStore {
     @ObservationIgnored nonisolated(unsafe) var eventTask: Task<Void, Never>?
     @ObservationIgnored nonisolated(unsafe) var transitionPollTask: Task<Void, Never>?
 
-    private static let favoriteTunnelDefaultsKey = "splitguard.favoriteTunnelName"
+    private static let favoriteTunnelDefaultsKey = "splitguard.favoriteTunnelID"
 
     init(
         backend: (any TunnelBackend)? = nil,
@@ -80,7 +80,7 @@ final class TunnelStore {
         self.userDefaults = userDefaults
         self.recentTunnelsUserDefaults = recentTunnelsUserDefaults
         self.transitionPollInterval = transitionPollInterval
-        self.favoriteTunnelName = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey)
+        self.favoriteTunnelID = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey).flatMap(UUID.init(uuidString:))
         self.appearanceMode = AppAppearanceMode.load(from: userDefaults)
 
         startEventStream()
@@ -110,8 +110,7 @@ final class TunnelStore {
     }
 
     var favoriteTunnel: Tunnel? {
-        guard let favoriteTunnelName else { return nil }
-        return tunnels.first { $0.name == favoriteTunnelName }
+        favoriteTunnelID.flatMap(tunnel(for:))
     }
 
     var featuredTunnel: Tunnel? {
@@ -119,21 +118,17 @@ final class TunnelStore {
     }
 
     func isFavorite(_ tunnel: Tunnel) -> Bool {
-        favoriteTunnelName == tunnel.name
+        favoriteTunnelID == tunnel.id
     }
 
     func toggleFavorite(_ tunnel: Tunnel) {
-        setFavoriteTunnelName(isFavorite(tunnel) ? nil : tunnel.name)
+        setFavorite(isFavorite(tunnel) ? nil : tunnel)
     }
 
     func setFavorite(_ tunnel: Tunnel?) {
-        setFavoriteTunnelName(tunnel?.name)
-    }
-
-    private func setFavoriteTunnelName(_ name: String?) {
-        favoriteTunnelName = name
-        if let name {
-            userDefaults.set(name, forKey: Self.favoriteTunnelDefaultsKey)
+        favoriteTunnelID = tunnel?.id
+        if let id = tunnel?.id {
+            userDefaults.set(id.uuidString, forKey: Self.favoriteTunnelDefaultsKey)
         } else {
             userDefaults.removeObject(forKey: Self.favoriteTunnelDefaultsKey)
         }
@@ -292,7 +287,7 @@ extension TunnelStore {
         applyLoadedRecords(snapshot.records, preservingIDs: Set(snapshot.issues.map(\.tunnelID)))
         setLoadingState(isLoading: false, hasLoaded: true)
         RecentTunnelsTracker.cleanupTunnels(
-            except: Set(tunnels.map(\.name)).union(snapshot.issues.map(\.tunnelName)),
+            except: Set(tunnels.map(\.id)).union(snapshot.issues.map(\.tunnelID)),
             userDefaults: recentTunnelsUserDefaults
         )
         updateQuickActions()

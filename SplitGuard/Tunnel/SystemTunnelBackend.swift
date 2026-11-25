@@ -112,8 +112,10 @@ actor SystemTunnelBackend: TunnelBackend {
         pendingKeychainReferences.insert(newReference)
         defer { pendingKeychainReferences.remove(newReference) }
 
+        let tunnelID = id ?? UUID()
         configure(
             manager: manager,
+            tunnelID: tunnelID,
             profile: profile,
             passwordReference: newReference,
             onDemandPolicy: normalizedPolicy,
@@ -126,7 +128,6 @@ actor SystemTunnelBackend: TunnelBackend {
             shouldReloadForOnDemand: shouldReloadForOnDemand
         )
 
-        let tunnelID = id ?? UUID()
         managersByID[tunnelID] = manager
         idByPasswordReference[newReference] = tunnelID
         idByObjectID[ObjectIdentifier(manager)] = tunnelID
@@ -153,6 +154,7 @@ actor SystemTunnelBackend: TunnelBackend {
             let isActivatingOnDemand = !manager.isOnDemandEnabled && effectiveEnabled
             manager.isOnDemandEnabled = effectiveEnabled
             manager.isEnabled = true
+            persistTunnelIDIfNeeded(id, on: manager)
 
             do {
                 try await manager.saveToPreferences()
@@ -282,12 +284,7 @@ extension SystemTunnelBackend {
         for (manager, passwordRef) in referencedManagers {
             let name = manager.localizedDescription ?? ""
             let profile = loadStoredProfile(reference: passwordRef, name: name)
-            let id = resolveStableID(
-                for: manager,
-                passwordReference: passwordRef,
-                name: (try? profile.get().name) ?? name,
-                claimedIDs: &claimedIDs
-            )
+            let id = resolveStableID(for: manager, passwordReference: passwordRef, claimedIDs: &claimedIDs)
             nextManagersByID[id] = manager
             if let passwordRef {
                 nextIDByRef[passwordRef] = id

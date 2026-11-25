@@ -163,7 +163,11 @@ extension DebugVerificationNetworkChecks {
         profileStore: ProfileStore
     ) async throws -> NETunnelProviderManager {
         let profile = try DebugVerificationCoreChecks.makeFullSampleProfile(name: name, endpoint: endpoint)
-        let proto = try profileStore.makeProtocol(for: profile, providerBundleIdentifier: providerBundleID)
+        let proto = try profileStore.makeProtocol(
+            for: profile,
+            providerBundleIdentifier: providerBundleID,
+            tunnelID: UUID()
+        )
         let manager = NETunnelProviderManager()
         manager.localizedDescription = name
         manager.protocolConfiguration = proto

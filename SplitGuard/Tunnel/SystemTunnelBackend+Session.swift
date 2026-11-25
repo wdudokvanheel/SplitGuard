@@ -22,7 +22,7 @@ extension SystemTunnelBackend {
         var lastError: Error?
         for attempt in 0 ..< Self.maxStartAttempts {
             if !manager.isEnabled {
-                try await reenableDisabledManager(manager, attempt: attempt)
+                try await reenableDisabledManager(manager, id: id, attempt: attempt)
                 lastError = NEVPNError(.configurationUnknown)
                 continue
             }
@@ -116,9 +116,10 @@ extension SystemTunnelBackend {
         return result
     }
 
-    private func reenableDisabledManager(_ manager: NETunnelProviderManager, attempt: Int) async throws {
+    private func reenableDisabledManager(_ manager: NETunnelProviderManager, id: UUID, attempt: Int) async throws {
         Log.debug("start: Re-enabling disabled tunnel '\(manager.localizedDescription ?? "")' (attempt \(attempt + 1))")
         manager.isEnabled = true
+        persistTunnelIDIfNeeded(id, on: manager)
         do {
             try await manager.saveToPreferences()
         } catch {
@@ -239,23 +240,33 @@ extension SystemTunnelBackend {
 
     func configure(
         manager: NETunnelProviderManager,
+        tunnelID: UUID,
         profile: TunnelProfile,
         passwordReference: Data,
         onDemandPolicy: OnDemandPolicy,
         isOnDemandEnabled: Bool
     ) {
-        let proto = NETunnelProviderProtocol()
-        proto.providerBundleIdentifier = providerBundleIdentifier
-        proto.passwordReference = passwordReference
-        proto.providerConfiguration = nil
-        proto.serverAddress = ProfileStore.serverAddress(for: profile)
-        proto.applyKillSwitch(profile.options.sanitized(for: profile))
-
         manager.localizedDescription = profile.name
-        manager.protocolConfiguration = proto
+        manager.protocolConfiguration = NETunnelProviderProtocol(
+            profile: profile,
+            passwordReference: passwordReference,
+            providerBundleIdentifier: providerBundleIdentifier,
+            tunnelID: tunnelID
+        )
         manager.isEnabled = true
         onDemandPolicy.apply(to: manager)
         manager.isOnDemandEnabled = isOnDemandEnabled
+    }
+
+    /// Writes `id` into a configuration that lacks it (or carries another one), so the ID
+    /// resolved for this session survives the next launch. Call before `saveToPreferences`.
+    func persistTunnelIDIfNeeded(_ id: UUID, on manager: NETunnelProviderManager) {
+        guard let proto = manager.protocolConfiguration as? NETunnelProviderProtocol,
+              proto.tunnelID != id else {
+            return
+        }
+        proto.setTunnelID(id)
+        manager.protocolConfiguration = proto
     }
 
     func commitManagerPreferences(
@@ -289,23 +300,23 @@ extension SystemTunnelBackend {
         }
     }
 
+    /// The ID persisted in `providerConfiguration` wins. A manager without one (or with an ID
+    /// already claimed by another manager) keeps the ID it had earlier in this session, or gets
+    /// a fresh one. `persistTunnelIDIfNeeded` writes it on the next save.
     func resolveStableID(
         for manager: NETunnelProviderManager,
         passwordReference: Data?,
-        name: String,
         claimedIDs: inout Set<UUID>
     ) -> UUID {
+        let proto = manager.protocolConfiguration as? NETunnelProviderProtocol
+        if let stored = proto?.tunnelID, claimedIDs.insert(stored).inserted {
+            return stored
+        }
         if let passwordReference, let existing = idByPasswordReference[passwordReference], claimedIDs.insert(existing).inserted {
             return existing
         }
         if let existing = idByObjectID[ObjectIdentifier(manager)], claimedIDs.insert(existing).inserted {
             return existing
-        }
-        if let matchingEntry = managersByID.first(where: {
-            $0.value.localizedDescription == name && !claimedIDs.contains($0.key)
-        }) {
-            claimedIDs.insert(matchingEntry.key)
-            return matchingEntry.key
         }
         let freshID = UUID()
         claimedIDs.insert(freshID)

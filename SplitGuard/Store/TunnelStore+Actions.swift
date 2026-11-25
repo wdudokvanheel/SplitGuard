@@ -52,7 +52,7 @@ extension TunnelStore {
         onDemandPolicy: OnDemandPolicy
     ) async throws -> Tunnel {
         let trimmedName = try validateNewTunnelName(profile.name, excludingID: tunnel.id)
-        let oldName = tunnel.name
+        let isRenamed = tunnel.name != trimmedName
         var normalizedProfile = profile
         normalizedProfile.name = trimmedName
         let normalizedPolicy = onDemandPolicy.normalized()
@@ -82,7 +82,7 @@ extension TunnelStore {
         }
         markLocalMutation()
 
-        applyUpdateResult(tunnel: tunnel, record: record, oldName: oldName, newName: trimmedName)
+        applyUpdateResult(tunnel: tunnel, record: record, isRenamed: isRenamed)
 
         if isConfigurationChanged,
            tunnel.status == .active || tunnel.status == .activating || tunnel.status == .reasserting {
@@ -155,15 +155,17 @@ extension TunnelStore {
     // MARK: - Quick Actions & Navigation
 
     func updateQuickActions() {
-        QuickActionCoordinator.shared.updateShortcutItems(allTunnelNames: tunnels.map(\.name))
+        QuickActionCoordinator.shared.updateShortcutItems(
+            tunnels: tunnels.map { QuickActionItem.Target(id: $0.id, name: $0.name) }
+        )
     }
 
-    func handleQuickAction(tunnelName: String) {
+    func handleQuickAction(tunnelID: Tunnel.ID) {
         guard hasLoaded else {
-            pendingQuickActionTunnelName = tunnelName
+            pendingQuickActionTunnelID = tunnelID
             return
         }
-        guard let tunnel = tunnel(named: tunnelName) else { return }
+        guard let tunnel = tunnel(for: tunnelID) else { return }
         requestedNavigationTunnelID = tunnel.id
 
         let state = displayState(for: tunnel)
@@ -183,9 +185,9 @@ extension TunnelStore {
     }
 
     func flushPendingQuickAction() {
-        guard let pendingName = pendingQuickActionTunnelName else { return }
-        pendingQuickActionTunnelName = nil
-        handleQuickAction(tunnelName: pendingName)
+        guard let pendingID = pendingQuickActionTunnelID else { return }
+        pendingQuickActionTunnelID = nil
+        handleQuickAction(tunnelID: pendingID)
     }
 
     func consumeRequestedNavigationTunnelID() -> Tunnel.ID? {
@@ -303,33 +305,24 @@ private extension TunnelStore {
         return true
     }
 
-    func applyUpdateResult(tunnel: Tunnel, record: TunnelRecord, oldName: String, newName: String) {
+    func applyUpdateResult(tunnel: Tunnel, record: TunnelRecord, isRenamed: Bool) {
         tunnel.apply(record: record)
-        if oldName != newName {
+        if isRenamed {
             sortTunnels()
-            RecentTunnelsTracker.handleTunnelRenamed(
-                oldName: oldName,
-                newName: newName,
-                userDefaults: recentTunnelsUserDefaults
-            )
-            if favoriteTunnelName == oldName {
-                setFavorite(tunnel)
-            }
         }
         bumpRevision()
         updateQuickActions()
     }
 
     func removeDeletedTunnelLocally(_ tunnel: Tunnel) {
-        let removedName = tunnel.name
         cleanupState(forRemovedID: tunnel.id)
         removeTunnelFromList(id: tunnel.id)
-        if favoriteTunnelName == removedName {
+        if favoriteTunnelID == tunnel.id {
             setFavorite(nil)
         }
-        clearActivationError(for: removedName)
+        clearActivationError(for: tunnel.name)
         RecentTunnelsTracker.handleTunnelRemoved(
-            tunnelName: removedName,
+            tunnelID: tunnel.id,
             userDefaults: recentTunnelsUserDefaults
         )
     }
