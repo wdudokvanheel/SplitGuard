@@ -81,10 +81,6 @@ struct KillSwitchEditorCard: View {
                         healthAlertOfferBox
                     }
                 }
-
-                Text("To sign in to a hotel or café Wi-Fi, turn the tunnel off first.")
-                    .font(SGTypography.caption)
-                    .foregroundStyle(SGColor.textSecondary)
             }
             .padding(SGSpacing.medium)
             .background(SGColor.surfaceCard)
