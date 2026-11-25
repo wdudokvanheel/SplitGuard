@@ -24,6 +24,12 @@ enum DNSLookupService {
             )
         }
 
+        #if DEBUG && targetEnvironment(simulator)
+        if let demoResult = ScreenshotDemoData.lookupResult(for: hostname) {
+            return demoResult
+        }
+        #endif
+
         return await Task.detached(priority: .userInitiated) {
             resolveSync(hostname: hostname)
         }.value

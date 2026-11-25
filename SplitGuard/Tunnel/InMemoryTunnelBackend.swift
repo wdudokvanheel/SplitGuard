@@ -49,9 +49,11 @@ actor InMemoryTunnelBackend: TunnelBackend {
 
     init(
         initialRecords: [TunnelRecord] = [],
+        initialDeviceStatuses: [UUID: DeviceStatus] = [:],
         simulateSaveNewDeactivatesActiveTunnel: Bool = false
     ) {
         self.saveNewDeactivatesActiveTunnel = simulateSaveNewDeactivatesActiveTunnel
+        self.deviceStatuses = initialDeviceStatuses
         for record in initialRecords {
             recordsByID[record.id] = record
         }

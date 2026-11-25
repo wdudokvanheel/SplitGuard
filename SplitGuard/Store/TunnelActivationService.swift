@@ -90,7 +90,9 @@ final class TunnelActivationService {
         defaultOperationTimeout: Duration = .seconds(20),
         updatesAppShortcuts: Bool = false
     ) {
-        #if targetEnvironment(simulator)
+        #if DEBUG && targetEnvironment(simulator)
+        self.backend = backend ?? (ScreenshotDemoData.isRequested ? ScreenshotDemoData.makeBackend() : InMemoryTunnelBackend())
+        #elseif targetEnvironment(simulator)
         self.backend = backend ?? InMemoryTunnelBackend()
         #else
         self.backend = backend ?? SystemTunnelBackend()
