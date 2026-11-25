@@ -20,6 +20,7 @@ struct FirstRunOnboardingView: View {
             .padding(.top, SGSpacing.small)
             .padding(.bottom, SGSpacing.xxLarge)
         }
+        .scrollBounceBehavior(.basedOnSize, axes: .vertical)
         .background(SGColor.surfacePrimary.ignoresSafeArea())
     }
 
