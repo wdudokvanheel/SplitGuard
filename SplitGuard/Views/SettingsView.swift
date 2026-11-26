@@ -73,26 +73,14 @@ struct SettingsView: View {
 
     private var brandBannerCard: some View {
         HStack(spacing: SGSpacing.medium) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 3) {
-                    Text("SPLIT")
-                        .foregroundStyle(SGColor.inkOnPop)
-                    Text("GUARD")
-                        .foregroundStyle(SGColor.pureWhite)
-                }
-                .font(SGTypography.displayHero)
-                .tracking(0.8)
-
-                Text(
-                    L10n.tr(
-                        "settings.brandSubtitle",
-                        defaultValue: "Private WireGuard + Split DNS"
-                    ).uppercased()
-                )
-                    .font(SGTypography.metricLabel)
-                    .tracking(1.0)
-                    .foregroundStyle(SGColor.inkOnPop.opacity(0.82))
+            HStack(spacing: 3) {
+                Text("SPLIT")
+                    .foregroundStyle(SGColor.inkOnPop)
+                Text("GUARD")
+                    .foregroundStyle(SGColor.pureWhite)
             }
+            .font(SGTypography.displayHero)
+            .tracking(0.8)
             Spacer(minLength: 0)
         }
         .padding(SGSpacing.medium)
