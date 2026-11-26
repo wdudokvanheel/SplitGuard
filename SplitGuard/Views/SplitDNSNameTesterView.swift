@@ -14,7 +14,7 @@ struct SplitDNSWarningRow: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(SGColor.inkOnPop)
                     .padding(.top, 1)
-                Text(warning.message)
+                Text(warning.localizedMessage)
                     .font(SGTypography.caption)
                     .foregroundStyle(SGColor.inkOnPop)
             }
@@ -50,10 +50,14 @@ struct SplitDNSRoutingPreviewView: View {
 
     private var vpnDNSLabel: String {
         if dnsServers.isEmpty {
-            return "VPN DNS (none set)"
+            return L10n.tr("splitDNS.preview.vpnDNSNone", defaultValue: "VPN DNS (none set)")
         }
         let joined = dnsServers.map(\.description).joined(separator: ", ")
-        return "VPN DNS (\(joined))"
+        return L10n.tr("splitDNS.preview.vpnDNSServers", defaultValue: "VPN DNS (\(joined))")
+    }
+
+    private var normalDNSLabel: String {
+        L10n.tr("splitDNS.preview.normalDNS", defaultValue: "Normal DNS")
     }
 
     private var exactExclusionNames: Set<String> {
@@ -62,7 +66,7 @@ struct SplitDNSRoutingPreviewView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xxSmall + 2) {
-            Text("ROUTING PREVIEW")
+            Text(L10n.tr("splitDNS.preview.title", defaultValue: "Routing preview").uppercased())
                 .font(SGTypography.metricLabel)
                 .tracking(0.8)
                 .foregroundStyle(SGColor.textSecondary)
@@ -71,14 +75,20 @@ struct SplitDNSRoutingPreviewView: View {
             case .allDomains:
                 exclusionPreviewRows
                 previewRow(
-                    left: splitDNS.exclusions.isEmpty ? "All lookups" : "Everything else",
-                    right: dnsServers.isEmpty ? "Normal DNS" : vpnDNSLabel,
+                    left: splitDNS.exclusions.isEmpty
+                        ? L10n.tr("splitDNS.preview.allLookups", defaultValue: "All lookups")
+                        : L10n.tr("splitDNS.preview.everythingElse", defaultValue: "Everything else"),
+                    right: dnsServers.isEmpty ? normalDNSLabel : vpnDNSLabel,
                     usesTunnel: !dnsServers.isEmpty
                 )
             case .onlyDomains:
                 let domains = splitDNS.normalizedDomainNames
                 if domains.isEmpty {
-                    previewRow(left: "Everything", right: "Normal DNS", usesTunnel: false)
+                    previewRow(
+                        left: L10n.tr("splitDNS.preview.everything", defaultValue: "Everything"),
+                        right: normalDNSLabel,
+                        usesTunnel: false
+                    )
                 } else {
                     ForEach(domains.prefix(3), id: \.self) { domain in
                         let label = exactExclusionNames.contains(domain)
@@ -91,12 +101,22 @@ struct SplitDNSRoutingPreviewView: View {
                         )
                     }
                     if domains.count > 3 {
-                        Text("+\(domains.count - 3) more domain\(domains.count - 3 == 1 ? "" : "s") → \(vpnDNSLabel)")
+                        let extra = domains.count - 3
+                        Text(
+                            L10n.tr(
+                                "splitDNS.preview.moreDomains",
+                                defaultValue: "+\(extra) more domains → \(vpnDNSLabel)"
+                            )
+                        )
                             .font(SGTypography.monoCompact)
                             .foregroundStyle(SGColor.textSecondary)
                     }
                     exclusionPreviewRows
-                    previewRow(left: "Everything else", right: "Normal DNS", usesTunnel: false)
+                    previewRow(
+                        left: L10n.tr("splitDNS.preview.everythingElse", defaultValue: "Everything else"),
+                        right: normalDNSLabel,
+                        usesTunnel: false
+                    )
                 }
             }
         }
@@ -110,10 +130,16 @@ struct SplitDNSRoutingPreviewView: View {
             let label = exclusion.includesSubdomains
                 ? "\(exclusion.name), *.\(exclusion.name)"
                 : exclusion.name
-            previewRow(left: label, right: "Normal DNS", usesTunnel: false)
+            previewRow(left: label, right: normalDNSLabel, usesTunnel: false)
         }
         if exclusions.count > 3 {
-            Text("+\(exclusions.count - 3) more excluded → Normal DNS")
+            let extra = exclusions.count - 3
+            Text(
+                L10n.tr(
+                    "splitDNS.preview.moreExcluded",
+                    defaultValue: "+\(extra) more excluded → Normal DNS"
+                )
+            )
                 .font(SGTypography.monoCompact)
                 .foregroundStyle(SGColor.textSecondary)
         }
@@ -164,13 +190,16 @@ struct SplitDNSNameTesterView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
-            Text("TEST A NAME")
+            Text(L10n.tr("splitDNS.tester.title", defaultValue: "Test a name").uppercased())
                 .font(SGTypography.metricLabel)
                 .tracking(0.8)
                 .foregroundStyle(SGColor.textSecondary)
 
             HStack(spacing: SGSpacing.small) {
-                TextField("Enter hostname", text: $query)
+                TextField(
+                    L10n.tr("splitDNS.tester.placeholder", defaultValue: "Enter hostname"),
+                    text: $query
+                )
                     .font(SGTypography.monoValue)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
@@ -201,7 +230,7 @@ struct SplitDNSNameTesterView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "magnifyingglass")
                                     .font(.caption.weight(.black))
-                                Text("TEST")
+                                Text(L10n.tr("splitDNS.tester.button", defaultValue: "Test").uppercased())
                                     .font(SGTypography.displayCompact)
                                     .tracking(0.8)
                             }
@@ -242,22 +271,15 @@ struct SplitDNSNameTesterView: View {
         switch decision {
         case .tunnelDNS(let matchedDomain):
             let serverText = dnsServers.map(\.description).joined(separator: ", ")
-            label = "VPN DNS (\(serverText))"
-            detail = matchedDomain.map { "Matched \($0)" } ?? "All domains routed through tunnel"
+            label = L10n.tr("splitDNS.preview.vpnDNSServers", defaultValue: "VPN DNS (\(serverText))")
+            detail = matchedDomain.map {
+                L10n.tr("splitDNS.tester.matchedDomain", defaultValue: "Matched \($0)")
+            } ?? L10n.tr("splitDNS.tester.allDomainsRouted", defaultValue: "All domains routed through tunnel")
             fill = SGColor.popBlue
             onPop = true
         case .normalDNS(let reason):
-            label = "Normal DNS"
-            switch reason {
-            case .noTunnelDNSServer:
-                detail = "No tunnel DNS server configured"
-            case .notInMatchDomains:
-                detail = "Not in split DNS list"
-            case .excluded(let exclusion):
-                detail = exclusion.includesSubdomains
-                    ? "Excluded (\(exclusion.name) and subdomains)"
-                    : "Excluded (\(exclusion.name) only)"
-            }
+            label = L10n.tr("splitDNS.preview.normalDNS", defaultValue: "Normal DNS")
+            detail = normalDNSDetail(for: reason)
             fill = SGColor.surfaceElevated
             onPop = false
         }
@@ -279,6 +301,22 @@ struct SplitDNSNameTesterView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(fill)
         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1))
+    }
+
+    private func normalDNSDetail(for reason: SplitDNSConfiguration.NormalDNSReason) -> String {
+        switch reason {
+        case .noTunnelDNSServer:
+            return L10n.tr("splitDNS.tester.noTunnelDNSServer", defaultValue: "No tunnel DNS server configured")
+        case .notInMatchDomains:
+            return L10n.tr("splitDNS.tester.notInList", defaultValue: "Not in split DNS list")
+        case .excluded(let exclusion):
+            return exclusion.includesSubdomains
+                ? L10n.tr(
+                    "splitDNS.tester.excludedWithSubdomains",
+                    defaultValue: "Excluded (\(exclusion.name) and subdomains)"
+                )
+                : L10n.tr("splitDNS.tester.excludedOnly", defaultValue: "Excluded (\(exclusion.name) only)")
+        }
     }
 
     private func lookupResultView(_ result: DNSLookupResult) -> some View {
@@ -305,7 +343,10 @@ struct SplitDNSNameTesterView: View {
                     Image(systemName: "xmark.octagon.fill")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(SGColor.pureWhite)
-                    Text(result.errorMessage ?? "Could not resolve")
+                    Text(
+                        result.errorMessage
+                            ?? L10n.tr("splitDNS.tester.couldNotResolve", defaultValue: "Could not resolve")
+                    )
                         .font(SGTypography.caption)
                         .foregroundStyle(SGColor.pureWhite)
                 }
@@ -316,7 +357,12 @@ struct SplitDNSNameTesterView: View {
             }
 
             if !isTunnelActive {
-                Text("Tunnel is inactive — lookup used the current network's DNS.")
+                Text(
+                    L10n.tr(
+                        "splitDNS.tester.inactiveHint",
+                        defaultValue: "Tunnel is inactive — lookup used the current network's DNS."
+                    )
+                )
                     .font(SGTypography.metricLabel)
                     .foregroundStyle(SGColor.textTertiary)
             }

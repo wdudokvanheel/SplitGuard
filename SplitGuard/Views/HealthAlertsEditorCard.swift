@@ -10,16 +10,21 @@ struct HealthAlertsEditorCard: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistSectionBar(
-                title: "Health Alerts",
-                trailingText: viewModel.isHealthAlertsEnabled ? "ON" : "OFF",
+                title: L10n.tr("healthAlerts.title", defaultValue: "Health Alerts"),
+                trailingText: viewModel.isHealthAlertsEnabled
+                    ? L10n.tr("common.on", defaultValue: "On")
+                    : L10n.tr("common.off", defaultValue: "Off"),
                 trailingFill: viewModel.isHealthAlertsEnabled ? SGColor.popGreen : SGColor.surfaceElevated,
                 trailingForeground: viewModel.isHealthAlertsEnabled ? SGColor.inkOnPop : SGColor.textPrimary
             )
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 BrutalistFormToggleRow(
-                    title: "Connection health alerts",
-                    subtitle: "Notify when no handshake succeeds while the app is closed",
+                    title: L10n.tr("healthAlerts.toggleTitle", defaultValue: "Connection health alerts"),
+                    subtitle: L10n.tr(
+                        "healthAlerts.toggleSubtitle",
+                        defaultValue: "Notify when no handshake succeeds while the app is closed"
+                    ),
                     isOn: Binding(
                         get: { viewModel.isHealthAlertsEnabled },
                         set: { newValue in
@@ -41,8 +46,13 @@ struct HealthAlertsEditorCard: View {
                     }
 
                     noteBox(
-                        "Stored only on this device and not included in exports. "
-                            + "A recovery alert is also sent once the handshake succeeds again."
+                        L10n.tr(
+                            "healthAlerts.deviceNote",
+                            defaultValue: """
+                            Stored only on this device and not included in exports. \
+                            A recovery alert is also sent once the handshake succeeds again.
+                            """
+                        )
                     )
                 }
             }
@@ -58,7 +68,7 @@ struct HealthAlertsEditorCard: View {
 
     private var delayPicker: some View {
         VStack(alignment: .leading, spacing: SGSpacing.xxSmall) {
-            Text("ALERT AFTER")
+            Text(L10n.tr("healthAlerts.alertAfter", defaultValue: "Alert after").uppercased())
                 .font(SGTypography.metricLabel)
                 .tracking(0.6)
                 .foregroundStyle(SGColor.textSecondary)
@@ -82,7 +92,12 @@ struct HealthAlertsEditorCard: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Alert after \(Self.longDelayLabel(seconds))")
+                    .accessibilityLabel(
+                        L10n.tr(
+                            "healthAlerts.alertAfterAccessibility",
+                            defaultValue: "Alert after \(Self.longDelayLabel(seconds))"
+                        )
+                    )
                     .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
@@ -96,7 +111,15 @@ struct HealthAlertsEditorCard: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(SGColor.inkOnPop)
                     .padding(.top, 2)
-                Text("Notifications are turned off for SplitGuard in iOS Settings. Allow notifications to receive health alerts.")
+                Text(
+                    L10n.tr(
+                        "healthAlerts.deniedMessage",
+                        defaultValue: """
+                        Notifications are turned off for SplitGuard in iOS Settings. \
+                        Allow notifications to receive health alerts.
+                        """
+                    )
+                )
                     .font(SGTypography.caption)
                     .foregroundStyle(SGColor.inkOnPop)
             }
@@ -106,7 +129,7 @@ struct HealthAlertsEditorCard: View {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Text("OPEN SETTINGS")
+                Text(L10n.tr("action.openSettings", defaultValue: "Open Settings").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
                     .padding(.horizontal, SGSpacing.small)
@@ -154,13 +177,13 @@ struct HealthAlertsEditorCard: View {
 
     static func longDelayLabel(_ seconds: Int) -> String {
         if seconds < 60 {
-            return seconds == 1 ? "1 second" : "\(seconds) seconds"
+            return L10n.tr("healthAlerts.delay.seconds", defaultValue: "\(seconds) seconds")
         }
         let minutes = seconds / 60
         let remainder = seconds % 60
         if remainder == 0 {
-            return minutes == 1 ? "1 minute" : "\(minutes) minutes"
+            return L10n.tr("healthAlerts.delay.minutes", defaultValue: "\(minutes) minutes")
         }
-        return "\(minutes)m \(remainder)s"
+        return L10n.tr("healthAlerts.delay.minutesSeconds", defaultValue: "\(minutes)m \(remainder)s")
     }
 }

@@ -28,7 +28,7 @@ struct QRScannerView: View {
         ZStack {
             VStack(spacing: 0) {
                 BrutalistHeaderBar(
-                    title: String(localized: "qr.scan.title", defaultValue: "Scan QR code"),
+                    title: L10n.tr("qr.scan.title", defaultValue: "Scan QR code"),
                     enableSwipeBack: scannedProfile == nil,
                     leading: {
                         BrutalistBackButton {
@@ -40,7 +40,7 @@ struct QRScannerView: View {
                 Group {
                     switch cameraState {
                     case .checking:
-                        ProgressView("Preparing camera…")
+                        ProgressView(L10n.tr("qr.scan.preparingCamera", defaultValue: "Preparing camera…"))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(Color.black)
                             .foregroundStyle(.white)
@@ -57,8 +57,8 @@ struct QRScannerView: View {
 
             if let scannedProfile {
                 NameImportedTunnelView(
-                    promptTitle: String(
-                        localized: "qr.scan.namePromptTitle",
+                    promptTitle: L10n.tr(
+                        "qr.scan.namePromptTitle",
                         defaultValue: "Please name the scanned tunnel"
                     ),
                     tunnelName: $tunnelName,
@@ -94,7 +94,7 @@ struct QRScannerView: View {
                 }
             )
         ) {
-            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
+            Button(L10n.tr("action.ok", defaultValue: "OK"), role: .cancel) {
                 scanError = nil
                 isScanningPaused = false
             }
@@ -126,8 +126,8 @@ struct QRScannerView: View {
                     )
 
                 Text(
-                    String(
-                        localized: "qr.scan.tip",
+                    L10n.tr(
+                        "qr.scan.tip",
                         defaultValue: "Tip: Generate with `qrencode -t ansiutf8 < tunnel.conf`"
                     ).uppercased()
                 )
@@ -176,9 +176,9 @@ struct QRScannerView: View {
 
         guard let profile = try? TunnelProfileCodec.parse(payload, name: "Scanned") else {
             scanError = AlertItem(
-                title: String(localized: "alert.qr.invalidCode.title", defaultValue: "Invalid QR Code"),
-                message: String(
-                    localized: "alert.qr.invalidCode.message",
+                title: L10n.tr("alert.qr.invalidCode.title", defaultValue: "Invalid QR Code"),
+                message: L10n.tr(
+                    "alert.qr.invalidCode.message",
                     defaultValue: "The scanned QR code is not a valid WireGuard configuration"
                 )
             )
@@ -218,12 +218,15 @@ private struct QRScannerCameraFallbackView: View {
         VStack(spacing: SGSpacing.medium) {
             BrutalistUnavailableCard(
                 title: isDenied
-                    ? "Camera Access Needed"
-                    : String(localized: "alert.qr.cameraUnsupported.title", defaultValue: "Camera Unsupported"),
+                    ? L10n.tr("qr.scan.cameraAccessNeeded.title", defaultValue: "Camera Access Needed")
+                    : L10n.tr("alert.qr.cameraUnsupported.title", defaultValue: "Camera Unsupported"),
                 message: isDenied
-                    ? "Allow camera access in Settings to scan configuration QR codes."
-                    : String(
-                        localized: "alert.qr.cameraUnsupported.message",
+                    ? L10n.tr(
+                        "qr.scan.cameraAccessNeeded.message",
+                        defaultValue: "Allow camera access in Settings to scan configuration QR codes."
+                    )
+                    : L10n.tr(
+                        "alert.qr.cameraUnsupported.message",
                         defaultValue: "This device is not able to scan QR codes"
                     ),
                 systemImage: isDenied ? "camera.fill" : "camera.metering.unknown",
@@ -237,7 +240,7 @@ private struct QRScannerCameraFallbackView: View {
                             UIApplication.shared.open(url)
                         }
                     } label: {
-                        Text("OPEN SETTINGS")
+                        Text(L10n.tr("action.openSettings", defaultValue: "Open Settings").uppercased())
                             .font(SGTypography.displayButton)
                             .tracking(0.8)
                             .padding(.vertical, 12)
@@ -247,7 +250,7 @@ private struct QRScannerCameraFallbackView: View {
                 }
 
                 Button(action: onSwitchToPaste) {
-                    Text("PASTE CONFIGURATION INSTEAD")
+                    Text(L10n.tr("qr.scan.pasteInstead", defaultValue: "Paste configuration instead").uppercased())
                         .font(isDenied ? SGTypography.displayCompact : SGTypography.displayButton)
                         .tracking(0.8)
                         .padding(.vertical, 12)

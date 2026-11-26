@@ -11,22 +11,24 @@ struct SplitDNSDetailCard: View {
     private var modeLabel: String {
         switch splitDNS.mode {
         case .allDomains:
-            return "ALL DOMAINS"
+            return L10n.tr("splitDNS.mode.allDomains", defaultValue: "All domains").uppercased()
         case .onlyDomains:
-            return "ONLY THESE DOMAINS"
+            return L10n.tr("splitDNS.mode.onlyDomains.short", defaultValue: "Only these domains").uppercased()
         }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             BrutalistSectionBar(
-                title: "Split DNS",
-                trailingText: splitDNS.mode == .onlyDomains ? "SPLIT" : "ALL"
+                title: L10n.tr("splitDNS.title", defaultValue: "Split DNS"),
+                trailingText: splitDNS.mode == .onlyDomains
+                    ? L10n.tr("splitDNS.badge.split", defaultValue: "Split")
+                    : L10n.tr("splitDNS.badge.all", defaultValue: "All")
             )
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 HStack {
-                    Text("MODE")
+                    Text(L10n.tr("splitDNS.modeLabel", defaultValue: "Mode").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.textSecondary)
                     Spacer()
@@ -40,13 +42,13 @@ struct SplitDNSDetailCard: View {
                 }
 
                 if splitDNS.mode == .onlyDomains {
-                    Text("USE VPN DNS FOR")
+                    Text(L10n.tr("splitDNS.domains.detailHeader", defaultValue: "Use VPN DNS for").uppercased())
                         .font(SGTypography.metricLabel)
                         .tracking(0.8)
                         .foregroundStyle(SGColor.textSecondary)
 
                     if splitDNS.domains.isEmpty {
-                        Text("No domains configured")
+                        Text(L10n.tr("splitDNS.domains.empty", defaultValue: "No domains configured"))
                             .font(SGTypography.subheadline)
                             .foregroundStyle(SGColor.textTertiary)
                     } else {
@@ -56,7 +58,12 @@ struct SplitDNSDetailCard: View {
                                     Text(domain.name)
                                         .font(SGTypography.monoValue.weight(.semibold))
                                         .foregroundStyle(SGColor.textPrimary)
-                                    Text("Matches \(domain.name) and *.\(domain.name)")
+                                    Text(
+                                        L10n.tr(
+                                            "splitDNS.domains.matchWide",
+                                            defaultValue: "Matches \(domain.name) and *.\(domain.name)"
+                                        )
+                                    )
                                         .font(SGTypography.caption)
                                         .foregroundStyle(SGColor.textSecondary)
                                 }
@@ -70,7 +77,7 @@ struct SplitDNSDetailCard: View {
                 }
 
                 if !splitDNS.exclusions.isEmpty {
-                    Text("KEEP ON NORMAL DNS")
+                    Text(L10n.tr("splitDNS.exceptions.detailHeader", defaultValue: "Keep on normal DNS").uppercased())
                         .font(SGTypography.metricLabel)
                         .tracking(0.8)
                         .foregroundStyle(SGColor.textSecondary)
@@ -83,8 +90,14 @@ struct SplitDNSDetailCard: View {
                                     .foregroundStyle(SGColor.textPrimary)
                                 Text(
                                     exclusion.includesSubdomains
-                                        ? "Matches \(exclusion.name) and *.\(exclusion.name)"
-                                        : "Matches \(exclusion.name) only"
+                                        ? L10n.tr(
+                                            "splitDNS.domains.matchWide",
+                                            defaultValue: "Matches \(exclusion.name) and *.\(exclusion.name)"
+                                        )
+                                        : L10n.tr(
+                                            "splitDNS.domains.matchExact",
+                                            defaultValue: "Matches \(exclusion.name) only"
+                                        )
                                 )
                                 .font(SGTypography.caption)
                                 .foregroundStyle(SGColor.textSecondary)

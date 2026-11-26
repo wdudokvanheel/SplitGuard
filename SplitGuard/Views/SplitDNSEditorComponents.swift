@@ -91,7 +91,7 @@ struct SplitDNSNameRow: View {
                     .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thin))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(name)")
+            .accessibilityLabel(L10n.tr("splitDNS.action.removeAccessibility", defaultValue: "Remove \(name)"))
         }
         .padding(SGSpacing.xSmall)
         .background(SGColor.surfaceElevated)
@@ -146,7 +146,9 @@ struct SplitDNSScopeMenu: View {
             .background(isWide ? SGColor.popYellow : SGColor.pureWhite)
             .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
         }
-        .accessibilityLabel("Match scope for \(accessibilityName)")
+        .accessibilityLabel(
+            L10n.tr("splitDNS.scope.accessibility", defaultValue: "Match scope for \(accessibilityName)")
+        )
         .accessibilityValue(isWide ? wideTitle : narrowTitle)
     }
 }
@@ -192,7 +194,7 @@ struct SplitDNSAddField: View {
                     HStack(spacing: 4) {
                         Image(systemName: "plus")
                             .font(.caption.weight(.black))
-                        Text("ADD")
+                        Text(L10n.tr("tunnels.list.add", defaultValue: "Add").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                     }
@@ -242,10 +244,15 @@ struct SplitDNSEndpointSuggestion: View {
                 .foregroundStyle(SGColor.inkOnPop)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Use VPN DNS for \(domain)?")
+                Text(L10n.tr("splitDNS.suggestion.useTitle", defaultValue: "Use VPN DNS for \(domain)?"))
                     .font(SGTypography.subheadline)
                     .foregroundStyle(SGColor.inkOnPop)
-                Text("Found in the peer endpoint. Covers its subdomains; the endpoint itself stays on normal DNS.")
+                Text(
+                    L10n.tr(
+                        "splitDNS.suggestion.useBody",
+                        defaultValue: "Found in the peer endpoint. Covers its subdomains; the endpoint itself stays on normal DNS."
+                    )
+                )
                     .font(SGTypography.caption)
                     .foregroundStyle(SGColor.inkOnPop.opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
@@ -254,7 +261,7 @@ struct SplitDNSEndpointSuggestion: View {
             Spacer(minLength: SGSpacing.xSmall)
 
             Button(action: onApply) {
-                Text("USE")
+                Text(L10n.tr("splitDNS.action.use", defaultValue: "Use").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
                     .padding(.horizontal, SGSpacing.small)
@@ -270,7 +277,9 @@ struct SplitDNSEndpointSuggestion: View {
                 )
             )
             .padding(.trailing, 2)
-            .accessibilityLabel("Use VPN DNS for \(domain)")
+            .accessibilityLabel(
+                L10n.tr("splitDNS.suggestion.useAccessibility", defaultValue: "Use VPN DNS for \(domain)")
+            )
         }
         .padding(SGSpacing.small)
         .background(SGColor.popBlue)

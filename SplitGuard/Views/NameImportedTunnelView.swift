@@ -20,10 +20,10 @@ struct NameImportedTunnelView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: "Name Tunnel",
+                title: L10n.tr("nameTunnel.title", defaultValue: "Name Tunnel"),
                 leading: {
                     BrutalistHeaderButton(
-                        title: String(localized: "action.cancel", defaultValue: "Cancel"),
+                        title: L10n.tr("action.cancel", defaultValue: "Cancel"),
                         fill: SGColor.surfaceCard,
                         foreground: SGColor.textPrimary,
                         action: onCancel
@@ -32,7 +32,7 @@ struct NameImportedTunnelView: View {
                 },
                 trailing: {
                     BrutalistHeaderButton(
-                        title: String(localized: "action.save", defaultValue: "Save"),
+                        title: L10n.tr("action.save", defaultValue: "Save"),
                         fill: SGColor.popGreen,
                         foreground: SGColor.inkOnPop,
                         showGrain: true,
@@ -46,7 +46,10 @@ struct NameImportedTunnelView: View {
                 VStack(spacing: SGSpacing.medium) {
                     VStack(spacing: 0) {
                         BrutalistSectionBar(title: promptTitle)
-                        TextField("e.g. Home VPN", text: $tunnelName)
+                        TextField(
+                            L10n.tr("pasteConfig.tunnelNamePlaceholder", defaultValue: "e.g. Home VPN"),
+                            text: $tunnelName
+                        )
                             .font(SGTypography.body)
                             .foregroundStyle(SGColor.textPrimary)
                             .autocorrectionDisabled()
@@ -70,10 +73,15 @@ struct NameImportedTunnelView: View {
 
                     if hasDetectedDetails {
                         VStack(spacing: 0) {
-                            BrutalistSectionBar(title: "Detected Configuration")
+                            BrutalistSectionBar(
+                                title: L10n.tr("nameTunnel.detectedConfig", defaultValue: "Detected Configuration")
+                            )
                             VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
                                 if let endpoint = profile.peers.first?.endpoint?.description {
-                                    detectedInfoRow(label: "ENDPOINT", value: endpoint)
+                                    detectedInfoRow(
+                                        label: L10n.tr("tunnel.peer.endpoint", defaultValue: "Endpoint").uppercased(),
+                                        value: endpoint
+                                    )
                                 }
                                 if !profile.interface.dnsServers.isEmpty {
                                     detectedInfoRow(
@@ -84,7 +92,7 @@ struct NameImportedTunnelView: View {
                                 if profile.splitDNS.mode == .onlyDomains,
                                    !profile.splitDNS.normalizedDomainNames.isEmpty {
                                     detectedInfoRow(
-                                        label: "SPLIT DNS",
+                                        label: L10n.tr("splitDNS.title", defaultValue: "Split DNS").uppercased(),
                                         value: profile.splitDNS.normalizedDomainNames.joined(separator: ", ")
                                     )
                                 }
@@ -151,7 +159,7 @@ struct NameImportedTunnelRouteView: View {
 
     var body: some View {
         NameImportedTunnelView(
-            promptTitle: "Please name the imported tunnel",
+            promptTitle: L10n.tr("nameTunnel.importedPrompt", defaultValue: "Please name the imported tunnel"),
             tunnelName: $tunnelName,
             profile: profile,
             isSaving: isSaving,

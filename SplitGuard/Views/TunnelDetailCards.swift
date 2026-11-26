@@ -59,7 +59,10 @@ struct TunnelDetailHeroCard: View {
                             isOn: displayState.isSwitchOn,
                             activeTint: displayState.switchTint,
                             isInteractive: displayState.isSwitchInteractive,
-                            accessibilityLabelText: "Toggle \(tunnelName)",
+                            accessibilityLabelText: L10n.tr(
+                                "tunnel.action.toggleAccessibility",
+                                defaultValue: "Toggle \(tunnelName)"
+                            ),
                             shadowColor: SGColor.shadowInk,
                             onToggle: onToggle
                         )
@@ -68,7 +71,11 @@ struct TunnelDetailHeroCard: View {
                             HStack(spacing: 4) {
                                 Image(systemName: isFavorite ? "star.fill" : "star")
                                     .font(.caption.weight(.bold))
-                                Text(isFavorite ? "PINNED" : "PIN")
+                                Text(
+                                    (isFavorite
+                                        ? L10n.tr("tunnel.action.pinned", defaultValue: "Pinned")
+                                        : L10n.tr("tunnel.action.pin", defaultValue: "Pin")).uppercased()
+                                )
                                     .font(SGTypography.metricLabel)
                             }
                             .foregroundStyle(SGColor.inkOnPop)
@@ -104,22 +111,25 @@ struct TunnelDetailHeroCard: View {
 
     @ViewBuilder
     private var liveStatsStrip: some View {
+        let receivedLabel = L10n.tr("tunnel.metric.received", defaultValue: "Received").uppercased()
+        let sentLabel = L10n.tr("tunnel.metric.sent", defaultValue: "Sent").uppercased()
+        let handshakeLabel = L10n.tr("tunnel.metric.handshake", defaultValue: "Handshake").uppercased()
         if dynamicTypeSize.isAccessibilitySize {
             VStack(spacing: 0) {
-                statCell(title: "RECEIVED", value: rxText, accent: SGColor.popPurple)
+                statCell(title: receivedLabel, value: rxText, accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
-                statCell(title: "SENT", value: txText, accent: SGColor.popGreen)
+                statCell(title: sentLabel, value: txText, accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
-                statCell(title: "HANDSHAKE", value: handshakeText, accent: SGColor.popYellow)
+                statCell(title: handshakeLabel, value: handshakeText, accent: SGColor.popYellow)
             }
             .background(SGColor.surfaceCard)
         } else {
             HStack(spacing: 0) {
-                statCell(title: "RECEIVED", value: rxText, accent: SGColor.popPurple)
+                statCell(title: receivedLabel, value: rxText, accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
-                statCell(title: "SENT", value: txText, accent: SGColor.popGreen)
+                statCell(title: sentLabel, value: txText, accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
-                statCell(title: "HANDSHAKE", value: handshakeText, accent: SGColor.popYellow)
+                statCell(title: handshakeLabel, value: handshakeText, accent: SGColor.popYellow)
             }
             .background(SGColor.surfaceCard)
         }
@@ -156,10 +166,10 @@ struct TunnelDetailOnDemandCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: String(localized: "tunnel.section.onDemand", defaultValue: "On-Demand Activation"))
+            BrutalistSectionBar(title: L10n.tr("tunnel.section.onDemand", defaultValue: "On-Demand Activation"))
             VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
                 HStack {
-                    Text(String(localized: "tunnel.onDemand.label", defaultValue: "On-demand").uppercased())
+                    Text(L10n.tr("tunnel.onDemand.label", defaultValue: "On-demand").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.textSecondary)
                     Spacer()
@@ -171,7 +181,7 @@ struct TunnelDetailOnDemandCard: View {
                 if let ssidSummary {
                     Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
                     HStack {
-                        Text(String(localized: "tunnel.onDemand.ssids", defaultValue: "SSIDs").uppercased())
+                        Text(L10n.tr("tunnel.onDemand.ssids", defaultValue: "SSIDs").uppercased())
                             .font(SGTypography.metricLabel)
                             .foregroundStyle(SGColor.textSecondary)
                         Spacer()
@@ -210,16 +220,22 @@ struct TunnelDetailKillSwitchCard: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistSectionBar(
-                title: "Kill Switch",
-                trailingText: isEnabled ? "ON" : "OFF"
+                title: L10n.tr("killSwitch.title", defaultValue: "Kill Switch"),
+                trailingText: isEnabled
+                    ? L10n.tr("common.on", defaultValue: "On")
+                    : L10n.tr("common.off", defaultValue: "Off")
             )
             VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
                 HStack {
-                    Text("STATUS")
+                    Text(L10n.tr("tunnel.detail.status", defaultValue: "Status").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.textSecondary)
                     Spacer()
-                    Text(isEnabled ? "ENABLED" : "OFF")
+                    Text(
+                        (isEnabled
+                            ? L10n.tr("common.enabled", defaultValue: "Enabled")
+                            : L10n.tr("common.off", defaultValue: "Off")).uppercased()
+                    )
                         .font(SGTypography.badge)
                         .foregroundStyle(isEnabled ? SGColor.pureWhite : SGColor.textPrimary)
                         .padding(.horizontal, SGSpacing.xSmall)
@@ -231,11 +247,18 @@ struct TunnelDetailKillSwitchCard: View {
                 if isEnabled {
                     Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
                     HStack {
-                        Text("LOCAL NETWORK")
+                        Text(L10n.tr("tunnel.detail.localNetwork", defaultValue: "Local Network").uppercased())
                             .font(SGTypography.metricLabel)
                             .foregroundStyle(SGColor.textSecondary)
                         Spacer()
-                        Text(allowLocalNetwork ? "Allowed (AirPlay, AirDrop, printers)" : "Blocked")
+                        Text(
+                            allowLocalNetwork
+                                ? L10n.tr(
+                                    "tunnel.detail.localNetworkAllowed",
+                                    defaultValue: "Allowed (AirPlay, AirDrop, printers)"
+                                )
+                                : L10n.tr("tunnel.detail.localNetworkBlocked", defaultValue: "Blocked")
+                        )
                             .font(SGTypography.subheadline)
                             .foregroundStyle(SGColor.textPrimary)
                     }
@@ -255,18 +278,24 @@ struct TunnelDetailHealthAlertsCard: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistSectionBar(
-                title: "Health Alerts",
-                trailingText: healthAlerts.isEnabled ? "ON" : "OFF",
+                title: L10n.tr("healthAlerts.title", defaultValue: "Health Alerts"),
+                trailingText: healthAlerts.isEnabled
+                    ? L10n.tr("common.on", defaultValue: "On")
+                    : L10n.tr("common.off", defaultValue: "Off"),
                 trailingFill: healthAlerts.isEnabled ? SGColor.popGreen : SGColor.surfaceElevated,
                 trailingForeground: healthAlerts.isEnabled ? SGColor.inkOnPop : SGColor.textPrimary
             )
             VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
                 HStack {
-                    Text("STATUS")
+                    Text(L10n.tr("tunnel.detail.status", defaultValue: "Status").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.textSecondary)
                     Spacer()
-                    Text(healthAlerts.isEnabled ? "ENABLED" : "OFF")
+                    Text(
+                        (healthAlerts.isEnabled
+                            ? L10n.tr("common.enabled", defaultValue: "Enabled")
+                            : L10n.tr("common.off", defaultValue: "Off")).uppercased()
+                    )
                         .font(SGTypography.badge)
                         .foregroundStyle(healthAlerts.isEnabled ? SGColor.inkOnPop : SGColor.textPrimary)
                         .padding(.horizontal, SGSpacing.xSmall)
@@ -278,7 +307,7 @@ struct TunnelDetailHealthAlertsCard: View {
                 if healthAlerts.isEnabled {
                     Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
                     HStack {
-                        Text("ALERT AFTER")
+                        Text(L10n.tr("tunnel.detail.alertAfter", defaultValue: "Alert after").uppercased())
                             .font(SGTypography.metricLabel)
                             .foregroundStyle(SGColor.textSecondary)
                         Spacer()

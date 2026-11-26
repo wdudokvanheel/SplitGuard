@@ -11,7 +11,7 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: String(localized: "settings.title", defaultValue: "Settings"),
+                title: L10n.tr("settings.title", defaultValue: "Settings"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -47,7 +47,7 @@ struct SettingsView: View {
                 set: { if !$0 { localAlert = nil } }
             )
         ) {
-            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
+            Button(L10n.tr("action.ok", defaultValue: "OK"), role: .cancel) {
                 localAlert = nil
             }
         } message: {
@@ -59,6 +59,7 @@ struct SettingsView: View {
         VStack(spacing: SGSpacing.medium) {
             brandBannerCard
             AppearanceSettingsSection(store: store)
+            LanguageSettingsSection(store: store)
             actionsSection
             aboutButton
             #if DEBUG
@@ -82,7 +83,12 @@ struct SettingsView: View {
                 .font(SGTypography.displayHero)
                 .tracking(0.8)
 
-                Text("PRIVATE WIREGUARD + SPLIT DNS")
+                Text(
+                    L10n.tr(
+                        "settings.brandSubtitle",
+                        defaultValue: "Private WireGuard + Split DNS"
+                    ).uppercased()
+                )
                     .font(SGTypography.metricLabel)
                     .tracking(1.0)
                     .foregroundStyle(SGColor.inkOnPop.opacity(0.82))
@@ -102,7 +108,7 @@ struct SettingsView: View {
 
     private var actionsSection: some View {
         VStack(spacing: SGSpacing.small) {
-            BrutalistSectionBar(title: "Tools & Data")
+            BrutalistSectionBar(title: L10n.tr("settings.toolsSection", defaultValue: "Tools & Data"))
 
             Button {
                 exportConfigurationsAsZip()
@@ -111,10 +117,15 @@ struct SettingsView: View {
                     Image(systemName: "archivebox.fill")
                         .font(.headline.weight(.bold))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "settings.exportZip", defaultValue: "Export zip archive").uppercased())
+                        Text(L10n.tr("settings.exportZip", defaultValue: "Export zip archive").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
-                        Text("Includes private keys • Requires Face ID or passcode")
+                        Text(
+                            L10n.tr(
+                                "settings.exportZip.subtitle",
+                                defaultValue: "Includes private keys • Requires Face ID or passcode"
+                            )
+                        )
                             .font(SGTypography.caption)
                             .opacity(0.82)
                     }
@@ -151,11 +162,16 @@ struct SettingsView: View {
                         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "settings.viewLog", defaultValue: "View log").uppercased())
+                        Text(L10n.tr("settings.viewLog", defaultValue: "View log").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                             .foregroundStyle(SGColor.textPrimary)
-                        Text("Inspect live tunnel and extension logs")
+                        Text(
+                            L10n.tr(
+                                "settings.viewLog.subtitle",
+                                defaultValue: "Inspect live tunnel and extension logs"
+                            )
+                        )
                             .font(SGTypography.caption)
                             .foregroundStyle(SGColor.textSecondary)
                     }
@@ -182,11 +198,11 @@ struct SettingsView: View {
                     .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("ABOUT")
+                    Text(L10n.tr("settings.about", defaultValue: "About").uppercased())
                         .font(SGTypography.displayCompact)
                         .tracking(0.8)
                         .foregroundStyle(SGColor.textPrimary)
-                    Text("Version and source code")
+                    Text(L10n.tr("settings.about.subtitle", defaultValue: "Version and source code"))
                         .font(SGTypography.caption)
                         .foregroundStyle(SGColor.textSecondary)
                 }
@@ -236,11 +252,13 @@ struct SettingsView: View {
         }
     }
     #endif
+}
 
-    private func exportConfigurationsAsZip() {
+private extension SettingsView {
+    func exportConfigurationsAsZip() {
         Task {
-            let reason = String(
-                localized: "privacy.exportPrivateKeys",
+            let reason = L10n.tr(
+                "privacy.exportPrivateKeys",
                 defaultValue: "Authenticate to export tunnel private keys."
             )
             guard await PrivateDataConfirmation.confirmAccess(reason: reason) else {
@@ -265,7 +283,7 @@ struct AppearanceSettingsSection: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistSectionBar(
-                title: "Appearance",
+                title: L10n.tr("settings.appearance.title", defaultValue: "Appearance"),
                 trailingText: store.appearanceMode.title
             )
 
@@ -282,6 +300,30 @@ struct AppearanceSettingsSection: View {
                         systemImage: mode.systemImage
                     )
                 }
+            )
+            .padding(SGSpacing.medium)
+            .background(SGColor.surfaceCard)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))
+        .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
+    }
+}
+
+struct LanguageSettingsSection: View {
+    let store: TunnelStore
+
+    var body: some View {
+        VStack(spacing: 0) {
+            BrutalistSectionBar(
+                title: L10n.tr("settings.language.title", defaultValue: "Language")
+            )
+
+            BrutalistFlagSegmentedControl(
+                selection: Binding(
+                    get: { store.language },
+                    set: { store.setLanguage($0) }
+                ),
+                languages: AppLanguage.allCases
             )
             .padding(SGSpacing.medium)
             .background(SGColor.surfaceCard)

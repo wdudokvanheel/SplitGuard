@@ -15,7 +15,7 @@ struct AboutView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: "About",
+                title: L10n.tr("about.title", defaultValue: "About"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -56,7 +56,7 @@ struct AboutView: View {
                         .fill(SGColor.shadowSurface)
                         .offset(x: SGShadow.medium, y: SGShadow.medium)
                 )
-                .accessibilityLabel("SplitGuard App Icon")
+                .accessibilityLabel(L10n.tr("about.appIconAccessibility", defaultValue: "SplitGuard App Icon"))
 
             VStack(spacing: SGSpacing.xSmall) {
                 HStack(spacing: 4) {
@@ -76,7 +76,7 @@ struct AboutView: View {
     }
 
     private var versionBadge: some View {
-        Text("VERSION \(AppMetadata.versionText)")
+        Text(L10n.tr("about.versionBadge", defaultValue: "Version \(AppMetadata.versionText)").uppercased())
             .font(SGTypography.monoCompact.weight(.bold))
             .foregroundStyle(SGColor.inkOnPop)
             .padding(.horizontal, SGSpacing.small)
@@ -90,7 +90,7 @@ struct AboutView: View {
 
     private var sourceCodeSection: some View {
         VStack(spacing: SGSpacing.small) {
-            BrutalistSectionBar(title: "Source Code")
+            BrutalistSectionBar(title: L10n.tr("about.sourceCodeSection", defaultValue: "Source Code"))
 
             Button {
                 openURL(AppMetadata.sourceCodeURL)
@@ -104,7 +104,7 @@ struct AboutView: View {
                         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("VIEW ON GITHUB")
+                        Text(L10n.tr("about.viewOnGitHub", defaultValue: "View on GitHub").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                         Text("github.com/wdudokvanheel/SplitGuard")

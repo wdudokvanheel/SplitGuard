@@ -31,6 +31,7 @@ final class TunnelStore {
     var requestedNavigationTunnelID: Tunnel.ID?
     private(set) var favoriteTunnelID: Tunnel.ID?
     private(set) var appearanceMode: AppAppearanceMode
+    private(set) var language: AppLanguage
 
     var pendingOpenedURLs: [URL] = []
     var pendingQuickActionTunnelID: Tunnel.ID?
@@ -86,6 +87,9 @@ final class TunnelStore {
         self.userDefaults = userDefaults
         self.favoriteTunnelID = userDefaults.string(forKey: Self.favoriteTunnelDefaultsKey).flatMap(UUID.init(uuidString:))
         self.appearanceMode = AppAppearanceMode.load(from: userDefaults)
+        let loadedLanguage = AppLanguage.load(from: userDefaults)
+        self.language = loadedLanguage
+        AppLocalization.setLanguage(loadedLanguage)
 
         self.activationService.observer = self
 
@@ -102,6 +106,17 @@ final class TunnelStore {
         guard appearanceMode != mode else { return }
         appearanceMode = mode
         mode.save(to: userDefaults)
+    }
+
+    func setLanguage(_ newLanguage: AppLanguage) {
+        guard language != newLanguage else { return }
+        language = newLanguage
+        AppLocalization.setLanguage(newLanguage)
+        newLanguage.save(
+            to: userDefaults,
+            sharedDefaults: userDefaults === UserDefaults.standard ? AppLanguage.sharedGroupDefaults() : nil
+        )
+        updateQuickActions()
     }
 
     var activeTunnel: Tunnel? {
@@ -284,7 +299,10 @@ extension TunnelStore: TunnelActivationObserver {
         guard !newIssues.isEmpty else { return }
 
         let messages = newIssues.map(\.message).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-        presentAlert(title: "Some tunnels could not be loaded", message: messages.joined(separator: "\n\n"))
+        presentAlert(
+            title: L10n.tr("alert.loadIssues.title", defaultValue: "Some tunnels could not be loaded"),
+            message: messages.joined(separator: "\n\n")
+        )
     }
 
     func activationService(_ service: TunnelActivationService, didRemoveTunnelWithID id: Tunnel.ID) {

@@ -11,13 +11,13 @@ enum TunnelEditorSection: String, CaseIterable, Hashable, Sendable {
     var title: String {
         switch self {
         case .interface:
-            return String(localized: "tunnel.editor.tab.interface", defaultValue: "Interface")
+            return L10n.tr("tunnel.editor.tab.interface", defaultValue: "Interface")
         case .peers:
-            return String(localized: "tunnel.editor.tab.peers", defaultValue: "Peers")
+            return L10n.tr("tunnel.editor.tab.peers", defaultValue: "Peers")
         case .dns:
-            return String(localized: "tunnel.editor.tab.dns", defaultValue: "DNS")
+            return L10n.tr("tunnel.editor.tab.dns", defaultValue: "DNS")
         case .behavior:
-            return String(localized: "tunnel.editor.tab.behavior", defaultValue: "Behavior")
+            return L10n.tr("tunnel.editor.tab.behavior", defaultValue: "Behavior")
         }
     }
 }

@@ -58,8 +58,8 @@ final class TunnelEditorViewModel {
 
     var navigationTitle: String {
         isEditing
-            ? String(localized: "tunnel.editor.editTitle", defaultValue: "Edit configuration")
-            : String(localized: "tunnel.editor.newTitle", defaultValue: "New configuration")
+            ? L10n.tr("tunnel.editor.editTitle", defaultValue: "Edit configuration")
+            : L10n.tr("tunnel.editor.newTitle", defaultValue: "New configuration")
     }
 
     var name: String {

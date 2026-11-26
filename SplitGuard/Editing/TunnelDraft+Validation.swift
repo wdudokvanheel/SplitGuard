@@ -14,7 +14,7 @@ extension TunnelDraft {
 
         if let firstInterfaceError = interfaceResult.messages.first {
             return .failure(TunnelDraftValidationError(
-                title: String(localized: "alert.invalidInterface.title", defaultValue: "Invalid interface"),
+                title: L10n.tr("alert.invalidInterface.title", defaultValue: "Invalid interface"),
                 message: firstInterfaceError,
                 interfaceFields: interfaceResult.errorFields,
                 peerFieldsByID: peersResult.errorFieldsByID
@@ -23,7 +23,7 @@ extension TunnelDraft {
 
         if let firstPeerError = peersResult.messages.first {
             return .failure(TunnelDraftValidationError(
-                title: String(localized: "alert.invalidPeer.title", defaultValue: "Invalid peer"),
+                title: L10n.tr("alert.invalidPeer.title", defaultValue: "Invalid peer"),
                 message: firstPeerError,
                 interfaceFields: interfaceResult.errorFields,
                 peerFieldsByID: peersResult.errorFieldsByID
@@ -68,9 +68,9 @@ private extension TunnelDraft {
         guard let validatedName = interfaceResult.name,
               let validatedInterface = interfaceResult.configuration else {
             return .failure(TunnelDraftValidationError(
-                title: String(localized: "alert.invalidInterface.title", defaultValue: "Invalid interface"),
-                message: String(
-                    localized: "alert.invalidInterface.nameRequired",
+                title: L10n.tr("alert.invalidInterface.title", defaultValue: "Invalid interface"),
+                message: L10n.tr(
+                    "alert.invalidInterface.nameRequired",
                     defaultValue: "Interface name is required"
                 ),
                 interfaceFields: interfaceResult.errorFields,
@@ -89,9 +89,9 @@ private extension TunnelDraft {
             return .success(profile)
         } catch TunnelProfileError.duplicatePeerPublicKey {
             return .failure(TunnelDraftValidationError(
-                title: String(localized: "alert.invalidPeer.title", defaultValue: "Invalid peer"),
-                message: String(
-                    localized: "alert.invalidPeer.publicKeyDuplicated",
+                title: L10n.tr("alert.invalidPeer.title", defaultValue: "Invalid peer"),
+                message: L10n.tr(
+                    "alert.invalidPeer.publicKeyDuplicated",
                     defaultValue: "Two or more peers cannot have the same public key"
                 ),
                 interfaceFields: [],
@@ -99,7 +99,7 @@ private extension TunnelDraft {
             ))
         } catch {
             return .failure(TunnelDraftValidationError(
-                title: String(localized: "alert.invalidPeer.title", defaultValue: "Invalid peer"),
+                title: L10n.tr("alert.invalidPeer.title", defaultValue: "Invalid peer"),
                 message: error.localizedDescription,
                 interfaceFields: [],
                 peerFieldsByID: peersResult.errorFieldsByID
@@ -134,8 +134,8 @@ private extension TunnelDraft {
         let trimmed = interface.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             output.errorFields.insert(.name)
-            output.messages.append(String(
-                localized: "alert.invalidInterface.nameRequired",
+            output.messages.append(L10n.tr(
+                "alert.invalidInterface.nameRequired",
                 defaultValue: "Interface name is required"
             ))
             return nil
@@ -147,16 +147,16 @@ private extension TunnelDraft {
         let trimmed = interface.privateKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             output.errorFields.insert(.privateKey)
-            output.messages.append(String(
-                localized: "alert.invalidInterface.privateKeyRequired",
+            output.messages.append(L10n.tr(
+                "alert.invalidInterface.privateKeyRequired",
                 defaultValue: "Interface’s private key is required"
             ))
             return nil
         }
         guard let parsedKey = WireGuardPrivateKey(base64: trimmed) else {
             output.errorFields.insert(.privateKey)
-            output.messages.append(String(
-                localized: "alert.invalidInterface.privateKeyInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidInterface.privateKeyInvalid",
                 defaultValue: "Interface’s private key must be a nonzero 32-byte key in base64 encoding"
             ))
             return nil
@@ -171,8 +171,8 @@ private extension TunnelDraft {
                 addresses.append(address)
             } else {
                 output.errorFields.insert(.addresses)
-                output.messages.append(String(
-                    localized: "alert.invalidInterface.addressInvalid",
+                output.messages.append(L10n.tr(
+                    "alert.invalidInterface.addressInvalid",
                     defaultValue: "Interface addresses must be a list of comma-separated IP addresses, optionally in CIDR notation"
                 ))
             }
@@ -185,8 +185,8 @@ private extension TunnelDraft {
         guard !trimmed.isEmpty else { return nil }
         guard let value = Self.parseUInt16(trimmed) else {
             output.errorFields.insert(.listenPort)
-            output.messages.append(String(
-                localized: "alert.invalidInterface.listenPortInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidInterface.listenPortInvalid",
                 defaultValue: "Interface’s listen port must be between 0 and 65535, or unspecified"
             ))
             return nil
@@ -202,8 +202,8 @@ private extension TunnelDraft {
             let minimum = String(range.lowerBound)
             let maximum = String(range.upperBound)
             output.errorFields.insert(.mtu)
-            output.messages.append(String(
-                localized: "alert.invalidInterface.mtuInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidInterface.mtuInvalid",
                 defaultValue: "Enter an MTU between \(minimum) and \(maximum), or leave it blank for Automatic"
             ))
             return nil
@@ -239,8 +239,8 @@ private extension TunnelDraft {
                 if let existingID = seenKeyToPeerID[config.publicKey] {
                     output.errorFieldsByID[existingID, default: []].insert(.publicKey)
                     output.errorFieldsByID[peer.id, default: []].insert(.publicKey)
-                    output.messages.append(String(
-                        localized: "alert.invalidPeer.publicKeyDuplicated",
+                    output.messages.append(L10n.tr(
+                        "alert.invalidPeer.publicKeyDuplicated",
                         defaultValue: "Two or more peers cannot have the same public key"
                     ))
                 } else {
@@ -276,16 +276,16 @@ private extension TunnelDraft {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             output.errorFields.insert(.publicKey)
-            output.messages.append(String(
-                localized: "alert.invalidPeer.publicKeyRequired",
+            output.messages.append(L10n.tr(
+                "alert.invalidPeer.publicKeyRequired",
                 defaultValue: "Peer’s public key is required"
             ))
             return nil
         }
         guard let parsed = WireGuardPublicKey(base64: trimmed) else {
             output.errorFields.insert(.publicKey)
-            output.messages.append(String(
-                localized: "alert.invalidPeer.publicKeyInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidPeer.publicKeyInvalid",
                 defaultValue: "Peer’s public key must be a 32-byte key in base64 encoding"
             ))
             return nil
@@ -298,8 +298,8 @@ private extension TunnelDraft {
         guard !trimmed.isEmpty else { return nil }
         guard let parsed = WireGuardPresharedKey(base64: trimmed) else {
             output.errorFields.insert(.presharedKey)
-            output.messages.append(String(
-                localized: "alert.invalidPeer.presharedKeyInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidPeer.presharedKeyInvalid",
                 defaultValue: "Peer’s preshared key must be a 32-byte key in base64 encoding"
             ))
             return nil
@@ -314,8 +314,8 @@ private extension TunnelDraft {
                 allowedIPs.append(address.network)
             } else {
                 output.errorFields.insert(.allowedIPs)
-                output.messages.append(String(
-                    localized: "alert.invalidPeer.allowedIPsInvalid",
+                output.messages.append(L10n.tr(
+                    "alert.invalidPeer.allowedIPsInvalid",
                     defaultValue: "Peer’s allowed IPs must be a list of comma-separated IP addresses, optionally in CIDR notation"
                 ))
             }
@@ -328,8 +328,8 @@ private extension TunnelDraft {
         guard !trimmed.isEmpty else { return nil }
         guard let parsed = Endpoint(trimmed) else {
             output.errorFields.insert(.endpoint)
-            output.messages.append(String(
-                localized: "alert.invalidPeer.endpointInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidPeer.endpointInvalid",
                 defaultValue: "Peer’s endpoint must be of the form ‘host:port’ or ‘[host]:port’"
             ))
             return nil
@@ -342,8 +342,8 @@ private extension TunnelDraft {
         guard !trimmed.isEmpty else { return nil }
         guard let parsed = Self.parseUInt16(trimmed) else {
             output.errorFields.insert(.persistentKeepalive)
-            output.messages.append(String(
-                localized: "alert.invalidPeer.persistentKeepaliveInvalid",
+            output.messages.append(L10n.tr(
+                "alert.invalidPeer.persistentKeepaliveInvalid",
                 defaultValue: "Peer’s persistent keepalive must be between 0 and 65535, or unspecified"
             ))
             return nil

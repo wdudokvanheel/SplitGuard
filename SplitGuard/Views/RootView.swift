@@ -57,6 +57,7 @@ struct RootView: View {
             }
         }
         .tint(SGColor.accent)
+        .environment(\.locale, store.language.locale)
         .background {
             WindowAppearanceBridge(mode: store.appearanceMode)
                 .frame(width: 0, height: 0)
@@ -75,7 +76,7 @@ struct RootView: View {
                 }
             case .failure(let error):
                 store.presentAlert(
-                    title: String(localized: "alert.import.cantOpenFile.title", defaultValue: "Unable to import from file"),
+                    title: L10n.tr("alert.import.cantOpenFile.title", defaultValue: "Unable to import from file"),
                     message: error.localizedDescription
                 )
             }
@@ -91,7 +92,7 @@ struct RootView: View {
                 }
             )
         ) {
-            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
+            Button(L10n.tr("action.ok", defaultValue: "OK"), role: .cancel) {
                 store.dismissActiveAlert()
             }
         } message: {
@@ -257,7 +258,7 @@ private extension RootView {
     func tunnelRemovedView(for tunnelID: Tunnel.ID) -> some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: "Tunnel Removed",
+                title: L10n.tr("tunnel.removed.title", defaultValue: "Tunnel Removed"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -266,8 +267,8 @@ private extension RootView {
                 }
             )
             BrutalistUnavailableCard(
-                title: "Tunnel Removed",
-                message: "This tunnel is no longer available.",
+                title: L10n.tr("tunnel.removed.title", defaultValue: "Tunnel Removed"),
+                message: L10n.tr("tunnel.removed.message", defaultValue: "This tunnel is no longer available."),
                 systemImage: "shield.slash.fill",
                 accent: SGColor.popRed
             )

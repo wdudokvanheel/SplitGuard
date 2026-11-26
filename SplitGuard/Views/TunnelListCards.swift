@@ -14,53 +14,6 @@ struct FeaturedTunnelHeroCardView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var endpoint: String? {
-        let endpoints = tunnel.profile.peers.compactMap(\.endpoint)
-        if endpoints.count == 1 {
-            return endpoints[0].description
-        }
-        return endpoints.count > 1 ? "\(endpoints.count) peers" : nil
-    }
-
-    private var roleLabel: String? {
-        displayState.status == .inactive ? "PRIMARY TUNNEL" : nil
-    }
-
-    private var featureTags: [String] {
-        var tags: [String] = []
-        let splitDNS = tunnel.splitDNS
-        if splitDNS.mode == .onlyDomains {
-            let count = splitDNS.normalizedDomainNames.count
-            tags.append(count == 1 ? "SPLIT DNS: \(splitDNS.normalizedDomainNames[0])" : "SPLIT DNS (\(count))")
-        } else {
-            tags.append("ALL DOMAINS")
-        }
-        if tunnel.options.killSwitch.isEnabled {
-            tags.append("KILL SWITCH")
-        }
-        if displayState.hasOnDemandRules {
-            tags.append(displayState.isOnDemandEnabled ? "ON-DEMAND ON" : "ON-DEMAND OFF")
-        }
-        return tags
-    }
-
-    private var primaryActionTitle: String {
-        switch displayState.status {
-        case .active:
-            return "DISCONNECT"
-        case .activating, .reasserting, .restarting, .waiting:
-            return "CONNECTING…"
-        case .deactivating:
-            return "DISCONNECTING…"
-        case .inactive:
-            return displayState.isOnDemandEnabled ? "DISABLE ON-DEMAND" : "CONNECT NOW"
-        }
-    }
-
-    private var primaryActionAccent: Color {
-        displayState.isSwitchOn ? SGColor.popRed : SGColor.popGreen
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             heroTopBand
@@ -117,7 +70,11 @@ struct FeaturedTunnelHeroCardView: View {
                         .overlay(Rectangle().strokeBorder(SGColor.pureBlack, lineWidth: SGBorder.thin))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(isFavorite ? "Remove favourite" : "Pin as favourite")
+                .accessibilityLabel(
+                    isFavorite
+                        ? L10n.tr("tunnel.action.unpinFavorite", defaultValue: "Remove favorite")
+                        : L10n.tr("tunnel.action.pinFavorite", defaultValue: "Pin as favorite")
+                )
             }
 
             Button(action: onOpenDetail) {
@@ -157,7 +114,7 @@ struct FeaturedTunnelHeroCardView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Opens tunnel details")
+            .accessibilityHint(L10n.tr("tunnel.action.opensDetailsHint", defaultValue: "Opens tunnel details"))
 
             primaryActionButton
         }
@@ -213,22 +170,26 @@ struct FeaturedTunnelHeroCardView: View {
     @ViewBuilder
     private var metricsStrip: some View {
         let isActive = displayState.status == .active
+        let receivedLabel = L10n.tr("tunnel.metric.received", defaultValue: "Received").uppercased()
+        let sentLabel = L10n.tr("tunnel.metric.sent", defaultValue: "Sent").uppercased()
+        let handshakeLabel = L10n.tr("tunnel.metric.handshake", defaultValue: "Handshake").uppercased()
+        let idleValue = L10n.tr("tunnel.metric.idle", defaultValue: "Idle")
         if dynamicTypeSize.isAccessibilitySize {
             VStack(spacing: 0) {
-                metricCell(label: "RECEIVED", value: isActive ? rxText : "—", accent: SGColor.popPurple)
+                metricCell(label: receivedLabel, value: isActive ? rxText : "—", accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
-                metricCell(label: "SENT", value: isActive ? txText : "—", accent: SGColor.popGreen)
+                metricCell(label: sentLabel, value: isActive ? txText : "—", accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
-                metricCell(label: "HANDSHAKE", value: isActive ? handshakeText : "Idle", accent: SGColor.popYellow)
+                metricCell(label: handshakeLabel, value: isActive ? handshakeText : idleValue, accent: SGColor.popYellow)
             }
             .background(SGColor.surfaceCard)
         } else {
             HStack(spacing: 0) {
-                metricCell(label: "RECEIVED", value: isActive ? rxText : "—", accent: SGColor.popPurple)
+                metricCell(label: receivedLabel, value: isActive ? rxText : "—", accent: SGColor.popPurple)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
-                metricCell(label: "SENT", value: isActive ? txText : "—", accent: SGColor.popGreen)
+                metricCell(label: sentLabel, value: isActive ? txText : "—", accent: SGColor.popGreen)
                 Rectangle().fill(SGColor.borderInk).frame(width: SGBorder.regular)
-                metricCell(label: "HANDSHAKE", value: isActive ? handshakeText : "Idle", accent: SGColor.popYellow)
+                metricCell(label: handshakeLabel, value: isActive ? handshakeText : idleValue, accent: SGColor.popYellow)
             }
             .background(SGColor.surfaceCard)
         }
@@ -256,6 +217,74 @@ struct FeaturedTunnelHeroCardView: View {
         .padding(.horizontal, SGSpacing.small)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private extension FeaturedTunnelHeroCardView {
+    var endpoint: String? {
+        let endpoints = tunnel.profile.peers.compactMap(\.endpoint)
+        if endpoints.count == 1 {
+            return endpoints[0].description
+        }
+        return endpoints.count > 1
+            ? L10n.tr("tunnel.peersCount", defaultValue: "\(endpoints.count) peers")
+            : nil
+    }
+
+    var roleLabel: String? {
+        displayState.status == .inactive
+            ? L10n.tr("tunnel.role.primary", defaultValue: "Primary tunnel").uppercased()
+            : nil
+    }
+
+    var featureTags: [String] {
+        var tags: [String] = []
+        let splitDNS = tunnel.splitDNS
+        if splitDNS.mode == .onlyDomains {
+            let count = splitDNS.normalizedDomainNames.count
+            if count == 1 {
+                tags.append(
+                    L10n.tr(
+                        "tunnel.tag.splitDNSSingle",
+                        defaultValue: "Split DNS: \(splitDNS.normalizedDomainNames[0])"
+                    )
+                )
+            } else {
+                tags.append(L10n.tr("tunnel.tag.splitDNSCount", defaultValue: "Split DNS (\(count))"))
+            }
+        } else {
+            tags.append(L10n.tr("tunnel.tag.allDomains", defaultValue: "All domains"))
+        }
+        if tunnel.options.killSwitch.isEnabled {
+            tags.append(L10n.tr("tunnel.tag.killSwitch", defaultValue: "Kill switch"))
+        }
+        if displayState.hasOnDemandRules {
+            tags.append(
+                displayState.isOnDemandEnabled
+                    ? L10n.tr("tunnel.tag.onDemandOn", defaultValue: "On-Demand On")
+                    : L10n.tr("tunnel.tag.onDemandOff", defaultValue: "On-Demand Off")
+            )
+        }
+        return tags
+    }
+
+    var primaryActionTitle: String {
+        switch displayState.status {
+        case .active:
+            return L10n.tr("tunnel.action.disconnect", defaultValue: "Disconnect").uppercased()
+        case .activating, .reasserting, .restarting, .waiting:
+            return L10n.tr("tunnel.action.connecting", defaultValue: "Connecting…").uppercased()
+        case .deactivating:
+            return L10n.tr("tunnel.action.disconnecting", defaultValue: "Disconnecting…").uppercased()
+        case .inactive:
+            return displayState.isOnDemandEnabled
+                ? L10n.tr("tunnel.action.disableOnDemand", defaultValue: "Disable On-Demand").uppercased()
+                : L10n.tr("tunnel.action.connectNow", defaultValue: "Connect now").uppercased()
+        }
+    }
+
+    var primaryActionAccent: Color {
+        displayState.isSwitchOn ? SGColor.popRed : SGColor.popGreen
     }
 }
 
@@ -292,7 +321,7 @@ struct ActivationErrorCardView: View {
                     .overlay(Rectangle().strokeBorder(SGColor.pureBlack, lineWidth: SGBorder.thin))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss error")
+            .accessibilityLabel(L10n.tr("tunnel.error.dismissAccessibility", defaultValue: "Dismiss error"))
         }
         .padding(SGSpacing.medium)
         .brutalistCard(fill: SGColor.popRed, borderWidth: SGBorder.regular, shadowOffset: SGShadow.medium, showGrain: true)
@@ -312,8 +341,8 @@ struct MultiSelectBottomBarView: View {
             HStack(spacing: SGSpacing.small) {
                 Text(
                     selectedCount == 0
-                        ? "Tap tunnels to select"
-                        : String(localized: "tunnels.list.selectedCount", defaultValue: "\(selectedCount) selected")
+                        ? L10n.tr("tunnels.list.tapToSelect", defaultValue: "Tap tunnels to select")
+                        : L10n.tr("tunnels.list.selectedCount", defaultValue: "\(selectedCount) selected")
                 )
                 .font(SGTypography.subheadline)
                 .foregroundStyle(SGColor.textPrimary)
@@ -324,7 +353,7 @@ struct MultiSelectBottomBarView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "trash.fill")
                             .font(.caption.weight(.bold))
-                        Text("DELETE")
+                        Text(L10n.tr("action.delete", defaultValue: "Delete").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                     }

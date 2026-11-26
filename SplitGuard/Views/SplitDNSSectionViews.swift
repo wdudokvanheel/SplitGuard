@@ -17,7 +17,7 @@ struct SplitDNSEditorSection: View {
 
         SplitDNSExceptionsCard(viewModel: viewModel)
 
-        EditorCard(title: "Check routing") {
+        EditorCard(title: L10n.tr("splitDNS.checkRouting.title", defaultValue: "Check routing")) {
             SplitDNSRoutingPreviewView(
                 splitDNS: viewModel.splitDNSConfiguration,
                 dnsServers: viewModel.currentDNSServers
@@ -41,31 +41,36 @@ struct DNSServersEditorCard: View {
 
     private var serverCountText: String {
         let count = viewModel.currentDNSServers.count
-        return count == 0 ? "NONE" : "\(count)"
+        return count == 0 ? L10n.tr("common.none", defaultValue: "None") : "\(count)"
     }
 
     var body: some View {
         EditorCard(
-            title: "DNS Servers",
+            title: L10n.tr("splitDNS.dnsServers.title", defaultValue: "DNS Servers"),
             trailingText: serverCountText,
             trailingFill: viewModel.currentDNSServers.isEmpty ? SGColor.surfaceElevated : SGColor.popGreen,
             trailingForeground: viewModel.currentDNSServers.isEmpty ? SGColor.textPrimary : SGColor.inkOnPop
         ) {
             EditorTextRow(
-                label: "Server addresses",
+                label: L10n.tr("splitDNS.dnsServers.addressesLabel", defaultValue: "Server addresses"),
                 placeholder: viewModel.shouldStronglyRecommendDNS
-                    ? String(
-                        localized: "tunnel.editor.placeholder.stronglyRecommended",
+                    ? L10n.tr(
+                        "tunnel.editor.placeholder.stronglyRecommended",
                         defaultValue: "Strongly recommended"
                     )
-                    : String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                    : L10n.tr("tunnel.editor.placeholder.optional", defaultValue: "Optional"),
                 text: Binding(get: { viewModel.dns }, set: { viewModel.updateDNS($0) }),
                 hasError: viewModel.interfaceErrorFields.contains(.dns),
                 isMonospaced: true,
                 keyboardType: .numbersAndPunctuation
             )
 
-            Text("The VPN's DNS servers, separated by commas. Lookups routed through the VPN use these.")
+            Text(
+                L10n.tr(
+                    "splitDNS.dnsServers.help",
+                    defaultValue: "The VPN's DNS servers, separated by commas. Lookups routed through the VPN use these."
+                )
+            )
                 .font(SGTypography.caption)
                 .foregroundStyle(SGColor.textSecondary)
 
@@ -83,11 +88,13 @@ struct SplitDNSModeCard: View {
 
     var body: some View {
         EditorCard(
-            title: "Split DNS",
-            trailingText: viewModel.splitDNSMode == .onlyDomains ? "SPLIT" : "ALL",
+            title: L10n.tr("splitDNS.title", defaultValue: "Split DNS"),
+            trailingText: viewModel.splitDNSMode == .onlyDomains
+                ? L10n.tr("splitDNS.badge.split", defaultValue: "Split")
+                : L10n.tr("splitDNS.badge.all", defaultValue: "All"),
             trailingFill: viewModel.splitDNSMode == .onlyDomains ? SGColor.popBlue : SGColor.popPurple
         ) {
-            Text("WHICH LOOKUPS USE THE VPN'S DNS?")
+            Text(L10n.tr("splitDNS.question", defaultValue: "Which lookups use the VPN's DNS?").uppercased())
                 .font(SGTypography.metricLabel)
                 .tracking(0.8)
                 .foregroundStyle(SGColor.textSecondary)
@@ -95,16 +102,22 @@ struct SplitDNSModeCard: View {
             VStack(spacing: 0) {
                 modeOption(
                     .allDomains,
-                    title: "All domains",
-                    subtitle: "Every lookup uses the VPN's DNS, like the official WireGuard app.",
+                    title: L10n.tr("splitDNS.mode.allDomains", defaultValue: "All domains"),
+                    subtitle: L10n.tr(
+                        "splitDNS.mode.allDomains.subtitle",
+                        defaultValue: "Every lookup uses the VPN's DNS, like the official WireGuard app."
+                    ),
                     systemImage: "globe",
                     accent: SGColor.popPurple
                 )
                 Rectangle().fill(SGColor.borderInk).frame(height: SGBorder.thin)
                 modeOption(
                     .onlyDomains,
-                    title: "Only selected domains",
-                    subtitle: "Only the domains you add use the VPN's DNS. Everything else uses your network's normal DNS.",
+                    title: L10n.tr("splitDNS.mode.onlyDomains", defaultValue: "Only selected domains"),
+                    subtitle: L10n.tr(
+                        "splitDNS.mode.onlyDomains.subtitle",
+                        defaultValue: "Only the domains you add use the VPN's DNS. Everything else uses your network's normal DNS."
+                    ),
                     systemImage: "arrow.triangle.branch",
                     accent: SGColor.popBlue
                 )
@@ -187,7 +200,7 @@ struct SplitDNSDomainsCard: View {
 
     var body: some View {
         EditorCard(
-            title: "VPN DNS Domains",
+            title: L10n.tr("splitDNS.domains.title", defaultValue: "VPN DNS Domains"),
             trailingText: "\(viewModel.splitDNSDomains.count)",
             trailingFill: viewModel.splitDNSDomains.isEmpty ? SGColor.popRed : SGColor.popBlue
         ) {
@@ -202,7 +215,10 @@ struct SplitDNSDomainsCard: View {
             if viewModel.splitDNSDomains.isEmpty {
                 SplitDNSEmptyState(
                     systemImage: "network",
-                    message: "Add the domains of the services you reach through this VPN, like home.lan or corp.example.com."
+                    message: L10n.tr(
+                        "splitDNS.domains.emptyEditor",
+                        defaultValue: "Add the domains of the services you reach through this VPN, like home.lan or corp.example.com."
+                    )
                 )
             } else {
                 VStack(spacing: SGSpacing.xSmall) {
@@ -213,14 +229,19 @@ struct SplitDNSDomainsCard: View {
             }
 
             SplitDNSAddField(
-                placeholder: "Add domain, e.g. home.lan",
+                placeholder: L10n.tr("splitDNS.domains.placeholder", defaultValue: "Add domain, e.g. home.lan"),
                 text: $viewModel.newSplitDNSDomain,
                 errorText: viewModel.splitDNSInputError,
                 onTextChange: { viewModel.splitDNSInputError = nil },
                 onAdd: { viewModel.addSplitDNSDomain() }
             )
 
-            Text("Subdomains are included automatically. Paste several domains separated by commas.")
+            Text(
+                L10n.tr(
+                    "splitDNS.domains.help",
+                    defaultValue: "Subdomains are included automatically. Paste several domains separated by commas."
+                )
+            )
                 .font(SGTypography.caption)
                 .foregroundStyle(SGColor.textTertiary)
         }
@@ -231,14 +252,14 @@ struct SplitDNSDomainsCard: View {
         return SplitDNSNameRow(
             name: domain.name,
             matchDescription: includesApex
-                ? "\(domain.name) and *.\(domain.name)"
-                : "*.\(domain.name) only",
+                ? L10n.tr("splitDNS.domains.rowWide", defaultValue: "\(domain.name) and *.\(domain.name)")
+                : L10n.tr("splitDNS.domains.rowSubdomainsOnly", defaultValue: "*.\(domain.name) only"),
             scope: SplitDNSScopeMenu(
                 isWide: includesApex,
-                wideTitle: "Domain and subdomains",
-                narrowTitle: "Subdomains only",
-                wideLabel: "+ Subdomains",
-                narrowLabel: "Subdomains only",
+                wideTitle: L10n.tr("splitDNS.scope.domainAndSubdomains", defaultValue: "Domain and subdomains"),
+                narrowTitle: L10n.tr("splitDNS.scope.subdomainsOnly", defaultValue: "Subdomains only"),
+                wideLabel: L10n.tr("splitDNS.scope.plusSubdomains", defaultValue: "+ Subdomains"),
+                narrowLabel: L10n.tr("splitDNS.scope.subdomainsOnly", defaultValue: "Subdomains only"),
                 accessibilityName: domain.name
             ) { wide in
                 withAnimation(.snappy(duration: 0.2)) {

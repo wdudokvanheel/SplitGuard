@@ -5,6 +5,14 @@ options:
     iOS: "17.4"
   xcodeVersion: "27.0"
   defaultConfig: Debug
+  developmentLanguage: en
+  knownRegions:
+    - Base
+    - en
+    - es
+    - fr
+    - de
+    - nl
 
 settings:
   base:
@@ -33,6 +41,8 @@ targets:
       - path: SplitGuardNetworkExtension/PacketTunnelProvider.swift
       - path: SplitGuardNetworkExtension/HealthAlertNotificationPoster.swift
       - path: SplitGuardNetworkExtension/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - path: SplitGuard/Resources/Localizable.xcstrings
         buildPhase: resources
     dependencies:
       - package: SplitGuardCore

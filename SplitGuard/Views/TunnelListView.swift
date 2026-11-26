@@ -33,8 +33,8 @@ struct TunnelListView: View {
 
     private var multiDeleteDialogMessage: String {
         let count = selectedTunnels.count
-        return String(
-            localized: "tunnels.delete.confirmCount",
+        return L10n.tr(
+            "tunnels.delete.confirmCount",
             defaultValue: "Delete \(count) tunnels?"
         )
     }
@@ -79,7 +79,7 @@ struct TunnelListView: View {
             syncLiveMetrics()
         }
         .confirmationDialog(
-            "Delete Tunnel",
+            L10n.tr("tunnels.delete.title", defaultValue: "Delete Tunnel"),
             isPresented: Binding(
                 get: { tunnelPendingDelete != nil },
                 set: { if !$0 { tunnelPendingDelete = nil } }
@@ -87,19 +87,23 @@ struct TunnelListView: View {
             titleVisibility: .visible
         ) {
             if let tunnel = tunnelPendingDelete {
-                Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
+                Button(L10n.tr("action.delete", defaultValue: "Delete"), role: .destructive) {
                     Task {
                         _ = await store.delete(tunnel: tunnel)
                     }
                     tunnelPendingDelete = nil
                 }
             }
-            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {
+            Button(L10n.tr("action.cancel", defaultValue: "Cancel"), role: .cancel) {
                 tunnelPendingDelete = nil
             }
         } message: {
             if let tunnel = tunnelPendingDelete {
-                Text("Delete \"\(tunnel.name)\"? This removes its saved configuration.")
+                let message = L10n.tr(
+                    "tunnels.delete.message",
+                    defaultValue: "Delete \"\(tunnel.name)\"? This removes its saved configuration."
+                )
+                Text(message)
             }
         }
         .confirmationDialog(
@@ -107,7 +111,7 @@ struct TunnelListView: View {
             isPresented: $showMultiDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
+            Button(L10n.tr("action.delete", defaultValue: "Delete"), role: .destructive) {
                 let targets = selectedTunnels
                 Task {
                     let succeeded = await store.deleteMultiple(tunnels: targets)
@@ -116,7 +120,7 @@ struct TunnelListView: View {
                     }
                 }
             }
-            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {}
+            Button(L10n.tr("action.cancel", defaultValue: "Cancel"), role: .cancel) {}
         }
     }
 }
@@ -127,7 +131,7 @@ private extension TunnelListView {
             ProgressView()
                 .controlSize(.large)
                 .tint(SGColor.textPrimary)
-            Text("LOADING TUNNELS…")
+            Text(L10n.tr("tunnels.loading", defaultValue: "Loading tunnels…").uppercased())
                 .font(SGTypography.displayCompact)
                 .tracking(1.2)
                 .foregroundStyle(SGColor.textPrimary)
@@ -177,7 +181,9 @@ private extension TunnelListView {
                     }
 
                     BrutalistSectionBar(
-                        title: isSelecting ? "Select Tunnels" : "Tunnels",
+                        title: isSelecting
+                            ? L10n.tr("tunnels.section.selectTitle", defaultValue: "Select Tunnels")
+                            : L10n.tr("tunnels.section.title", defaultValue: "Tunnels"),
                         trailingText: "\(store.tunnels.count)"
                     )
 
@@ -270,7 +276,7 @@ private extension TunnelListView {
 
                 BrutalistIconButton(
                     systemImage: "checklist",
-                    accessibilityLabelText: String(localized: "tunnels.list.select", defaultValue: "Select"),
+                    accessibilityLabelText: L10n.tr("tunnels.list.select", defaultValue: "Select"),
                     action: {
                         withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
                             isSelecting = true
@@ -281,7 +287,7 @@ private extension TunnelListView {
 
                 BrutalistIconButton(
                     systemImage: "gearshape.fill",
-                    accessibilityLabelText: String(localized: "settings.title", defaultValue: "Settings"),
+                    accessibilityLabelText: L10n.tr("settings.title", defaultValue: "Settings"),
                     action: onOpenSettings
                 )
 
@@ -296,7 +302,10 @@ private extension TunnelListView {
         Button {
             selectedTunnelIDs = allSelected ? [] : Set(store.tunnels.map(\.id))
         } label: {
-            Text(allSelected ? "NONE" : "ALL")
+            let title = allSelected
+                ? L10n.tr("tunnels.list.selectNone", defaultValue: "None")
+                : L10n.tr("tunnels.list.selectAll", defaultValue: "All")
+            Text(title.uppercased())
                 .font(SGTypography.displayCompact)
                 .tracking(0.8)
                 .padding(.horizontal, SGSpacing.small)
@@ -314,7 +323,10 @@ private extension TunnelListView {
 
         Spacer(minLength: 4)
 
-        Text(selectedTunnels.isEmpty ? "SELECT" : "\(selectedTunnels.count) SELECTED")
+        let headerTitle = selectedTunnels.isEmpty
+            ? L10n.tr("tunnels.list.select", defaultValue: "Select")
+            : L10n.tr("tunnels.list.selectedCount", defaultValue: "\(selectedTunnels.count) selected")
+        Text(headerTitle.uppercased())
             .font(SGTypography.displaySection)
             .tracking(0.8)
             .foregroundStyle(SGColor.textPrimary)
@@ -324,7 +336,7 @@ private extension TunnelListView {
         Button {
             exitSelectionMode()
         } label: {
-            Text("DONE")
+            Text(L10n.tr("tunnels.list.done", defaultValue: "Done").uppercased())
                 .font(SGTypography.displayCompact)
                 .tracking(0.8)
                 .padding(.horizontal, SGSpacing.small)
@@ -348,7 +360,7 @@ private extension TunnelListView {
             HStack(spacing: 4) {
                 Image(systemName: "plus")
                     .font(.system(size: 14, weight: .black))
-                Text("ADD")
+                Text(L10n.tr("tunnels.list.add", defaultValue: "Add").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
             }
@@ -364,7 +376,7 @@ private extension TunnelListView {
                 cornerRadius: SGRadius.sharp
             )
         )
-        .accessibilityLabel("Add tunnel")
+        .accessibilityLabel(L10n.tr("tunnels.list.addAccessibility", defaultValue: "Add tunnel"))
     }
 
     func syncLiveMetrics() {

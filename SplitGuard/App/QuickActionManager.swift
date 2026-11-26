@@ -33,7 +33,7 @@ enum QuickActionItem {
             UIApplicationShortcutItem(
                 type: shortcutType,
                 localizedTitle: tunnel.name,
-                localizedSubtitle: "Toggle tunnel",
+                localizedSubtitle: L10n.tr("quickAction.toggleTunnel", defaultValue: "Toggle tunnel"),
                 icon: UIApplicationShortcutIcon(systemImageName: "shield"),
                 userInfo: [tunnelIDUserInfoKey: tunnel.id.uuidString as NSSecureCoding]
             )

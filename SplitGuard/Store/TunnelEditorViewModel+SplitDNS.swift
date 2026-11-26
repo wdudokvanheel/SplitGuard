@@ -77,7 +77,7 @@ extension TunnelEditorViewModel {
             .filter { !$0.isEmpty }
 
         guard !candidates.isEmpty else {
-            splitDNSInputError = SplitDNSConfiguration.DomainValidationError.empty.localizedDescription
+            splitDNSInputError = SplitDNSConfiguration.DomainValidationError.empty.localizedMessage
             return false
         }
 
@@ -87,7 +87,7 @@ extension TunnelEditorViewModel {
             case .success(let normalized):
                 working.append(SplitDNSConfiguration.Domain(name: normalized))
             case .failure(let error):
-                splitDNSInputError = error.localizedDescription
+                splitDNSInputError = error.localizedMessage
                 return false
             }
         }
@@ -146,7 +146,7 @@ extension TunnelEditorViewModel {
             .filter { !$0.isEmpty }
 
         guard !candidates.isEmpty else {
-            splitDNSExclusionInputError = SplitDNSConfiguration.DomainValidationError.empty.localizedDescription
+            splitDNSExclusionInputError = SplitDNSConfiguration.DomainValidationError.empty.localizedMessage
             return false
         }
 
@@ -159,7 +159,7 @@ extension TunnelEditorViewModel {
                     includesSubdomains: includesSubdomains
                 ))
             case .failure(let error):
-                splitDNSExclusionInputError = error.localizedDescription
+                splitDNSExclusionInputError = error.localizedMessage
                 return false
             }
         }
@@ -245,16 +245,18 @@ extension TunnelEditorViewModel {
         let pendingDomain = newSplitDNSDomain.trimmingCharacters(in: .whitespacesAndNewlines)
         if splitDNSMode == .onlyDomains && !pendingDomain.isEmpty && !addSplitDNSDomain() {
             return AlertItem(
-                title: "Invalid Split DNS Domain",
-                message: splitDNSInputError ?? "Enter a valid domain name."
+                title: L10n.tr("splitDNS.alert.invalidDomain.title", defaultValue: "Invalid Split DNS Domain"),
+                message: splitDNSInputError
+                    ?? L10n.tr("splitDNS.alert.enterValidDomain", defaultValue: "Enter a valid domain name.")
             )
         }
 
         let pendingExclusion = newSplitDNSExclusion.trimmingCharacters(in: .whitespacesAndNewlines)
         if !pendingExclusion.isEmpty && !addSplitDNSExclusion() {
             return AlertItem(
-                title: "Invalid Normal DNS Exclusion",
-                message: splitDNSExclusionInputError ?? "Enter a valid domain name."
+                title: L10n.tr("splitDNS.alert.invalidExclusion.title", defaultValue: "Invalid Normal DNS Exclusion"),
+                message: splitDNSExclusionInputError
+                    ?? L10n.tr("splitDNS.alert.enterValidDomain", defaultValue: "Enter a valid domain name.")
             )
         }
         return nil
@@ -265,12 +267,24 @@ extension TunnelEditorViewModel {
         for exclusion in splitDNSExclusions {
             let normalized = SplitDNSConfiguration.normalizeDomain(exclusion.name)
             if !SplitDNSConfiguration.isValidDomainName(normalized) {
-                let message = SplitDNSConfiguration.DomainValidationError.invalidSyntax(exclusion.name).localizedDescription
-                return AlertItem(title: "Invalid Normal DNS Exclusion", message: message)
+                let message = SplitDNSConfiguration.DomainValidationError.invalidSyntax(exclusion.name).localizedMessage
+                return AlertItem(
+                    title: L10n.tr(
+                        "splitDNS.alert.invalidExclusion.title",
+                        defaultValue: "Invalid Normal DNS Exclusion"
+                    ),
+                    message: message
+                )
             }
             if !seen.insert(normalized).inserted {
-                let message = SplitDNSConfiguration.DomainValidationError.duplicate(normalized).localizedDescription
-                return AlertItem(title: "Duplicate Normal DNS Exclusion", message: message)
+                let message = SplitDNSConfiguration.DomainValidationError.duplicate(normalized).localizedMessage
+                return AlertItem(
+                    title: L10n.tr(
+                        "splitDNS.alert.duplicateExclusion.title",
+                        defaultValue: "Duplicate Normal DNS Exclusion"
+                    ),
+                    message: message
+                )
             }
         }
         return nil
@@ -279,20 +293,29 @@ extension TunnelEditorViewModel {
     private func validateDomainsList() -> AlertItem? {
         if splitDNSDomains.isEmpty {
             return AlertItem(
-                title: "Split DNS Domains Required",
-                message: "Add at least one domain, or switch Split DNS to All domains."
+                title: L10n.tr("splitDNS.alert.domainsRequired.title", defaultValue: "Split DNS Domains Required"),
+                message: L10n.tr(
+                    "splitDNS.alert.domainsRequired.message",
+                    defaultValue: "Add at least one domain, or switch Split DNS to All domains."
+                )
             )
         }
         var seen = Set<String>()
         for domain in splitDNSDomains {
             let normalized = SplitDNSConfiguration.normalizeDomain(domain.name)
             if !SplitDNSConfiguration.isValidDomainName(normalized) {
-                let message = SplitDNSConfiguration.DomainValidationError.invalidSyntax(domain.name).localizedDescription
-                return AlertItem(title: "Invalid Split DNS Domain", message: message)
+                let message = SplitDNSConfiguration.DomainValidationError.invalidSyntax(domain.name).localizedMessage
+                return AlertItem(
+                    title: L10n.tr("splitDNS.alert.invalidDomain.title", defaultValue: "Invalid Split DNS Domain"),
+                    message: message
+                )
             }
             if !seen.insert(normalized).inserted {
-                let message = SplitDNSConfiguration.DomainValidationError.duplicate(normalized).localizedDescription
-                return AlertItem(title: "Duplicate Split DNS Domain", message: message)
+                let message = SplitDNSConfiguration.DomainValidationError.duplicate(normalized).localizedMessage
+                return AlertItem(
+                    title: L10n.tr("splitDNS.alert.duplicateDomain.title", defaultValue: "Duplicate Split DNS Domain"),
+                    message: message
+                )
             }
         }
         return nil

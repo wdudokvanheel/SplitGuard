@@ -36,13 +36,13 @@ struct TunnelDetailView: View {
         }
         switch viewModel.healthState {
         case .noHandshake(let attempts) where attempts > 0:
-            return attempts == 1 ? "1 attempt" : "\(attempts) attempts"
+            return L10n.tr("tunnel.handshake.attempts", defaultValue: "\(attempts) attempts")
         case .noHandshake:
-            return "None"
+            return L10n.tr("tunnel.handshake.none", defaultValue: "None")
         case .idle:
-            return "Idle"
+            return L10n.tr("tunnel.metric.idle", defaultValue: "Idle")
         case .connecting, .stalled, .blocking, .healthy, .none:
-            return "Pending"
+            return L10n.tr("tunnel.handshake.pending", defaultValue: "Pending")
         }
     }
 
@@ -58,14 +58,14 @@ struct TunnelDetailView: View {
                 },
                 trailing: {
                     BrutalistHeaderButton(
-                        title: "Edit",
+                        title: L10n.tr("action.edit", defaultValue: "Edit"),
                         systemImage: "pencil",
                         fill: SGColor.popYellow,
                         foreground: SGColor.inkOnPop
                     ) {
                         Task {
-                            let reason = String(
-                                localized: "privacy.viewPrivateKeys",
+                            let reason = L10n.tr(
+                                "privacy.viewPrivateKeys",
                                 defaultValue: "Authenticate to view tunnel private keys."
                             )
                             if await PrivateDataConfirmation.confirmAccess(reason: reason) {
@@ -100,7 +100,7 @@ struct TunnelDetailView: View {
 
                     if !viewModel.interfaceRows.isEmpty {
                         brutalistFieldSection(
-                            title: String(localized: "tunnel.section.interface", defaultValue: "Interface"),
+                            title: L10n.tr("tunnel.section.interface", defaultValue: "Interface"),
                             rows: viewModel.interfaceRows
                         )
                     }
@@ -156,12 +156,15 @@ struct TunnelDetailView: View {
         .onChange(of: store.revision) { _, _ in
             viewModel.refreshStaticConfiguration()
         }
+        .onChange(of: store.language) { _, _ in
+            viewModel.refreshStaticConfiguration()
+        }
         .confirmationDialog(
-            String(localized: "tunnel.delete.confirm", defaultValue: "Delete this tunnel?"),
+            L10n.tr("tunnel.delete.confirm", defaultValue: "Delete this tunnel?"),
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button(String(localized: "action.delete", defaultValue: "Delete"), role: .destructive) {
+            Button(L10n.tr("action.delete", defaultValue: "Delete"), role: .destructive) {
                 Task {
                     let succeeded = await store.delete(tunnel: tunnel)
                     if succeeded {
@@ -169,7 +172,7 @@ struct TunnelDetailView: View {
                     }
                 }
             }
-            Button(String(localized: "action.cancel", defaultValue: "Cancel"), role: .cancel) {}
+            Button(L10n.tr("action.cancel", defaultValue: "Cancel"), role: .cancel) {}
         }
     }
 }
@@ -178,9 +181,9 @@ private extension TunnelDetailView {
     func peerSectionTitle(for peer: PeerDisplaySnapshot) -> String {
         if viewModel.peers.count > 1 {
             let number = peer.index + 1
-            return String(localized: "tunnel.section.peerNumbered", defaultValue: "Peer \(number)")
+            return L10n.tr("tunnel.section.peerNumbered", defaultValue: "Peer \(number)")
         }
-        return String(localized: "tunnel.section.peer", defaultValue: "Peer")
+        return L10n.tr("tunnel.section.peer", defaultValue: "Peer")
     }
 
     func brutalistFieldSection(title: String, rows: [DetailFieldRow]) -> some View {
@@ -242,7 +245,7 @@ private extension TunnelDetailView {
             HStack(spacing: SGSpacing.xSmall) {
                 Image(systemName: "trash.fill")
                     .font(.subheadline.weight(.bold))
-                Text(String(localized: "tunnel.delete", defaultValue: "Delete tunnel").uppercased())
+                Text(L10n.tr("tunnel.delete", defaultValue: "Delete tunnel").uppercased())
                     .font(SGTypography.displayButton)
                     .tracking(1.0)
             }
@@ -264,18 +267,21 @@ private extension TunnelDetailView {
     func peerTransferStrip(_ peer: PeerDisplaySnapshot) -> some View {
         VStack(alignment: .leading, spacing: SGSpacing.xSmall) {
             metricLine(
-                label: String(localized: "tunnel.peer.rxBytes", defaultValue: "Data received"),
+                label: L10n.tr("tunnel.peer.rxBytes", defaultValue: "Data received"),
                 value: peer.rxBytesText ?? "0 B",
                 accent: SGColor.popPurple
             )
             metricLine(
-                label: String(localized: "tunnel.peer.txBytes", defaultValue: "Data sent"),
+                label: L10n.tr("tunnel.peer.txBytes", defaultValue: "Data sent"),
                 value: peer.txBytesText ?? "0 B",
                 accent: SGColor.popGreen
             )
             metricLine(
-                label: String(localized: "tunnel.peer.lastHandshake", defaultValue: "Latest handshake"),
-                value: peer.lastHandshakeText ?? "No handshake yet",
+                label: L10n.tr("tunnel.peer.lastHandshake", defaultValue: "Latest handshake"),
+                value: peer.lastHandshakeText ?? L10n.tr(
+                    "tunnel.handshake.noHandshakeYet",
+                    defaultValue: "No handshake yet"
+                ),
                 accent: SGColor.popYellow
             )
         }
@@ -309,7 +315,7 @@ private extension TunnelDetailView {
                     .foregroundStyle(SGColor.textSecondary)
                 Spacer()
                 if copiedFieldID == row.id {
-                    Text("COPIED")
+                    Text(L10n.tr("common.copied", defaultValue: "Copied").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.inkOnPop)
                         .padding(.horizontal, 6)

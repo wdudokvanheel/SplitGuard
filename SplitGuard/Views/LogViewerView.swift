@@ -14,7 +14,7 @@ struct LogViewerView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: String(localized: "log.title", defaultValue: "Log"),
+                title: L10n.tr("log.title", defaultValue: "Log"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -24,7 +24,7 @@ struct LogViewerView: View {
                 trailing: {
                     BrutalistIconButton(
                         systemImage: "square.and.arrow.up",
-                        accessibilityLabelText: "Export log",
+                        accessibilityLabelText: L10n.tr("log.exportAccessibility", defaultValue: "Export log"),
                         fill: SGColor.popYellow,
                         foreground: SGColor.inkOnPop,
                         action: exportLog
@@ -40,7 +40,7 @@ struct LogViewerView: View {
                     VStack(spacing: SGSpacing.small) {
                         ProgressView()
                             .tint(SGColor.textPrimary)
-                        Text("LOADING LOG…")
+                        Text(L10n.tr("log.loading", defaultValue: "Loading log…").uppercased())
                             .font(SGTypography.displayCompact)
                             .foregroundStyle(SGColor.textPrimary)
                     }
@@ -48,8 +48,11 @@ struct LogViewerView: View {
                     .background(SGColor.surfacePrimary.ignoresSafeArea())
                 } else if viewModel.isLogUnavailable {
                     BrutalistUnavailableCard(
-                        title: "Log Unavailable",
-                        message: "The shared tunnel log file could not be opened.",
+                        title: L10n.tr("log.unavailable.title", defaultValue: "Log Unavailable"),
+                        message: L10n.tr(
+                            "log.unavailable.message",
+                            defaultValue: "The shared tunnel log file could not be opened."
+                        ),
                         systemImage: "doc.text.magnifyingglass",
                         accent: SGColor.popRed
                     )
@@ -57,8 +60,11 @@ struct LogViewerView: View {
                     .background(SGColor.surfacePrimary.ignoresSafeArea())
                 } else if viewModel.entries.isEmpty {
                     BrutalistUnavailableCard(
-                        title: "No Log Entries Yet",
-                        message: "Tunnel and app activity will appear here.",
+                        title: L10n.tr("log.empty.title", defaultValue: "No Log Entries Yet"),
+                        message: L10n.tr(
+                            "log.empty.message",
+                            defaultValue: "Tunnel and app activity will appear here."
+                        ),
                         systemImage: "text.alignleft",
                         accent: SGColor.popYellow
                     )
@@ -90,7 +96,7 @@ struct LogViewerView: View {
                 set: { if !$0 { exportAlert = nil } }
             )
         ) {
-            Button(String(localized: "action.ok", defaultValue: "OK"), role: .cancel) {
+            Button(L10n.tr("action.ok", defaultValue: "OK"), role: .cancel) {
                 exportAlert = nil
             }
         } message: {
@@ -104,7 +110,10 @@ struct LogViewerView: View {
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(SGColor.textSecondary)
 
-            TextField("Filter log…", text: $viewModel.searchText)
+            TextField(
+                L10n.tr("log.filterPlaceholder", defaultValue: "Filter log…"),
+                text: $viewModel.searchText
+            )
                 .font(SGTypography.monoCompact)
                 .foregroundStyle(SGColor.textPrimary)
                 .autocorrectionDisabled()
@@ -122,7 +131,7 @@ struct LogViewerView: View {
                         .overlay(Rectangle().strokeBorder(SGColor.borderInk, lineWidth: 1.5))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Clear filter")
+                .accessibilityLabel(L10n.tr("log.clearFilterAccessibility", defaultValue: "Clear filter"))
             }
         }
         .padding(.horizontal, SGSpacing.small)

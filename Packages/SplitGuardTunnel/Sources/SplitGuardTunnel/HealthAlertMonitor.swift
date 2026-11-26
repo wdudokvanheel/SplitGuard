@@ -17,6 +17,8 @@ public struct HealthAlertNotification: Equatable, Sendable {
     public let tunnelID: UUID
     public let tunnelName: String
     public let kind: Kind
+    public let killSwitchEnabled: Bool
+    public let delaySeconds: Int?
     public let title: String
     public let body: String
 
@@ -26,6 +28,8 @@ public struct HealthAlertNotification: Equatable, Sendable {
         tunnelID: UUID,
         tunnelName: String,
         kind: Kind,
+        killSwitchEnabled: Bool = false,
+        delaySeconds: Int? = nil,
         title: String,
         body: String
     ) {
@@ -34,6 +38,8 @@ public struct HealthAlertNotification: Equatable, Sendable {
         self.tunnelID = tunnelID
         self.tunnelName = tunnelName
         self.kind = kind
+        self.killSwitchEnabled = killSwitchEnabled
+        self.delaySeconds = delaySeconds
         self.title = title
         self.body = body
     }
@@ -398,6 +404,8 @@ private extension HealthAlertMonitor {
             tunnelID: tunnelID,
             tunnelName: tunnelName,
             kind: kind,
+            killSwitchEnabled: killSwitchEnabled,
+            delaySeconds: delaySeconds,
             title: title,
             body: body
         )
@@ -413,6 +421,8 @@ private extension HealthAlertMonitor {
             tunnelID: tunnelID,
             tunnelName: tunnelName,
             kind: .recovered,
+            killSwitchEnabled: killSwitchEnabled,
+            delaySeconds: nil,
             title: "\(tunnelName): Connection recovered",
             body: body
         )

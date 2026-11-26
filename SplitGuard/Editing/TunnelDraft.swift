@@ -16,19 +16,19 @@ enum InterfaceField: Hashable, CaseIterable, Sendable {
     var localizedTitle: String {
         switch self {
         case .name:
-            return String(localized: "tunnel.interface.name", defaultValue: "Name")
+            return L10n.tr("tunnel.interface.name", defaultValue: "Name")
         case .privateKey:
-            return String(localized: "tunnel.interface.privateKey", defaultValue: "Private key")
+            return L10n.tr("tunnel.interface.privateKey", defaultValue: "Private key")
         case .publicKey:
-            return String(localized: "tunnel.interface.publicKey", defaultValue: "Public key")
+            return L10n.tr("tunnel.interface.publicKey", defaultValue: "Public key")
         case .addresses:
-            return String(localized: "tunnel.interface.addresses", defaultValue: "Addresses")
+            return L10n.tr("tunnel.interface.addresses", defaultValue: "Addresses")
         case .listenPort:
-            return String(localized: "tunnel.interface.listenPort", defaultValue: "Listen port")
+            return L10n.tr("tunnel.interface.listenPort", defaultValue: "Listen port")
         case .mtu:
-            return String(localized: "tunnel.interface.mtu", defaultValue: "MTU")
+            return L10n.tr("tunnel.interface.mtu", defaultValue: "MTU")
         case .dns:
-            return String(localized: "tunnel.interface.dns", defaultValue: "DNS servers")
+            return L10n.tr("tunnel.interface.dns", defaultValue: "DNS servers")
         }
     }
 }
@@ -43,15 +43,15 @@ enum PeerField: Hashable, CaseIterable, Sendable {
     var localizedTitle: String {
         switch self {
         case .publicKey:
-            return String(localized: "tunnel.peer.publicKey", defaultValue: "Public key")
+            return L10n.tr("tunnel.peer.publicKey", defaultValue: "Public key")
         case .presharedKey:
-            return String(localized: "tunnel.peer.presharedKey", defaultValue: "Preshared key")
+            return L10n.tr("tunnel.peer.presharedKey", defaultValue: "Preshared key")
         case .endpoint:
-            return String(localized: "tunnel.peer.endpoint", defaultValue: "Endpoint")
+            return L10n.tr("tunnel.peer.endpoint", defaultValue: "Endpoint")
         case .allowedIPs:
-            return String(localized: "tunnel.peer.allowedIPs", defaultValue: "Allowed IPs")
+            return L10n.tr("tunnel.peer.allowedIPs", defaultValue: "Allowed IPs")
         case .persistentKeepalive:
-            return String(localized: "tunnel.peer.persistentKeepalive", defaultValue: "Persistent keepalive")
+            return L10n.tr("tunnel.peer.persistentKeepalive", defaultValue: "Persistent keepalive")
         }
     }
 }

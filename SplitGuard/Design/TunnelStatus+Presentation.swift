@@ -8,18 +8,30 @@ enum KillSwitchBlockState: Equatable, Sendable {
     var displayText: String {
         switch self {
         case .noNetwork:
-            return "Blocking traffic — no network"
+            return L10n.tr(
+                "tunnel.health.blocking.noNetwork",
+                defaultValue: "Blocking traffic — no network"
+            )
         case .serverUnreachable:
-            return "Blocking traffic — server unreachable"
+            return L10n.tr(
+                "tunnel.health.blocking.serverUnreachable",
+                defaultValue: "Blocking traffic — server unreachable"
+            )
         }
     }
 
     var detailMessage: String {
         switch self {
         case .noNetwork:
-            return "No network connection. Traffic is blocked by the kill switch."
+            return L10n.tr(
+                "tunnel.health.blocking.noNetwork.detail",
+                defaultValue: "No network connection. Traffic is blocked by the kill switch."
+            )
         case .serverUnreachable:
-            return "Server unreachable. Traffic is blocked by the kill switch."
+            return L10n.tr(
+                "tunnel.health.blocking.serverUnreachable.detail",
+                defaultValue: "Server unreachable. Traffic is blocked by the kill switch."
+            )
         }
     }
 
@@ -97,15 +109,15 @@ enum TunnelHealthState: Equatable, Sendable {
         case .blocking(let state):
             return state.displayText
         case .connecting:
-            return "Connecting"
+            return L10n.tr("tunnel.health.connecting", defaultValue: "Connecting")
         case .noHandshake:
-            return "No handshake"
+            return L10n.tr("tunnel.health.noHandshake", defaultValue: "No handshake")
         case .stalled:
-            return "Stalled"
+            return L10n.tr("tunnel.health.stalled", defaultValue: "Stalled")
         case .idle:
-            return "Idle"
+            return L10n.tr("tunnel.health.idle", defaultValue: "Idle")
         case .healthy:
-            return "Healthy"
+            return L10n.tr("tunnel.health.healthy", defaultValue: "Healthy")
         }
     }
 
@@ -114,18 +126,28 @@ enum TunnelHealthState: Equatable, Sendable {
         case .blocking(let state):
             return state.detailMessage
         case .connecting:
-            return "No handshake yet."
+            return L10n.tr("tunnel.health.connecting.detail", defaultValue: "No handshake yet.")
         case .noHandshake(let attempts):
             if attempts > 0 {
-                let word = attempts == 1 ? "attempt" : "attempts"
-                return "No response after \(attempts) handshake \(word). "
-                    + "Usual causes: a wrong key, a wrong endpoint, or a blocked port."
+                return L10n.tr(
+                    "tunnel.health.noHandshake.detailAttempts",
+                    defaultValue: """
+                    No response after \(attempts) handshake attempts. \
+                    Usual causes: a wrong key, a wrong endpoint, or a blocked port.
+                    """
+                )
             }
-            return "No handshake response. Usual causes: a wrong key, a wrong endpoint, or a blocked port."
+            return L10n.tr(
+                "tunnel.health.noHandshake.detail",
+                defaultValue: "No handshake response. Usual causes: a wrong key, a wrong endpoint, or a blocked port."
+            )
         case .stalled:
-            return "Sent traffic gets no answer."
+            return L10n.tr("tunnel.health.stalled.detail", defaultValue: "Sent traffic gets no answer.")
         case .idle:
-            return "No traffic. This is normal without persistent keepalive."
+            return L10n.tr(
+                "tunnel.health.idle.detail",
+                defaultValue: "No traffic. This is normal without persistent keepalive."
+            )
         case .healthy:
             return nil
         }
@@ -177,19 +199,19 @@ extension TunnelStatus {
     var displayTitle: String {
         switch self {
         case .inactive:
-            return String(localized: "tunnel.status.inactive", defaultValue: "Inactive")
+            return L10n.tr("tunnel.status.inactive", defaultValue: "Inactive")
         case .activating:
-            return String(localized: "tunnel.status.activating", defaultValue: "Activating")
+            return L10n.tr("tunnel.status.activating", defaultValue: "Activating")
         case .active:
-            return String(localized: "tunnel.status.active", defaultValue: "Active")
+            return L10n.tr("tunnel.status.active", defaultValue: "Active")
         case .deactivating:
-            return String(localized: "tunnel.status.deactivating", defaultValue: "Deactivating")
+            return L10n.tr("tunnel.status.deactivating", defaultValue: "Deactivating")
         case .reasserting:
-            return String(localized: "tunnel.status.reasserting", defaultValue: "Reactivating")
+            return L10n.tr("tunnel.status.reasserting", defaultValue: "Reactivating")
         case .restarting:
-            return String(localized: "tunnel.status.restarting", defaultValue: "Restarting")
+            return L10n.tr("tunnel.status.restarting", defaultValue: "Restarting")
         case .waiting:
-            return String(localized: "tunnel.status.waiting", defaultValue: "Waiting")
+            return L10n.tr("tunnel.status.waiting", defaultValue: "Waiting")
         }
     }
 
@@ -345,11 +367,11 @@ struct TunnelDisplayState: Equatable {
             return killSwitchBlockState.displayText
         }
         if hasOnDemandRules && !isOnDemandEnabled && status == .inactive {
-            return String(localized: "tunnel.status.onDemandDisabled", defaultValue: "On-Demand Disabled")
+            return L10n.tr("tunnel.status.onDemandDisabled", defaultValue: "On-Demand Disabled")
         }
         if hasOnDemandRules && isOnDemandEnabled {
-            return String(
-                localized: "tunnel.status.onDemandFormat",
+            return L10n.tr(
+                "tunnel.status.onDemandFormat",
                 defaultValue: "\(status.displayTitle) (On-Demand)"
             )
         }

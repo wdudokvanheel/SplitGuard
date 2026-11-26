@@ -19,11 +19,11 @@ struct OnDemandPolicy: Equatable, Hashable, Sendable {
         var title: String {
             switch self {
             case .any:
-                return "Any SSID"
+                return L10n.tr("tunnel.onDemand.anySSID", defaultValue: "Any SSID")
             case .only:
-                return "Only these SSIDs"
+                return L10n.tr("tunnel.onDemand.onlySSIDs", defaultValue: "Only these SSIDs")
             case .except:
-                return "Except these SSIDs"
+                return L10n.tr("tunnel.onDemand.exceptSSIDs", defaultValue: "Except these SSIDs")
             }
         }
     }
@@ -220,13 +220,13 @@ extension OnDemandPolicy {
     var interfaceDescription: String {
         switch (wifi, cellular) {
         case (false, false):
-            return "Off"
+            return L10n.tr("common.off", defaultValue: "Off")
         case (true, false):
-            return "Wi-Fi only"
+            return L10n.tr("tunnel.onDemand.wifiOnly", defaultValue: "Wi-Fi only")
         case (false, true):
-            return "Cellular only"
+            return L10n.tr("tunnel.onDemand.cellularOnly", defaultValue: "Cellular only")
         case (true, true):
-            return "Wi-Fi or cellular"
+            return L10n.tr("tunnel.onDemand.wifiOrCellular", defaultValue: "Wi-Fi or cellular")
         }
     }
 
@@ -234,11 +234,13 @@ extension OnDemandPolicy {
         guard wifi else { return "" }
         switch ssidFilter {
         case .any:
-            return "Any SSID"
+            return L10n.tr("tunnel.onDemand.anySSID", defaultValue: "Any SSID")
         case .only(let ssids):
-            return ssids.count == 1 ? "Only 1 SSID" : "Only \(ssids.count) SSIDs"
+            let count = ssids.count
+            return L10n.tr("tunnel.onDemand.onlyCount", defaultValue: "Only \(count) SSIDs")
         case .except(let ssids):
-            return ssids.count == 1 ? "Except 1 SSID" : "Except \(ssids.count) SSIDs"
+            let count = ssids.count
+            return L10n.tr("tunnel.onDemand.exceptCount", defaultValue: "Except \(count) SSIDs")
         }
     }
 

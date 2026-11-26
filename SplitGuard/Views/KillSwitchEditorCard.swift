@@ -15,14 +15,19 @@ struct KillSwitchEditorCard: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistSectionBar(
-                title: "Kill Switch",
-                trailingText: effectiveEnabled ? "ON" : "OFF"
+                title: L10n.tr("killSwitch.title", defaultValue: "Kill Switch"),
+                trailingText: effectiveEnabled
+                    ? L10n.tr("common.on", defaultValue: "On")
+                    : L10n.tr("common.off", defaultValue: "Off")
             )
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 BrutalistFormToggleRow(
-                    title: "Kill switch",
-                    subtitle: "Block all traffic outside the tunnel while connected",
+                    title: L10n.tr("killSwitch.toggleTitle", defaultValue: "Kill switch"),
+                    subtitle: L10n.tr(
+                        "killSwitch.toggleSubtitle",
+                        defaultValue: "Block all traffic outside the tunnel while connected"
+                    ),
                     isOn: Binding(
                         get: { effectiveEnabled },
                         set: { newValue in
@@ -36,8 +41,13 @@ struct KillSwitchEditorCard: View {
 
                 if !isEligible {
                     noteBox(
-                        "Available only for tunnels that route all IPv4 traffic (0.0.0.0/0). " +
-                            "With split routing, blocking outside traffic would drop everything not in Allowed IPs."
+                        L10n.tr(
+                            "killSwitch.ineligibleNote",
+                            defaultValue: """
+                            Available only for tunnels that route all IPv4 traffic (0.0.0.0/0). \
+                            With split routing, blocking outside traffic would drop everything not in Allowed IPs.
+                            """
+                        )
                     )
                 }
 
@@ -45,35 +55,58 @@ struct KillSwitchEditorCard: View {
                     Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                     BrutalistFormToggleRow(
-                        title: "Allow local network",
-                        subtitle: "AirPlay, printers, AirDrop",
+                        title: L10n.tr("killSwitch.allowLocalNetwork", defaultValue: "Allow local network"),
+                        subtitle: L10n.tr(
+                            "killSwitch.allowLocalNetwork.subtitle",
+                            defaultValue: "AirPlay, printers, AirDrop"
+                        ),
                         isOn: $viewModel.allowLocalNetworkWithKillSwitch,
                         activeTint: SGColor.popYellow
                     )
 
                     if !viewModel.routesAllIPv6Traffic {
                         noteBox(
-                            "This tunnel does not route all IPv6 traffic (::/0). " +
-                                "IPv6 traffic will be blocked while the kill switch is on."
+                            L10n.tr(
+                                "killSwitch.ipv6Note",
+                                defaultValue: """
+                                This tunnel does not route all IPv6 traffic (::/0). \
+                                IPv6 traffic will be blocked while the kill switch is on.
+                                """
+                            )
                         )
                     }
 
                     if !viewModel.isOnDemandConfigured {
                         noteBox(
-                            "Protection ends when the tunnel is turned off. " +
-                                "Turn on On-Demand to keep it connected."
+                            L10n.tr(
+                                "killSwitch.onDemandNote",
+                                defaultValue: """
+                                Protection ends when the tunnel is turned off. \
+                                Turn on On-Demand to keep it connected.
+                                """
+                            )
                         )
                     }
 
                     if viewModel.splitDNSMode == .onlyDomains {
                         noteBox(
-                            "Other names still use the network's DNS server, but the queries now travel through the tunnel. " +
-                                "A DNS server on the local network is only reachable with Allow local network on."
+                            L10n.tr(
+                                "killSwitch.splitDNSNote",
+                                defaultValue: """
+                                Other names still use the network's DNS server, but the queries now travel through the tunnel. \
+                                A DNS server on the local network is only reachable with Allow local network on.
+                                """
+                            )
                         )
                     } else if viewModel.currentDNSServers.isEmpty {
                         noteBox(
-                            "This tunnel has no DNS server configured. Queries travel through the tunnel; " +
-                                "a DNS server on the local network is only reachable with Allow local network on."
+                            L10n.tr(
+                                "killSwitch.noDNSNote",
+                                defaultValue: """
+                                This tunnel has no DNS server configured. Queries travel through the tunnel; \
+                                a DNS server on the local network is only reachable with Allow local network on.
+                                """
+                            )
                         )
                     }
 
@@ -96,7 +129,12 @@ struct KillSwitchEditorCard: View {
                     .font(.caption.weight(.bold))
                     .foregroundStyle(SGColor.textPrimary)
                     .padding(.top, 2)
-                Text("Turn on health alerts to be notified if the server becomes unreachable while traffic is blocked.")
+                Text(
+                    L10n.tr(
+                        "killSwitch.healthAlertOffer",
+                        defaultValue: "Turn on health alerts to be notified if the server becomes unreachable while traffic is blocked."
+                    )
+                )
                     .font(SGTypography.caption)
                     .foregroundStyle(SGColor.textPrimary)
             }
@@ -106,7 +144,7 @@ struct KillSwitchEditorCard: View {
                     await viewModel.setHealthAlertsEnabled(true)
                 }
             } label: {
-                Text("TURN ON HEALTH ALERTS")
+                Text(L10n.tr("killSwitch.turnOnHealthAlerts", defaultValue: "Turn on health alerts").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
                     .padding(.horizontal, SGSpacing.small)

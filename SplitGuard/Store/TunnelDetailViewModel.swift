@@ -176,21 +176,22 @@ final class TunnelDetailViewModel {
 
 extension TunnelDetailViewModel {
     static func formatBytes(_ bytes: UInt64) -> String {
-        Int64(clamping: bytes).formatted(.byteCount(style: .binary))
+        Int64(clamping: bytes).formatted(.byteCount(style: .binary).locale(AppLocalization.currentLocale))
     }
 
     static func formatHandshake(_ date: Date, relativeTo now: Date = Date()) -> String {
         let elapsed = now.timeIntervalSince(date)
         if elapsed < 0 {
-            return String(
-                localized: "tunnel.handshake.clockBackward",
+            return L10n.tr(
+                "tunnel.handshake.clockBackward",
                 defaultValue: "(System clock wound backwards)"
             )
         }
         if elapsed < 1 {
-            return String(localized: "tunnel.handshake.now", defaultValue: "Now")
+            return L10n.tr("tunnel.handshake.now", defaultValue: "Now")
         }
         let formatter = RelativeDateTimeFormatter()
+        formatter.locale = AppLocalization.currentLocale
         formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: now)
     }
@@ -291,7 +292,7 @@ private extension TunnelDetailViewModel {
             rows.append(makePeerRow(
                 .presharedKey,
                 index: index,
-                value: String(localized: "tunnel.peer.presharedKey.enabled", defaultValue: "enabled"),
+                value: L10n.tr("tunnel.peer.presharedKey.enabled", defaultValue: "enabled"),
                 monospaced: false,
                 copyable: false
             ))
@@ -312,8 +313,8 @@ private extension TunnelDetailViewModel {
             rows.append(makePeerRow(
                 .persistentKeepalive,
                 index: index,
-                value: String(
-                    localized: "tunnel.peer.persistentKeepalive.value",
+                value: L10n.tr(
+                    "tunnel.peer.persistentKeepalive.value",
                     defaultValue: "every \(Int(keepalive)) seconds"
                 ),
                 monospaced: false,

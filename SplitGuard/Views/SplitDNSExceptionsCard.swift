@@ -28,16 +28,24 @@ struct SplitDNSExceptionsCard: View {
     private var description: String {
         switch viewModel.splitDNSMode {
         case .allDomains:
-            return "These names skip the VPN's DNS and use your network's normal DNS instead."
+            return L10n.tr(
+                "splitDNS.exceptions.descAll",
+                defaultValue: "These names skip the VPN's DNS and use your network's normal DNS instead."
+            )
         case .onlyDomains:
-            return "Names inside your VPN domains that should still use normal DNS, such as a public website."
+            return L10n.tr(
+                "splitDNS.exceptions.descOnly",
+                defaultValue: "Names inside your VPN domains that should still use normal DNS, such as a public website."
+            )
         }
     }
 
     var body: some View {
         EditorCard(
-            title: "Exceptions",
-            trailingText: exceptions.isEmpty ? "NONE" : "\(exceptions.count)",
+            title: L10n.tr("splitDNS.exceptions.title", defaultValue: "Exceptions"),
+            trailingText: exceptions.isEmpty
+                ? L10n.tr("common.none", defaultValue: "None")
+                : "\(exceptions.count)",
             trailingFill: exceptions.isEmpty ? SGColor.surfaceElevated : SGColor.popYellow,
             trailingForeground: exceptions.isEmpty ? SGColor.textPrimary : SGColor.inkOnPop
         ) {
@@ -61,7 +69,10 @@ struct SplitDNSExceptionsCard: View {
         }
 
         if exceptions.isEmpty {
-            SplitDNSEmptyState(systemImage: "arrow.uturn.left", message: "No exceptions yet.")
+            SplitDNSEmptyState(
+                systemImage: "arrow.uturn.left",
+                message: L10n.tr("splitDNS.exceptions.empty", defaultValue: "No exceptions yet.")
+            )
         } else {
             VStack(spacing: SGSpacing.xSmall) {
                 ForEach(exceptions) { exclusion in
@@ -75,7 +86,7 @@ struct SplitDNSExceptionsCard: View {
         }
 
         SplitDNSAddField(
-            placeholder: "Add name, e.g. www.example.com",
+            placeholder: L10n.tr("splitDNS.exceptions.placeholder", defaultValue: "Add name, e.g. www.example.com"),
             text: $viewModel.newSplitDNSExclusion,
             errorText: viewModel.splitDNSExclusionInputError,
             onTextChange: { viewModel.splitDNSExclusionInputError = nil },
@@ -83,8 +94,13 @@ struct SplitDNSExceptionsCard: View {
         )
 
         Text(
-            "Applies to standard DNS lookups (UDP port 53). Encrypted DNS and DNS over TCP are not redirected, "
-                + "and traffic still follows Allowed IPs."
+            L10n.tr(
+                "splitDNS.exceptions.footnote",
+                defaultValue: """
+                Applies to standard DNS lookups (UDP port 53). Encrypted DNS and DNS over TCP are not redirected, \
+                and traffic still follows Allowed IPs.
+                """
+            )
         )
         .font(SGTypography.caption)
         .foregroundStyle(SGColor.textTertiary)
@@ -100,7 +116,7 @@ struct SplitDNSExceptionsCard: View {
             HStack(spacing: SGSpacing.xSmall) {
                 Image(systemName: "plus")
                     .font(.caption.weight(.black))
-                Text("ADD EXCEPTION")
+                Text(L10n.tr("splitDNS.exceptions.addButton", defaultValue: "Add exception").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
             }
@@ -121,14 +137,14 @@ struct SplitDNSExceptionsCard: View {
         SplitDNSNameRow(
             name: exclusion.name,
             matchDescription: exclusion.includesSubdomains
-                ? "\(exclusion.name) and *.\(exclusion.name)"
-                : "\(exclusion.name) only",
+                ? L10n.tr("splitDNS.domains.rowWide", defaultValue: "\(exclusion.name) and *.\(exclusion.name)")
+                : L10n.tr("splitDNS.domains.rowExact", defaultValue: "\(exclusion.name) only"),
             scope: SplitDNSScopeMenu(
                 isWide: exclusion.includesSubdomains,
-                wideTitle: "Name and subdomains",
-                narrowTitle: "This name only",
-                wideLabel: "+ Subdomains",
-                narrowLabel: "Exact name",
+                wideTitle: L10n.tr("splitDNS.scope.nameAndSubdomains", defaultValue: "Name and subdomains"),
+                narrowTitle: L10n.tr("splitDNS.scope.thisNameOnly", defaultValue: "This name only"),
+                wideLabel: L10n.tr("splitDNS.scope.plusSubdomains", defaultValue: "+ Subdomains"),
+                narrowLabel: L10n.tr("splitDNS.scope.exactName", defaultValue: "Exact name"),
                 accessibilityName: exclusion.name
             ) { wide in
                 withAnimation(.snappy(duration: 0.2)) {
@@ -148,7 +164,7 @@ struct SplitDNSExceptionsCard: View {
         case .exclusionCancelsDomain(let name):
             return SplitDNSWarningRow(
                 warning: warning,
-                fixTitle: "EXCLUDE \(name.uppercased()) ONLY",
+                fixTitle: L10n.tr("splitDNS.fix.excludeOnly", defaultValue: "Exclude \(name) only").uppercased(),
                 onFixAction: {
                     withAnimation(.snappy(duration: 0.2)) {
                         viewModel.setSplitDNSExclusionIncludesSubdomains(false, for: name)
@@ -158,7 +174,7 @@ struct SplitDNSExceptionsCard: View {
         case .exclusionOutsideMatchDomains(let name):
             return SplitDNSWarningRow(
                 warning: warning,
-                fixTitle: "REMOVE \(name.uppercased())",
+                fixTitle: L10n.tr("splitDNS.fix.remove", defaultValue: "Remove \(name)").uppercased(),
                 onFixAction: {
                     withAnimation(.snappy(duration: 0.2)) {
                         viewModel.removeSplitDNSExclusion(named: name)
@@ -177,10 +193,15 @@ struct SplitDNSExceptionsCard: View {
                 .foregroundStyle(SGColor.inkOnPop)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Keep \(domain) on normal DNS?")
+                Text(L10n.tr("splitDNS.suggestion.excludeTitle", defaultValue: "Keep \(domain) on normal DNS?"))
                     .font(SGTypography.subheadline)
                     .foregroundStyle(SGColor.inkOnPop)
-                Text("This is the peer endpoint, so it can always be resolved before the tunnel is up.")
+                Text(
+                    L10n.tr(
+                        "splitDNS.suggestion.excludeBody",
+                        defaultValue: "This is the peer endpoint, so it can always be resolved before the tunnel is up."
+                    )
+                )
                     .font(SGTypography.caption)
                     .foregroundStyle(SGColor.inkOnPop.opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
@@ -193,7 +214,7 @@ struct SplitDNSExceptionsCard: View {
                     viewModel.applySuggestedEndpointExclusion()
                 }
             } label: {
-                Text("EXCLUDE")
+                Text(L10n.tr("splitDNS.action.exclude", defaultValue: "Exclude").uppercased())
                     .font(SGTypography.displayCompact)
                     .tracking(0.8)
                     .padding(.horizontal, SGSpacing.small)

@@ -62,13 +62,13 @@ final class TunnelLiveMetricsMonitor {
         }
         switch healthState(for: tunnel) {
         case .noHandshake(let attempts) where attempts > 0:
-            return attempts == 1 ? "1 attempt" : "\(attempts) attempts"
+            return L10n.tr("tunnel.handshake.attempts", defaultValue: "\(attempts) attempts")
         case .noHandshake:
-            return "None"
+            return L10n.tr("tunnel.handshake.none", defaultValue: "None")
         case .idle:
-            return "Idle"
+            return L10n.tr("tunnel.metric.idle", defaultValue: "Idle")
         case .connecting, .stalled, .blocking, .healthy, .none:
-            return "Pending"
+            return L10n.tr("tunnel.handshake.pending", defaultValue: "Pending")
         }
     }
 
@@ -145,7 +145,7 @@ final class TunnelLiveMetricsMonitor {
     }
 
     static func formatBytes(_ bytes: UInt64) -> String {
-        Int64(clamping: bytes).formatted(.byteCount(style: .binary))
+        Int64(clamping: bytes).formatted(.byteCount(style: .binary).locale(AppLocalization.currentLocale))
     }
 
     static func formatHandshakeAge(from date: Date?, now: Date = Date()) -> String? {
@@ -153,20 +153,24 @@ final class TunnelLiveMetricsMonitor {
         let elapsed = Int(max(0, now.timeIntervalSince(date)))
         switch elapsed {
         case 0 ..< 5:
-            return "Just now"
+            return L10n.tr("tunnel.handshake.justNow", defaultValue: "Just now")
         case 5 ..< 60:
-            return "\(elapsed)s ago"
+            return L10n.tr("tunnel.handshake.secondsAgo", defaultValue: "\(elapsed)s ago")
         case 60 ..< 3600:
             let minutes = elapsed / 60
             let seconds = elapsed % 60
-            return seconds == 0 ? "\(minutes)m ago" : "\(minutes)m \(seconds)s"
+            return seconds == 0
+                ? L10n.tr("tunnel.handshake.minutesAgo", defaultValue: "\(minutes)m ago")
+                : L10n.tr("tunnel.handshake.minutesSeconds", defaultValue: "\(minutes)m \(seconds)s")
         case 3600 ..< 86400:
             let hours = elapsed / 3600
             let minutes = (elapsed % 3600) / 60
-            return minutes == 0 ? "\(hours)h ago" : "\(hours)h \(minutes)m"
+            return minutes == 0
+                ? L10n.tr("tunnel.handshake.hoursAgo", defaultValue: "\(hours)h ago")
+                : L10n.tr("tunnel.handshake.hoursMinutes", defaultValue: "\(hours)h \(minutes)m")
         default:
             let days = elapsed / 86400
-            return "\(days)d ago"
+            return L10n.tr("tunnel.handshake.daysAgo", defaultValue: "\(days)d ago")
         }
     }
 }

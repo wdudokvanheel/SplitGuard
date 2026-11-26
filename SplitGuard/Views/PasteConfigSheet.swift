@@ -17,10 +17,10 @@ struct PasteConfigSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: "Paste Config",
+                title: L10n.tr("pasteConfig.title", defaultValue: "Paste Config"),
                 leading: {
                     BrutalistHeaderButton(
-                        title: String(localized: "action.cancel", defaultValue: "Cancel"),
+                        title: L10n.tr("action.cancel", defaultValue: "Cancel"),
                         fill: SGColor.surfaceCard,
                         foreground: SGColor.textPrimary
                     ) {
@@ -29,7 +29,7 @@ struct PasteConfigSheet: View {
                 },
                 trailing: {
                     BrutalistHeaderButton(
-                        title: "Import",
+                        title: L10n.tr("pasteConfig.import", defaultValue: "Import"),
                         fill: SGColor.popGreen,
                         foreground: SGColor.inkOnPop,
                         showGrain: true
@@ -52,8 +52,11 @@ struct PasteConfigSheet: View {
             ScrollView {
                 VStack(spacing: SGSpacing.medium) {
                     VStack(spacing: 0) {
-                        BrutalistSectionBar(title: "Tunnel Name")
-                        TextField("e.g. Home VPN", text: $tunnelName)
+                        BrutalistSectionBar(title: L10n.tr("pasteConfig.tunnelName", defaultValue: "Tunnel Name"))
+                        TextField(
+                            L10n.tr("pasteConfig.tunnelNamePlaceholder", defaultValue: "e.g. Home VPN"),
+                            text: $tunnelName
+                        )
                             .font(SGTypography.body)
                             .foregroundStyle(SGColor.textPrimary)
                             .autocorrectionDisabled()
@@ -69,7 +72,9 @@ struct PasteConfigSheet: View {
                     .brutalistCard(fill: SGColor.surfaceCard, borderWidth: SGBorder.regular, shadowOffset: SGShadow.small)
 
                     VStack(spacing: 0) {
-                        BrutalistSectionBar(title: "Configuration (.conf)")
+                        BrutalistSectionBar(
+                            title: L10n.tr("pasteConfig.configSection", defaultValue: "Configuration (.conf)")
+                        )
 
                         VStack(spacing: SGSpacing.small) {
                             Button {
@@ -80,7 +85,12 @@ struct PasteConfigSheet: View {
                                 HStack(spacing: SGSpacing.xSmall) {
                                     Image(systemName: "doc.on.clipboard.fill")
                                         .font(.subheadline.weight(.bold))
-                                    Text("PASTE FROM CLIPBOARD")
+                                    Text(
+                                        L10n.tr(
+                                            "pasteConfig.pasteFromClipboard",
+                                            defaultValue: "Paste from clipboard"
+                                        ).uppercased()
+                                    )
                                         .font(SGTypography.displayCompact)
                                         .tracking(0.8)
                                 }

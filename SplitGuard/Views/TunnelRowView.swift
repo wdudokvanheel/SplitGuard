@@ -22,7 +22,7 @@ struct TunnelRowView: View {
             return endpoints[0].description
         }
         if endpoints.count > 1 {
-            return "\(endpoints.count) peers"
+            return L10n.tr("tunnel.peersCount", defaultValue: "\(endpoints.count) peers")
         }
         return nil
     }
@@ -37,19 +37,27 @@ struct TunnelRowView: View {
         }
         if tunnel.splitDNS.mode == .onlyDomains {
             let count = tunnel.splitDNS.normalizedDomainNames.count
-            result.append(count == 1 ? "SPLIT DNS" : "SPLIT DNS (\(count))")
+            result.append(
+                count == 1
+                    ? L10n.tr("tunnel.tag.splitDNS", defaultValue: "Split DNS")
+                    : L10n.tr("tunnel.tag.splitDNSCount", defaultValue: "Split DNS (\(count))")
+            )
         }
         if tunnel.options.killSwitch.isEnabled {
-            result.append("KILL SWITCH")
+            result.append(L10n.tr("tunnel.tag.killSwitch", defaultValue: "Kill switch"))
         }
         if displayState.hasOnDemandRules {
-            result.append(displayState.isOnDemandEnabled ? "ON-DEMAND" : "ON-DEMAND OFF")
+            result.append(
+                displayState.isOnDemandEnabled
+                    ? L10n.tr("tunnel.tag.onDemand", defaultValue: "On-Demand")
+                    : L10n.tr("tunnel.tag.onDemandOff", defaultValue: "On-Demand Off")
+            )
         }
         if isFavorite {
-            result.append("FAVOURITE")
+            result.append(L10n.tr("tunnel.tag.favorite", defaultValue: "Favorite"))
         }
         if result.isEmpty {
-            result.append("ALL DOMAINS")
+            result.append(L10n.tr("tunnel.tag.allDomains", defaultValue: "All domains"))
         }
         return result
     }
@@ -130,7 +138,10 @@ struct TunnelRowView: View {
                         isOn: displayState.isSwitchOn,
                         activeTint: displayState.switchTint,
                         isInteractive: displayState.isSwitchInteractive,
-                        accessibilityLabelText: "Toggle \(tunnel.name)",
+                        accessibilityLabelText: L10n.tr(
+                            "tunnel.action.toggleAccessibility",
+                            defaultValue: "Toggle \(tunnel.name)"
+                        ),
                         onToggle: onToggle
                     )
                 }
@@ -150,17 +161,22 @@ struct TunnelRowView: View {
                 if let onToggleFavorite {
                     Button(action: onToggleFavorite) {
                         Label(
-                            isFavorite ? "Unpin Favourite" : "Pin as Favourite",
+                            isFavorite
+                                ? L10n.tr("tunnel.action.unpinFavorite", defaultValue: "Remove favorite")
+                                : L10n.tr("tunnel.action.pinFavorite", defaultValue: "Pin as favorite"),
                             systemImage: isFavorite ? "star.slash" : "star.fill"
                         )
                     }
                 }
                 Button(action: onSelect) {
-                    Label("Inspect Tunnel", systemImage: "info.circle")
+                    Label(
+                        L10n.tr("tunnel.action.inspect", defaultValue: "Inspect tunnel"),
+                        systemImage: "info.circle"
+                    )
                 }
                 if let onDelete {
                     Button(role: .destructive, action: onDelete) {
-                        Label(String(localized: "action.delete", defaultValue: "Delete"), systemImage: "trash")
+                        Label(L10n.tr("action.delete", defaultValue: "Delete"), systemImage: "trash")
                     }
                 }
             }

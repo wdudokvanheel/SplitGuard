@@ -86,7 +86,7 @@ struct BrutalistBackButton: View {
                 cornerRadius: SGRadius.sharp
             )
         )
-        .accessibilityLabel("Back")
+        .accessibilityLabel(L10n.tr("action.back", defaultValue: "Back"))
     }
 }
 
@@ -198,7 +198,11 @@ struct BrutalistDisclosure<Content: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityValue(isExpanded ? Text("Expanded") : Text("Collapsed"))
+            .accessibilityValue(
+                isExpanded
+                    ? Text(L10n.tr("common.expanded", defaultValue: "Expanded"))
+                    : Text(L10n.tr("common.collapsed", defaultValue: "Collapsed"))
+            )
 
             if isExpanded {
                 content()
@@ -220,8 +224,8 @@ struct BrutalistAddTunnelSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             BrutalistHeaderBar(
-                title: "Add Tunnel",
-                subtitle: "Choose import method",
+                title: L10n.tr("addTunnel.title", defaultValue: "Add Tunnel"),
+                subtitle: L10n.tr("addTunnel.subtitle", defaultValue: "Choose import method"),
                 enableSwipeBack: true,
                 leading: {
                     BrutalistBackButton {
@@ -233,8 +237,8 @@ struct BrutalistAddTunnelSheet: View {
             ScrollView {
                 VStack(spacing: SGSpacing.small) {
                     AddTunnelActionRow(
-                        title: String(localized: "addTunnel.menu.qrCode", defaultValue: "Create from QR code").uppercased(),
-                        subtitle: "Scan a WireGuard QR code with camera",
+                        title: L10n.tr("addTunnel.menu.qrCode", defaultValue: "Create from QR code").uppercased(),
+                        subtitle: L10n.tr("addTunnel.menu.qrCode.subtitle", defaultValue: "Scan a WireGuard QR code with camera"),
                         systemImage: "qrcode.viewfinder",
                         fill: SGColor.popPink,
                         foreground: SGColor.pureWhite,
@@ -243,8 +247,8 @@ struct BrutalistAddTunnelSheet: View {
                     )
 
                     AddTunnelActionRow(
-                        title: String(localized: "addTunnel.menu.importFile", defaultValue: "Create from file").uppercased(),
-                        subtitle: "Pick one or more .conf files",
+                        title: L10n.tr("addTunnel.menu.importFile", defaultValue: "Create from file").uppercased(),
+                        subtitle: L10n.tr("addTunnel.menu.importFile.subtitle", defaultValue: "Pick one or more .conf files"),
                         systemImage: "doc.badge.plus",
                         fill: SGColor.pureWhite,
                         foreground: SGColor.inkOnPop,
@@ -254,8 +258,8 @@ struct BrutalistAddTunnelSheet: View {
                     )
 
                     AddTunnelActionRow(
-                        title: String(localized: "addTunnel.menu.fromScratch", defaultValue: "Create from scratch").uppercased(),
-                        subtitle: "Generate keys and configure manually",
+                        title: L10n.tr("addTunnel.menu.fromScratch", defaultValue: "Create from scratch").uppercased(),
+                        subtitle: L10n.tr("addTunnel.menu.fromScratch.subtitle", defaultValue: "Generate keys and configure manually"),
                         systemImage: "square.and.pencil",
                         fill: SGColor.popYellow,
                         foreground: SGColor.inkOnPop,
@@ -264,8 +268,8 @@ struct BrutalistAddTunnelSheet: View {
                     )
 
                     AddTunnelActionRow(
-                        title: "PASTE CONFIGURATION",
-                        subtitle: "Paste a wg-quick config from clipboard",
+                        title: L10n.tr("addTunnel.menu.pasteConfig", defaultValue: "Paste configuration").uppercased(),
+                        subtitle: L10n.tr("addTunnel.menu.pasteConfig.subtitle", defaultValue: "Paste a wg-quick config from clipboard"),
                         systemImage: "doc.on.clipboard",
                         fill: SGColor.popBlue,
                         foreground: SGColor.inkOnPop,

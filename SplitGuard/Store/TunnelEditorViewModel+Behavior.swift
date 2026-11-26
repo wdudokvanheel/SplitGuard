@@ -67,8 +67,11 @@ extension TunnelEditorViewModel {
             isKillSwitchEnabled = false
             allowLocalNetworkWithKillSwitch = false
             let notice = AlertItem(
-                title: "Kill Switch Turned Off",
-                message: "The kill switch was turned off because this tunnel no longer routes all IPv4 traffic (0.0.0.0/0)."
+                title: L10n.tr("killSwitch.turnedOff.title", defaultValue: "Kill Switch Turned Off"),
+                message: L10n.tr(
+                    "killSwitch.turnedOff.message",
+                    defaultValue: "The kill switch was turned off because this tunnel no longer routes all IPv4 traffic (0.0.0.0/0)."
+                )
             )
             return (.default, notice)
         }

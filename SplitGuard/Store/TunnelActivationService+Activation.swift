@@ -61,7 +61,8 @@ extension TunnelActivationService {
             return
         }
         guard tunnel.status == .inactive else {
-            let error = TunnelError.activationAttemptFailed("The tunnel is not inactive.")
+            let msg = L10n.tr("error.activation.notInactive", defaultValue: "The tunnel is not inactive.")
+            let error = TunnelError.activationAttemptFailed(msg)
             observer?.activationService(self, didRecordActivationError: error, forTunnelNamed: tunnel.name)
             failWaiters(for: tunnel.id, target: .active, error: WaitError.tunnelError(error))
             return
@@ -72,11 +73,8 @@ extension TunnelActivationService {
             existingWaiting.status = .inactive
             waitingTunnelID = nil
             waiteeTunnelID = nil
-            failWaiters(
-                for: existingWaitingID,
-                target: .active,
-                error: WaitError.tunnelError(.activationAttemptFailed("Activation was superseded by another tunnel."))
-            )
+            let msg = L10n.tr("error.activation.superseded", defaultValue: "Activation was superseded by another tunnel.")
+            failWaiters(for: existingWaitingID, target: .active, error: WaitError.tunnelError(.activationAttemptFailed(msg)))
             succeedWaiters(for: existingWaitingID, target: .inactive, status: .inactive)
         }
 
@@ -92,15 +90,12 @@ extension TunnelActivationService {
         attemptingActivationIDs.remove(tunnel.id)
         restartingTunnelIDs.remove(tunnel.id)
 
+        let cancelledMsg = L10n.tr("error.activation.cancelled", defaultValue: "Activation was cancelled.")
         if waitingTunnelID == tunnel.id {
             waitingTunnelID = nil
             waiteeTunnelID = nil
             tunnel.status = .inactive
-            failWaiters(
-                for: tunnel.id,
-                target: .active,
-                error: WaitError.tunnelError(.activationAttemptFailed("Activation was cancelled."))
-            )
+            failWaiters(for: tunnel.id, target: .active, error: WaitError.tunnelError(.activationAttemptFailed(cancelledMsg)))
             succeedWaiters(for: tunnel.id, target: .inactive, status: .inactive)
             syncStatusSnapshot()
             updateTransitionPolling()
@@ -112,11 +107,7 @@ extension TunnelActivationService {
             return
         }
 
-        failWaiters(
-            for: tunnel.id,
-            target: .active,
-            error: WaitError.tunnelError(.activationAttemptFailed("Activation was cancelled."))
-        )
+        failWaiters(for: tunnel.id, target: .active, error: WaitError.tunnelError(.activationAttemptFailed(cancelledMsg)))
 
         guard tunnel.status != .deactivating else { return }
         tunnel.status = .deactivating
@@ -256,7 +247,9 @@ extension TunnelActivationService {
                 failWaiters(
                     for: nextID,
                     target: .active,
-                    error: WaitError.tunnelError(.activationAttemptFailed("The previous tunnel was removed."))
+                    error: WaitError.tunnelError(.activationAttemptFailed(
+                        L10n.tr("error.activation.previousRemoved", defaultValue: "The previous tunnel was removed.")
+                    ))
                 )
             }
         }
@@ -371,7 +364,9 @@ private extension TunnelActivationService {
         if let startError = await backend.fetchLastStartError(for: tunnelID) {
             return .startFailed(startError)
         }
-        return .activationAttemptFailed("The tunnel could not be activated.")
+        return .activationAttemptFailed(
+            L10n.tr("error.activation.generic", defaultValue: "The tunnel could not be activated.")
+        )
     }
 
     func handleTunnelBecameInactive(tunnelID: Tunnel.ID) async {

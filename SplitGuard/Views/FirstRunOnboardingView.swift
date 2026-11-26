@@ -38,7 +38,9 @@ struct FirstRunOnboardingView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
-                Text("WIREGUARD CLIENT + SPLIT DNS")
+                Text(
+                    L10n.tr("onboarding.tagline", defaultValue: "WireGuard Client + Split DNS").uppercased()
+                )
                     .font(SGTypography.metricLabel)
                     .tracking(1.2)
                     .foregroundStyle(SGColor.textSecondary)
@@ -48,7 +50,7 @@ struct FirstRunOnboardingView: View {
 
             BrutalistIconButton(
                 systemImage: "gearshape.fill",
-                accessibilityLabelText: String(localized: "settings.title", defaultValue: "Settings"),
+                accessibilityLabelText: L10n.tr("settings.title", defaultValue: "Settings"),
                 action: onOpenSettings
             )
         }
@@ -60,7 +62,7 @@ struct FirstRunOnboardingView: View {
                 HStack(spacing: SGSpacing.small) {
                     Image(systemName: "qrcode.viewfinder")
                         .font(.title3.weight(.bold))
-                    Text("SCAN QR CODE")
+                    Text(L10n.tr("onboarding.scanQR", defaultValue: "Scan QR code").uppercased())
                         .font(SGTypography.displayButton)
                         .tracking(1.2)
                     Spacer(minLength: 0)
@@ -86,14 +88,9 @@ struct FirstRunOnboardingView: View {
                     Image(systemName: "doc.badge.plus")
                         .font(.title3.weight(.bold))
                         .foregroundStyle(SGColor.inkOnPop)
-                    HStack(spacing: 5) {
-                        Text("IMPORT")
-                            .foregroundStyle(SGColor.inkOnPop)
-                        Text(".CONF FILES")
-                            .foregroundStyle(SGColor.popGreen)
-                    }
-                    .font(SGTypography.displayButton)
-                    .tracking(1.0)
+                    Text(importFilesButtonTitle)
+                        .font(SGTypography.displayButton)
+                        .tracking(1.0)
                     Spacer(minLength: 0)
                     Image(systemName: "arrow.up.right")
                         .font(.headline.weight(.black))
@@ -116,6 +113,16 @@ struct FirstRunOnboardingView: View {
         }
     }
 
+    private var importFilesButtonTitle: AttributedString {
+        let full = L10n.tr("onboarding.importFiles", defaultValue: "Import .conf files").uppercased()
+        var attributed = AttributedString(full)
+        attributed.foregroundColor = SGColor.inkOnPop
+        if let range = attributed.range(of: ".CONF") {
+            attributed[range].foregroundColor = SGColor.popGreen
+        }
+        return attributed
+    }
+
     @ViewBuilder
     private var secondaryActionRow: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
@@ -127,7 +134,7 @@ struct FirstRunOnboardingView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "square.and.pencil")
                         .font(.subheadline.weight(.bold))
-                    Text("FROM SCRATCH")
+                    Text(L10n.tr("onboarding.fromScratch", defaultValue: "From scratch").uppercased())
                         .font(SGTypography.displayCompact)
                         .tracking(0.8)
                 }
@@ -149,7 +156,7 @@ struct FirstRunOnboardingView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "doc.on.clipboard")
                         .font(.subheadline.weight(.bold))
-                    Text("PASTE CONFIG")
+                    Text(L10n.tr("onboarding.pasteConfig", defaultValue: "Paste config").uppercased())
                         .font(SGTypography.displayCompact)
                         .tracking(0.8)
                 }
@@ -185,15 +192,25 @@ private struct FirstRunHeroFrame: View {
                 }
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
-                Text("ADD YOUR TUNNEL.\nSPLIT YOUR DNS.\nKEEP EVERYTHING ELSE FAST.")
+                Text(
+                    L10n.tr(
+                        "onboarding.heroTitle",
+                        defaultValue: "Add your tunnel.\nSplit your DNS.\nKeep everything else fast."
+                    ).uppercased()
+                )
                     .font(SGTypography.displayTitle)
                     .tracking(0.6)
                     .foregroundStyle(SGColor.inkOnPop)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(
-                    "Scan a WireGuard QR code or import .conf files. " +
-                        "Route private domains through VPN DNS while keeping everything else on your normal network."
+                    L10n.tr(
+                        "onboarding.heroBody",
+                        defaultValue: """
+                        Scan a WireGuard QR code or import .conf files. \
+                        Route private domains through VPN DNS while keeping everything else on your normal network.
+                        """
+                    )
                 )
                 .font(SGTypography.subheadline)
                 .foregroundStyle(SGColor.inkOnPop.opacity(0.88))
@@ -209,14 +226,14 @@ private struct FirstRunHeroFrame: View {
             }
 
             BrutalistTickerBar(items: [
-                "Split DNS",
-                "Kill Switch",
-                "On-Demand Rules",
-                "Health Alerts",
-                "Shortcuts & Focus",
-                "Live Traffic Stats",
-                "DNS Tester",
-                "Private & Local"
+                L10n.tr("onboarding.ticker.splitDNS", defaultValue: "Split DNS"),
+                L10n.tr("onboarding.ticker.killSwitch", defaultValue: "Kill Switch"),
+                L10n.tr("onboarding.ticker.onDemand", defaultValue: "On-Demand Rules"),
+                L10n.tr("onboarding.ticker.healthAlerts", defaultValue: "Health Alerts"),
+                L10n.tr("onboarding.ticker.shortcuts", defaultValue: "Shortcuts & Focus"),
+                L10n.tr("onboarding.ticker.liveStats", defaultValue: "Live Traffic Stats"),
+                L10n.tr("onboarding.ticker.dnsTester", defaultValue: "DNS Tester"),
+                L10n.tr("onboarding.ticker.privateLocal", defaultValue: "Private & Local")
             ])
         }
         .clipShape(RoundedRectangle(cornerRadius: SGRadius.small, style: .continuous))

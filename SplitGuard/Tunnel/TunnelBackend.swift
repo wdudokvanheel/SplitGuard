@@ -42,16 +42,30 @@ struct TunnelLoadIssue: Hashable, Sendable {
     let reason: Reason
 
     var message: String {
-        let name = tunnelName.isEmpty ? "Unnamed tunnel" : tunnelName
+        let name = tunnelName.isEmpty
+            ? L10n.tr("tunnel.unnamed", defaultValue: "Unnamed tunnel")
+            : tunnelName
         switch reason {
         case .missingReference:
-            return "“\(name)” is missing its Keychain reference."
+            return L10n.tr(
+                "alert.loadIssues.missingReference",
+                defaultValue: "“\(name)” is missing its Keychain reference."
+            )
         case .missingItem:
-            return "The saved profile for “\(name)” is missing from the Keychain."
+            return L10n.tr(
+                "alert.loadIssues.missingItem",
+                defaultValue: "The saved profile for “\(name)” is missing from the Keychain."
+            )
         case .keychainUnavailable:
-            return "The Keychain could not be read for “\(name)”. Try again later."
+            return L10n.tr(
+                "alert.loadIssues.keychainUnavailable",
+                defaultValue: "The Keychain could not be read for “\(name)”. Try again later."
+            )
         case .invalidProfile:
-            return "The saved profile for “\(name)” could not be decoded."
+            return L10n.tr(
+                "alert.loadIssues.invalidProfile",
+                defaultValue: "The saved profile for “\(name)” could not be decoded."
+            )
         }
     }
 }

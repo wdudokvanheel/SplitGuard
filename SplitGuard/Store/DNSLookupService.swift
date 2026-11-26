@@ -20,7 +20,7 @@ enum DNSLookupService {
                 hostname: hostname,
                 addresses: [],
                 durationMilliseconds: 0,
-                errorMessage: "Enter a hostname to test."
+                errorMessage: L10n.tr("splitDNS.tester.enterHostname", defaultValue: "Enter a hostname to test.")
             )
         }
 
@@ -53,7 +53,8 @@ enum DNSLookupService {
         let elapsedMs = Int((DispatchTime.now().uptimeNanoseconds - start) / 1_000_000)
 
         guard status == 0 else {
-            let reason = gai_strerror(status).map { String(cString: $0) } ?? "Resolution failed"
+            let reason = gai_strerror(status).map { String(cString: $0) }
+                ?? L10n.tr("splitDNS.tester.resolutionFailed", defaultValue: "Resolution failed")
             return DNSLookupResult(
                 hostname: hostname,
                 addresses: [],
@@ -68,7 +69,7 @@ enum DNSLookupService {
                 hostname: hostname,
                 addresses: [],
                 durationMilliseconds: elapsedMs,
-                errorMessage: "No IP addresses returned."
+                errorMessage: L10n.tr("splitDNS.tester.noIPReturned", defaultValue: "No IP addresses returned.")
             )
         }
 

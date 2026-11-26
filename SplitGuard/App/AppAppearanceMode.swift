@@ -13,11 +13,11 @@ enum AppAppearanceMode: String, CaseIterable, Identifiable, Hashable, Sendable {
     var title: String {
         switch self {
         case .system:
-            return "System"
+            return L10n.tr("settings.appearance.system", defaultValue: "System")
         case .light:
-            return "Light"
+            return L10n.tr("settings.appearance.light", defaultValue: "Light")
         case .dark:
-            return "Dark"
+            return L10n.tr("settings.appearance.dark", defaultValue: "Dark")
         }
     }
 

@@ -49,8 +49,11 @@ enum TunnelImportService {
         if url.pathExtension.lowercased() == "zip" {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: "Zip archives not supported",
-                message: "Zip archives are not supported. Import .conf files instead."
+                title: L10n.tr("alert.import.zipUnsupported.title", defaultValue: "Zip archives not supported"),
+                message: L10n.tr(
+                    "alert.import.zipUnsupported.message",
+                    defaultValue: "Zip archives are not supported. Import .conf files instead."
+                )
             ))
         }
 
@@ -79,7 +82,7 @@ enum TunnelImportService {
         } catch {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: String(localized: "alert.import.cantOpenFile.title", defaultValue: "Unable to import from file"),
+                title: L10n.tr("alert.import.cantOpenFile.title", defaultValue: "Unable to import from file"),
                 message: error.localizedDescription
             ))
         }
@@ -87,8 +90,8 @@ enum TunnelImportService {
         guard let text = String(data: data, encoding: .utf8) else {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: String(localized: "alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
-                message: "The file is not valid UTF-8 text."
+                title: L10n.tr("alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
+                message: L10n.tr("alert.import.invalidUTF8.message", defaultValue: "The file is not valid UTF-8 text.")
             ))
         }
 
@@ -98,7 +101,7 @@ enum TunnelImportService {
         } catch {
             return .failure(ImportFailure(
                 fileName: fileName,
-                title: String(localized: "alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
+                title: L10n.tr("alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
                 message: error.localizedDescription
             ))
         }

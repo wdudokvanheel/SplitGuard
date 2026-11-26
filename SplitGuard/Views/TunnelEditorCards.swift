@@ -8,12 +8,12 @@ struct InterfaceEditorCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: String(localized: "tunnel.section.interface", defaultValue: "Interface"))
+            BrutalistSectionBar(title: L10n.tr("tunnel.section.interface", defaultValue: "Interface"))
 
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 EditorTextRow(
                     label: InterfaceField.name.localizedTitle,
-                    placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
+                    placeholder: L10n.tr("tunnel.editor.placeholder.required", defaultValue: "Required"),
                     text: Binding(get: { viewModel.name }, set: { viewModel.updateName($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.name),
                     isMonospaced: false,
@@ -24,7 +24,7 @@ struct InterfaceEditorCard: View {
 
                 EditorTextRow(
                     label: InterfaceField.privateKey.localizedTitle,
-                    placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
+                    placeholder: L10n.tr("tunnel.editor.placeholder.required", defaultValue: "Required"),
                     text: Binding(get: { viewModel.privateKey }, set: { viewModel.updatePrivateKey($0) }),
                     hasError: viewModel.interfaceErrorFields.contains(.privateKey),
                     isMonospaced: true,
@@ -39,8 +39,8 @@ struct InterfaceEditorCard: View {
 
                 EditorTextRow(
                     label: InterfaceField.addresses.localizedTitle,
-                    placeholder: String(
-                        localized: "tunnel.editor.placeholder.stronglyRecommended",
+                    placeholder: L10n.tr(
+                        "tunnel.editor.placeholder.stronglyRecommended",
                         defaultValue: "Strongly recommended"
                     ),
                     text: Binding(get: { viewModel.addresses }, set: { viewModel.updateAddresses($0) }),
@@ -52,13 +52,13 @@ struct InterfaceEditorCard: View {
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 BrutalistDisclosure(
-                    title: String(localized: "tunnel.editor.advanced", defaultValue: "Advanced"),
+                    title: L10n.tr("tunnel.editor.advanced", defaultValue: "Advanced"),
                     summary: advancedSummary,
                     isExpanded: $showsAdvanced
                 ) {
                     EditorTextRow(
                         label: InterfaceField.listenPort.localizedTitle,
-                        placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
+                        placeholder: L10n.tr("tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
                         text: Binding(get: { viewModel.listenPort }, set: { viewModel.updateListenPort($0) }),
                         hasError: viewModel.interfaceErrorFields.contains(.listenPort),
                         isMonospaced: true,
@@ -67,7 +67,7 @@ struct InterfaceEditorCard: View {
 
                     EditorTextRow(
                         label: InterfaceField.mtu.localizedTitle,
-                        placeholder: String(localized: "tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
+                        placeholder: L10n.tr("tunnel.editor.placeholder.automatic", defaultValue: "Automatic"),
                         text: Binding(get: { viewModel.mtu }, set: { viewModel.updateMTU($0) }),
                         hasError: viewModel.interfaceErrorFields.contains(.mtu),
                         isMonospaced: true,
@@ -93,12 +93,16 @@ struct InterfaceEditorCard: View {
     private var advancedSummary: String {
         var parts: [String] = []
         if !viewModel.listenPort.isEmpty {
-            parts.append("Port \(viewModel.listenPort)")
+            parts.append(
+                L10n.tr("tunnel.editor.advanced.port", defaultValue: "Port \(viewModel.listenPort)")
+            )
         }
         if !viewModel.mtu.isEmpty {
             parts.append("MTU \(viewModel.mtu)")
         }
-        return parts.isEmpty ? "Listen port, MTU" : parts.joined(separator: " · ")
+        return parts.isEmpty
+            ? L10n.tr("tunnel.editor.advanced.interfaceSummary", defaultValue: "Listen port, MTU")
+            : parts.joined(separator: " · ")
     }
 
     private var generateKeyPairButton: some View {
@@ -108,7 +112,7 @@ struct InterfaceEditorCard: View {
             HStack(spacing: 4) {
                 Image(systemName: "key.fill")
                     .font(.system(size: 10, weight: .black))
-                Text(String(localized: "tunnel.interface.generateKeypair", defaultValue: "Generate keypair").uppercased())
+                Text(L10n.tr("tunnel.interface.generateKeypair", defaultValue: "Generate keypair").uppercased())
                     .font(SGTypography.metricLabel)
                     .tracking(0.6)
             }
@@ -134,7 +138,7 @@ struct InterfaceEditorCard: View {
                     .foregroundStyle(SGColor.textSecondary)
                 Spacer()
                 if copiedPublicKey {
-                    Text("COPIED")
+                    Text(L10n.tr("common.copied", defaultValue: "Copied").uppercased())
                         .font(SGTypography.metricLabel)
                         .foregroundStyle(SGColor.inkOnPop)
                         .padding(.horizontal, 6)
@@ -145,7 +149,7 @@ struct InterfaceEditorCard: View {
             }
 
             if viewModel.publicKey.isEmpty {
-                Text("Derived from private key")
+                Text(L10n.tr("tunnel.interface.derivedFromPrivateKey", defaultValue: "Derived from private key"))
                     .font(SGTypography.subheadline)
                     .foregroundStyle(SGColor.textTertiary)
                     .padding(.vertical, 6)
@@ -191,9 +195,9 @@ struct PeerEditorCard: View {
     private var sectionTitle: String {
         if peerCount > 1 {
             let number = peerIndex + 1
-            return String(localized: "tunnel.section.peerNumbered", defaultValue: "Peer \(number)")
+            return L10n.tr("tunnel.section.peerNumbered", defaultValue: "Peer \(number)")
         }
-        return String(localized: "tunnel.section.peer", defaultValue: "Peer")
+        return L10n.tr("tunnel.section.peer", defaultValue: "Peer")
     }
 
     var body: some View {
@@ -203,23 +207,23 @@ struct PeerEditorCard: View {
             VStack(alignment: .leading, spacing: SGSpacing.small) {
                 peerFieldRow(
                     .publicKey,
-                    placeholder: String(localized: "tunnel.editor.placeholder.required", defaultValue: "Required"),
+                    placeholder: L10n.tr("tunnel.editor.placeholder.required", defaultValue: "Required"),
                     keyboard: .asciiCapable
                 )
                 peerFieldRow(
                     .endpoint,
-                    placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                    placeholder: L10n.tr("tunnel.editor.placeholder.optional", defaultValue: "Optional"),
                     keyboard: .asciiCapable
                 )
                 peerFieldRow(
                     .allowedIPs,
-                    placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                    placeholder: L10n.tr("tunnel.editor.placeholder.optional", defaultValue: "Optional"),
                     keyboard: .numbersAndPunctuation
                 )
 
                 if viewModel.shouldAllowExcludePrivateIPs(for: peerID) {
                     BrutalistFormToggleRow(
-                        title: String(localized: "tunnel.peer.excludePrivateIPs", defaultValue: "Exclude private IPs"),
+                        title: L10n.tr("tunnel.peer.excludePrivateIPs", defaultValue: "Exclude private IPs"),
                         isOn: Binding(
                             get: { viewModel.excludePrivateIPsValue(for: peerID) },
                             set: { viewModel.setExcludePrivateIPs($0, for: peerID) }
@@ -231,18 +235,18 @@ struct PeerEditorCard: View {
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 BrutalistDisclosure(
-                    title: String(localized: "tunnel.editor.advanced", defaultValue: "Advanced"),
+                    title: L10n.tr("tunnel.editor.advanced", defaultValue: "Advanced"),
                     summary: advancedSummary,
                     isExpanded: $showsAdvanced
                 ) {
                     peerFieldRow(
                         .presharedKey,
-                        placeholder: String(localized: "tunnel.editor.placeholder.optional", defaultValue: "Optional"),
+                        placeholder: L10n.tr("tunnel.editor.placeholder.optional", defaultValue: "Optional"),
                         keyboard: .asciiCapable
                     )
                     peerFieldRow(
                         .persistentKeepalive,
-                        placeholder: String(localized: "tunnel.editor.placeholder.off", defaultValue: "Off"),
+                        placeholder: L10n.tr("tunnel.editor.placeholder.off", defaultValue: "Off"),
                         keyboard: .numberPad
                     )
                 }
@@ -251,7 +255,7 @@ struct PeerEditorCard: View {
                     HStack(spacing: SGSpacing.xSmall) {
                         Image(systemName: "trash.fill")
                             .font(.caption.weight(.bold))
-                        Text(String(localized: "tunnel.peer.delete", defaultValue: "Delete peer").uppercased())
+                        Text(L10n.tr("tunnel.peer.delete", defaultValue: "Delete peer").uppercased())
                             .font(SGTypography.displayCompact)
                             .tracking(0.8)
                     }
@@ -291,13 +295,15 @@ struct PeerEditorCard: View {
     private var advancedSummary: String {
         var parts: [String] = []
         if !viewModel.peerValue(for: peerID, field: .presharedKey).isEmpty {
-            parts.append("PSK set")
+            parts.append(L10n.tr("tunnel.editor.advanced.pskSet", defaultValue: "PSK set"))
         }
         let keepalive = viewModel.peerValue(for: peerID, field: .persistentKeepalive)
         if !keepalive.isEmpty {
-            parts.append("Keepalive \(keepalive)s")
+            parts.append(L10n.tr("tunnel.editor.advanced.keepalive", defaultValue: "Keepalive \(keepalive)s"))
         }
-        return parts.isEmpty ? "Preshared key, keepalive" : parts.joined(separator: " · ")
+        return parts.isEmpty
+            ? L10n.tr("tunnel.editor.advanced.peerSummary", defaultValue: "Preshared key, keepalive")
+            : parts.joined(separator: " · ")
     }
 
     private func peerFieldRow(
@@ -325,11 +331,11 @@ struct OnDemandEditorCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            BrutalistSectionBar(title: String(localized: "tunnel.section.onDemand", defaultValue: "On-Demand Activation"))
+            BrutalistSectionBar(title: L10n.tr("tunnel.section.onDemand", defaultValue: "On-Demand Activation"))
 
             VStack(spacing: SGSpacing.small) {
                 BrutalistFormToggleRow(
-                    title: String(localized: "tunnel.onDemand.cellular", defaultValue: "Cellular"),
+                    title: L10n.tr("tunnel.onDemand.cellular", defaultValue: "Cellular"),
                     isOn: $viewModel.isCellularOnDemandEnabled,
                     activeTint: SGColor.popYellow
                 )
@@ -337,7 +343,7 @@ struct OnDemandEditorCard: View {
                 Rectangle().fill(SGColor.borderSubtle).frame(height: 1)
 
                 BrutalistFormToggleRow(
-                    title: String(localized: "tunnel.onDemand.wifi", defaultValue: "Wi-Fi"),
+                    title: L10n.tr("tunnel.onDemand.wifi", defaultValue: "Wi-Fi"),
                     isOn: $viewModel.isWiFiOnDemandEnabled,
                     activeTint: SGColor.popYellow
                 )
@@ -347,7 +353,7 @@ struct OnDemandEditorCard: View {
 
                     Button(action: onEditSSIDs) {
                         HStack(spacing: SGSpacing.small) {
-                            Text(String(localized: "tunnel.onDemand.ssids", defaultValue: "SSIDs").uppercased())
+                            Text(L10n.tr("tunnel.onDemand.ssids", defaultValue: "SSIDs").uppercased())
                                 .font(SGTypography.metricLabel)
                                 .foregroundStyle(SGColor.textSecondary)
                             Spacer()

@@ -101,7 +101,7 @@ extension TunnelStore {
             return await addProfile(profile, named: trimmedName)
         } catch {
             presentAlert(
-                title: String(localized: "alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
+                title: L10n.tr("alert.import.badConfig.title", defaultValue: "Unable to import tunnel"),
                 message: error.localizedDescription
             )
             return false
@@ -122,9 +122,14 @@ extension TunnelStore {
 
         let title: String
         if importedCount > 0 {
-            title = "Imported \(importedCount) of \(totalCount) tunnels"
+            title = L10n.tr(
+                "alert.import.partial.title",
+                defaultValue: "Imported \(importedCount) of \(totalCount) tunnels"
+            )
         } else {
-            title = failures.count == 1 ? failures[0].title : "Unable to import tunnels"
+            title = failures.count == 1
+                ? failures[0].title
+                : L10n.tr("alert.import.multipleFailed.title", defaultValue: "Unable to import tunnels")
         }
 
         let message = failures

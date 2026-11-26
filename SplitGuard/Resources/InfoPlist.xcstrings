@@ -1,0 +1,76 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "NSCameraUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard nutzt die Kamera zum Scannen von WireGuard-QR-Codes."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard uses the camera to scan WireGuard configuration QR codes."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard usa la cámara para escanear códigos QR de configuración de WireGuard."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard utilise la caméra pour scanner les QR codes de configuration WireGuard."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard gebruikt de camera om WireGuard-QR-codes te scannen."
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard nutzt Face ID, um private Schlüssel und Tunnel-Exporte zu schützen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard uses Face ID to protect private keys and tunnel exports."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard usa Face ID para proteger las claves privadas y la exportación de túneles."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard utilise Face ID pour protéger les clés privées et l'exportation des tunnels."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SplitGuard gebruikt Face ID om privésleutels en tunnelexports te beschermen."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

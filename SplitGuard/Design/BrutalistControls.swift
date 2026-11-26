@@ -48,7 +48,11 @@ struct BrutalistToggle: View {
         .buttonStyle(.plain)
         .disabled(!isInteractive)
         .accessibilityLabel(accessibilityLabelText)
-        .accessibilityValue(isOn ? "On" : "Off")
+        .accessibilityValue(
+            isOn
+                ? L10n.tr("common.on", defaultValue: "On")
+                : L10n.tr("common.off", defaultValue: "Off")
+        )
         .accessibilityAddTraits(.isButton)
     }
 }
@@ -125,9 +129,66 @@ struct BrutalistSegmentedControl<Selection: Hashable>: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
-                .accessibilityValue(option.showsAlert ? Text("Needs attention") : Text(""))
+                .accessibilityValue(
+                    option.showsAlert
+                        ? Text(L10n.tr("common.needsAttention", defaultValue: "Needs attention"))
+                        : Text("")
+                )
 
                 if index < options.count - 1 {
+                    Rectangle()
+                        .fill(SGColor.borderInk)
+                        .frame(width: SGBorder.regular)
+                }
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .clipShape(RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous)
+                .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.regular)
+        )
+        .background(
+            RoundedRectangle(cornerRadius: SGRadius.sharp, style: .continuous)
+                .fill(SGColor.shadowSurface)
+                .offset(x: 3, y: 3)
+        )
+    }
+}
+
+// MARK: - Brutalist Flag Segmented Picker
+
+struct BrutalistFlagSegmentedControl: View {
+    @Binding var selection: AppLanguage
+    let languages: [AppLanguage]
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(languages.enumerated()), id: \.element.id) { index, language in
+                let isSelected = selection == language
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    if reduceMotion {
+                        selection = language
+                    } else {
+                        withAnimation(.snappy(duration: 0.18)) {
+                            selection = language
+                        }
+                    }
+                } label: {
+                    Text(language.flag)
+                        .font(.system(size: 24))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(isSelected ? SGColor.popYellow : SGColor.surfaceCard)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(language.nativeName)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+
+                if index < languages.count - 1 {
                     Rectangle()
                         .fill(SGColor.borderInk)
                         .frame(width: SGBorder.regular)
