@@ -1,6 +1,44 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
+    ".CONF FILES" : {
+
+    },
+    "(%@ ms)" : {
+
+    },
+    "%@: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "+%@ more domain%@ → %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "+%1$@ more domain%2$@ → %3$@"
+          }
+        }
+      }
+    },
+    "+%@ more excluded → Normal DNS" : {
+
+    },
+    ">>" : {
+
+    },
+    "ABOUT" : {
+
+    },
     "action.cancel" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -45,6 +83,15 @@
         }
       }
     },
+    "ADD" : {
+
+    },
+    "ADD EXCEPTION" : {
+
+    },
+    "ADD YOUR TUNNEL.\nSPLIT YOUR DNS.\nKEEP EVERYTHING ELSE FAST." : {
+
+    },
     "addTunnel.menu.fromScratch" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -77,6 +124,9 @@
           }
         }
       }
+    },
+    "ALERT AFTER" : {
+
     },
     "alert.import.badConfig.title" : {
       "extractionState" : "manual",
@@ -364,6 +414,66 @@
         }
       }
     },
+    "Collapsed" : {
+
+    },
+    "COPIED" : {
+
+    },
+    "DELETE" : {
+
+    },
+    "Delete \"%@\"? This removes its saved configuration." : {
+
+    },
+    "Derived from private key" : {
+
+    },
+    "DONE" : {
+
+    },
+    "EXCLUDE" : {
+
+    },
+    "Expanded" : {
+
+    },
+    "Found in the peer endpoint. Covers its subdomains; the endpoint itself stays on normal DNS." : {
+
+    },
+    "FROM SCRATCH" : {
+
+    },
+    "github.com/wdudokvanheel/SplitGuard" : {
+
+    },
+    "GUARD" : {
+
+    },
+    "IMPORT" : {
+
+    },
+    "Includes private keys • Requires Face ID or passcode" : {
+
+    },
+    "Inspect live tunnel and extension logs" : {
+
+    },
+    "Keep %@ on normal DNS?" : {
+
+    },
+    "KEEP ON NORMAL DNS" : {
+
+    },
+    "LOADING LOG…" : {
+
+    },
+    "LOADING TUNNELS…" : {
+
+    },
+    "LOCAL NETWORK" : {
+
+    },
     "log.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -374,6 +484,40 @@
           }
         }
       }
+    },
+    "Matches %@ and *.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Matches %1$@ and *.%2$@"
+          }
+        }
+      }
+    },
+    "MODE" : {
+
+    },
+    "Needs attention" : {
+
+    },
+    "No domains configured" : {
+
+    },
+    "Notifications are turned off for SplitGuard in iOS Settings. Allow notifications to receive health alerts." : {
+
+    },
+    "OPEN SETTINGS" : {
+
+    },
+    "PASTE CONFIG" : {
+
+    },
+    "PASTE CONFIGURATION INSTEAD" : {
+
+    },
+    "PASTE FROM CLIPBOARD" : {
+
     },
     "privacy.exportPrivateKeys" : {
       "extractionState" : "manual",
@@ -396,6 +540,9 @@
           }
         }
       }
+    },
+    "PRIVATE WIREGUARD + SPLIT DNS" : {
+
     },
     "qr.scan.namePromptTitle" : {
       "extractionState" : "manual",
@@ -430,6 +577,12 @@
         }
       }
     },
+    "ROUTING PREVIEW" : {
+
+    },
+    "SCAN QR CODE" : {
+
+    },
     "settings.exportZip" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -462,6 +615,30 @@
           }
         }
       }
+    },
+    "SPLIT" : {
+
+    },
+    "STATUS" : {
+
+    },
+    "Subdomains are included automatically. Paste several domains separated by commas." : {
+
+    },
+    "TEST" : {
+
+    },
+    "TEST A NAME" : {
+
+    },
+    "The VPN's DNS servers, separated by commas. Lookups routed through the VPN use these." : {
+
+    },
+    "This is the peer endpoint, so it can always be resolved before the tunnel is up." : {
+
+    },
+    "Tunnel is inactive — lookup used the current network's DNS." : {
+
     },
     "tunnel.delete" : {
       "extractionState" : "manual",
@@ -1113,6 +1290,36 @@
           }
         }
       }
+    },
+    "TURN ON HEALTH ALERTS" : {
+
+    },
+    "Turn on health alerts to be notified if the server becomes unreachable while traffic is blocked." : {
+
+    },
+    "USE" : {
+
+    },
+    "USE VPN DNS FOR" : {
+
+    },
+    "Use VPN DNS for %@?" : {
+
+    },
+    "VERSION %@" : {
+
+    },
+    "Version and source code" : {
+
+    },
+    "VIEW ON GITHUB" : {
+
+    },
+    "WHICH LOOKUPS USE THE VPN'S DNS?" : {
+
+    },
+    "WIREGUARD CLIENT + SPLIT DNS" : {
+
     }
   },
   "version" : "1.0"
