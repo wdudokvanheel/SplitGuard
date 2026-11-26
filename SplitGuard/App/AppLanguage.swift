@@ -16,21 +16,6 @@ enum AppLanguage: String, CaseIterable, Identifiable, Hashable, Sendable {
 
     var id: String { rawValue }
 
-    var flag: String {
-        switch self {
-        case .english:
-            return "🇬🇧"
-        case .spanish:
-            return "🇪🇸"
-        case .french:
-            return "🇫🇷"
-        case .german:
-            return "🇩🇪"
-        case .dutch:
-            return "🇳🇱"
-        }
-    }
-
     var nativeName: String {
         switch self {
         case .english:

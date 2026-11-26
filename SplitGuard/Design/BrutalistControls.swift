@@ -178,11 +178,18 @@ struct BrutalistFlagSegmentedControl: View {
                         }
                     }
                 } label: {
-                    Text(language.flag)
-                        .font(.system(size: 24))
+                    LanguageFlag(language: language)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
-                        .background(isSelected ? SGColor.popYellow : SGColor.surfaceCard)
+                        .frame(height: 44)
+                        .saturation(isSelected ? 1 : 0.55)
+                        .overlay(SGColor.surfaceCard.opacity(isSelected ? 0 : 0.35))
+                        .overlay {
+                            if isSelected {
+                                Rectangle()
+                                    .strokeBorder(SGColor.borderInk, lineWidth: SGBorder.thick)
+                            }
+                        }
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(language.nativeName)

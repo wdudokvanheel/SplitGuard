@@ -25,6 +25,7 @@
 		27B077AB934FE6EEB224394F /* DebugManualStepToolboxExtra.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2EA1A38FDBD89941908D3C1 /* DebugManualStepToolboxExtra.swift */; };
 		2903864294E413746AE3921E /* DebugBundledFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B061BDB1EAAF9E24FABAB0E8 /* DebugBundledFixtures.swift */; };
 		2930D522E0917B8A532082B4 /* TunnelRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F8E1A5E2ED59BA28D5BC0BD /* TunnelRowView.swift */; };
+		299C1F573D7EDB76D48BF1DA /* LanguageFlag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89FB915BF84259A1D566387B /* LanguageFlag.swift */; };
 		2D07EFCA4534FA38DC00922F /* OnDemandPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BE6AC3D54CBED4658CBFE7D /* OnDemandPolicy.swift */; };
 		2D41CA8B8267602FFACF8BA4 /* HealthAlertNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66972A8BA46071DC7D18F061 /* HealthAlertNotifications.swift */; };
 		2E68C5299449768567CA56A2 /* LogViewerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5644447A294CA614AF1236 /* LogViewerViewModel.swift */; };
@@ -211,6 +212,7 @@
 		81CDBBF10853A7A9E8CBBB9F /* DebugVerificationReviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugVerificationReviewFixtures.swift; sourceTree = "<group>"; };
 		81D4F3516E1C76A2E94CC214 /* PasteConfigSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteConfigSheet.swift; sourceTree = "<group>"; };
 		88FDED757D93B7E12A12D7ED /* HealthAlertsEditorCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthAlertsEditorCard.swift; sourceTree = "<group>"; };
+		89FB915BF84259A1D566387B /* LanguageFlag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageFlag.swift; sourceTree = "<group>"; };
 		8C43B7F862B195466AB27FE3 /* DebugVerificationNetworkChecks+LiveQuirks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DebugVerificationNetworkChecks+LiveQuirks.swift"; sourceTree = "<group>"; };
 		8D8FEB2C80BC5C7F3DB81FF1 /* BebasNeue-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BebasNeue-Regular.ttf"; sourceTree = "<group>"; };
 		9B24BB06DA07083BD9674F4C /* BrutalistComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrutalistComponents.swift; sourceTree = "<group>"; };
@@ -420,6 +422,7 @@
 				D0EAA5CC75D69B8B6595FC53 /* BrutalistControls.swift */,
 				E16598782F20CF26C5896572 /* BrutalistNavigation.swift */,
 				41DB2FEA5151B82A6687EFFA /* DesignTokens.swift */,
+				89FB915BF84259A1D566387B /* LanguageFlag.swift */,
 				1A8DAFD7AC9C8490A078F5B2 /* TunnelStatus+Presentation.swift */,
 			);
 			path = Design;
@@ -740,6 +743,7 @@
 				EEB1F27A528663390471B508 /* HealthAlertsEditorCard.swift in Sources */,
 				25504C2A119BF9A6263C2DDF /* InMemoryTunnelBackend.swift in Sources */,
 				123E8DAC4FF6DAF55A0A0D42 /* KillSwitchEditorCard.swift in Sources */,
+				299C1F573D7EDB76D48BF1DA /* LanguageFlag.swift in Sources */,
 				3C836C1652ECEAF7111CC35B /* LogViewerView.swift in Sources */,
 				2E68C5299449768567CA56A2 /* LogViewerViewModel.swift in Sources */,
 				B339DADE6322B9673C752BFD /* NameImportedTunnelView.swift in Sources */,
