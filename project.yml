@@ -2,7 +2,7 @@ name: SplitGuard
 options:
   bundleIdPrefix: com.bitechular
   deploymentTarget:
-    iOS: "26.0"
+    iOS: "18.0"
   xcodeVersion: "27.0"
   defaultConfig: Debug
 
@@ -10,8 +10,8 @@ settings:
   base:
     DEVELOPMENT_TEAM: L23NTUN6KV
     CODE_SIGN_STYLE: Automatic
-    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
-    MARKETING_VERSION: "1.1.2"
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+    MARKETING_VERSION: "1.1.5"
     CURRENT_PROJECT_VERSION: "1"
     SWIFT_VERSION: "5.0"
     ENABLE_USER_SCRIPT_SANDBOXING: NO
@@ -28,7 +28,7 @@ targets:
   SplitGuardNetworkExtension:
     type: app-extension
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "18.0"
     sources:
       - path: SplitGuardNetworkExtension/PacketTunnelProvider.swift
       - path: SplitGuardNetworkExtension/HealthAlertNotificationPoster.swift
@@ -58,7 +58,7 @@ targets:
   SplitGuard:
     type: application
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "18.0"
     sources:
       - path: SplitGuard
         excludes:
